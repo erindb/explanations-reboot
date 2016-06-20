@@ -10,7 +10,7 @@ function make_slides(f) {
      start: function() {
       exp.startT = Date.now();
       $("#total-num").html(exp.numTrials);
-      $("#total-time").html(exp.numTrials*2);
+      $("#total-time").html(7);
      }
   });
 
@@ -129,7 +129,7 @@ function make_slides(f) {
 /// init ///
 function init() {
 
-  repeatWorker = false;
+/*  repeatWorker = false;
   (function(){
       var ut_id = "erindb-explanation-20160619";
       if (UTWorkerLimitReached(ut_id)) {
@@ -138,6 +138,7 @@ function init() {
         alert("You have already completed the maximum number of HITs allowed by this requester. Please click 'Return HIT' to avoid any impact on your approval rating.");
       }
   })();
+*/
 
   exp.trials = [];
   exp.catch_trials = [];
