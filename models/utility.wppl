@@ -51,21 +51,30 @@ var coefPrior = function() {
 	return uniformDraw([-1, 0, 1]);
 };
 
-var choose = function(choice, coefficents) {
+var choose = function(consequences, coefficents) {
 	return Infer({method: 'enumerate'}, function() {
 		var action = uniformDraw(['action', 'inaction']);
-		factor(utility(choice[action], coefficents));
+		if (action=='action') {
+			factor(utility(consequences, coefficents));
+		} // inaction has no consequences in this world
 		return action;
 	});
 };
 
 var actualCoefs = {c1: 1, c2: 1};
 
-var posterior = choose({
-	action: {x1: 0, x2: 1}, 
-	inaction: {x1: 0, x2: 0}
-}, actualCoefs);
+var posterior = choose({x1: 0, x2: 1}, actualCoefs);
 
 var action = sample(posterior);
 display(posterior);
-action;
+display(action);
+
+// why was this action chosen?
+// counterfactualize over utility terms
+// possible answers:
+//		because c1=1
+//		because c2=1
+
+// for each actual pair of coefficients
+// graph a heat map of which is more likely to be
+// referenced in the explanation
