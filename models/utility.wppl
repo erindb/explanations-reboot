@@ -1,0 +1,31 @@
+/*
+
+Robot explains its behavior in a situation.
+
+environment: x1, x2
+Suppose there are two dimensions of interest: X1 and X2.
+They are continuous, x1 \in [0, 1] and x2 \in [0, 1].
+These are dimensions of the environment that *could* be terms in a utility function.
+
+utility: c1, c2
+We construct an arbitrary utility function
+with terms for each dimension.
+The values of the coefficents c1, c2 \in {-1, 0, 1}
+If X1 is good, then c1=1.
+If X1 is bad, then c1=-1.
+If it doesn't matter, c1=0.
+
+inference: choose between two x1,x2 pairs
+The agent can choose between two x1,x2 pairs.
+Depending on the terms in the utility function,
+it might make different choices,
+given the same alternatives.
+
+explain: choice
+The agent must explain its choice of one x1,x2 pair over another.
+For the sake of explanations, we can use a uniform prior over {-1, 0, 1}.
+
+explanations: terms in the utility function
+The agent can use either of its c1, c2 values as its explanation, or both.
+
+*/
