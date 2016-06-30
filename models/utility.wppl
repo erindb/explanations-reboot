@@ -165,25 +165,20 @@ display(counterfactually({
 	whatWouldThisVariableHaveBeen: 'action'
 }));
 
-'finished';
+/////////////////// explanation ///////////////////
+
+var why = function(args) {
+	var theseObservables = args.theseObservables;
+	var andNotTheseObservables = args.andNotTheseObservables;
+	var possibleExplanations = args.possibleExplanations;
+	
+}
 
 // why A?
 // why A and not B?
 // why A and not C?
 
-// counterfactually({
-// 	ifVariable: 'c1',
-// 	hadValue: 0,
-// 	thenVariable: choice,
-// 	wouldHaveBeen: B
-// })
-
-// counterfactually({
-// 	ifVariable: 'c1',
-// 	hadValue: 0,
-// 	thenVariable: choice,
-// 	wouldHaveBeen: C
-// })
+'finished';
 
 // var why = function(args) {
 // 	var thisAction = args.thisAction;
