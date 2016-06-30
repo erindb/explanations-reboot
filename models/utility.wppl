@@ -32,6 +32,14 @@ var sampleWithUniformRV = function(dist, uniformRV) {
 	};
 	check(support, 0);
 };
+var score = function(dist, value) {
+	if (dist.support().indexOf(value) == -1) {
+		// the actual value would "definitely" not happen
+		return -Infinity;
+	} else {
+		return dist.score(value);
+	}
+};
 
 // very rational agent
 var lambda = 100;
@@ -120,8 +128,11 @@ var counterfactualizeLatents = function(model, actual) {
 
 var counterfactually = function(args) {
 	var actualObservations = args.actualObservations;
-	var ifTheseThingsHadBeenTrue = args.ifTheseThingsHadBeenTrue;
-	var whatWouldThisVariableHaveBeen = args.whatWouldThisVariableHaveBeen;
+	var ifTheseThingsHadBeenTrue = args.ifTheseThingsHadBeenTrue ? args.ifTheseThingsHadBeenTrue : null;
+	var ifThisFunctionHadBeenTrue = args.ifThisFunctionHadBeenTrue ? args.ifThisFunctionHadBeenTrue : null;
+	var thenThisVariable = args.thenThisVariable;
+	var wouldHaveBeen = args.wouldHaveBeen ? args.wouldHaveBeen : null;
+	var wouldNotHaveBeen = args.wouldNotHaveBeen ? args.wouldNotHaveBeen : null;
 
 	return infer(function() {
 
@@ -140,43 +151,116 @@ var counterfactually = function(args) {
 		var cfObservables = observablesModel(cfLatents);
 
 		// conditioned on the counterfactual premise
-		mapObject(function(key, value) {
-			condition(cfObservables[key]==value);
-		}, ifTheseThingsHadBeenTrue);
+		if (ifTheseThingsHadBeenTrue) {
+			mapObject(function(key, value) {
+				condition(cfObservables[key]==value);
+			}, ifTheseThingsHadBeenTrue);
+		} else {
+			condition(ifThisFunctionHadBeenTrue(cfObservables));
+		}
 
 		// return the counterfactual query
-		return cfObservables[whatWouldThisVariableHaveBeen];
+		if (wouldHaveBeen) {
+			return cfObservables[thenThisVariable]==wouldHaveBeen;
+		} else if (wouldNotHaveBeen) {
+			return cfObservables[thenThisVariable]!=wouldNotHaveBeen;
+		} else {
+			// just return the full posterior of the query's values
+			return cfObservables[thenThisVariable];
+		}
 	});
 };
 
 var actualObservations = {c1: 1, c2: 0, action: 'A'};
 
 display("if the agent had cared about x2, it would have chosen B (1,1)")
-display(counterfactually({
+display(probability(counterfactually({
 	ifTheseThingsHadBeenTrue: {c2: 1},
 	actualObservations: actualObservations,
-	whatWouldThisVariableHaveBeen: 'action'
-}));
+	thenThisVariable: 'action',
+	wouldHaveBeen: 'B'
+}), true));
 
-display("if the agent had not cared about x1, it might have chosen B (1,1) or C (0, 1)")
-display(counterfactually({
+display("if the agent had not cared about x1, it might have chosen B (1,1)")
+display(probability(counterfactually({
 	ifTheseThingsHadBeenTrue: {c1: 0},
 	actualObservations: actualObservations,
-	whatWouldThisVariableHaveBeen: 'action'
-}));
+	thenThisVariable: 'action',
+	wouldHaveBeen: 'B'
+}), true));
 
 /////////////////// explanation ///////////////////
 
+var falsifyExplanation = function(explanation, actualObservations) {
+	if (explanation == 'c1' | explanation == 'c2') {
+		return function(cfObservables) {
+			return cfObservables[explanation] != actualObservations[explanation];
+		}
+	} else if (explanation == 'c1 and c2 independently') {
+		return function(cfObservables) {
+			return (cfObservables.c1 != actualObservations.c1 &
+				cfObservables.c2 != actualObservations.c2)==1;
+		}
+	} else if (explanation == 'c1 and c2 jointly') {
+		return function(cfObservables) {
+			return (cfObservables.c1 != actualObservations.c1 |
+				cfObservables.c2 != actualObservations.c2) == 1;
+		}
+	}
+};
+
 var why = function(args) {
-	var theseObservables = args.theseObservables;
-	var andNotTheseObservables = args.andNotTheseObservables;
+	var variableToExplain = args.variableToExplain;
+	var causeIThoughtItWouldBe = args.causeIThoughtItWouldBe ? args.causeIThoughtItWouldBe : null;
 	var possibleExplanations = args.possibleExplanations;
-	
+	var actualObservations = args.actualObservations;
+
+	return infer(function() {
+		var explanation = uniformDraw(possibleExplanations);
+
+		// counterfactually if not explanation,
+		// then "variableToExplain" would be different
+		// (and might have been "causeIThoughtItWouldBe")
+		var ifExplanationWereFalse = falsifyExplanation(explanation, actualObservations);
+		var ifNotExplanationCounterfactual = counterfactually({
+			ifThisFunctionHadBeenTrue: ifExplanationWereFalse,
+			actualObservations: actualObservations,
+			thenThisVariable: variableToExplain,
+			wouldHaveBeen: causeIThoughtItWouldBe ? causeIThoughtItWouldBe : null,
+			wouldNotHaveBeen: actualObservations[variableToExplain]
+		});
+		factor(score(ifNotExplanationCounterfactual, true));
+
+		return "because " + explanation + "=" + actualObservations[explanation];
+	});
 }
 
+display("Why A?");
 // why A?
+// because if not ___ then not A.
+display(why({
+	variableToExplain: 'action',
+	possibleExplanations: ['c1', 'c2'],
+	actualObservations: {action: 'A', c1: 1, c2: 0}
+}));
+
+display("Why A (and not B)?")
 // why A and not B?
+display(why({
+	variableToExplain: 'action',
+	causeIThoughtItWouldBe: 'B',
+	possibleExplanations: ['c1', 'c2'],
+	actualObservations: {action: 'A', c1: 1, c2: 0}
+}));
+
+display("Why A (and not C)?")
 // why A and not C?
+display(why({
+	variableToExplain: 'action',
+	causeIThoughtItWouldBe: 'C',
+	possibleExplanations: ['c1', 'c2'],
+	actualObservations: {action: 'A', c1: 1, c2: 0}
+}));
 
 'finished';
 
