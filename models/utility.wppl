@@ -1,173 +1,396 @@
-/*
+// Robot explains its behavior in a situation.
 
-Robot explains its behavior in a situation.
+// environment: x1, x2
 
-environment: x1, x2
-Suppose there are two dimensions of interest: X1 and X2.
-They are continuous, x1 \in [0, 1] and x2 \in [0, 1].
-These are dimensions of the environment that *could* be terms in a utility function.
+// utility: c1, c2
 
-utility: c1, c2
-We construct an arbitrary utility function
-with terms for each dimension.
-The values of the coefficents c1, c2 \in {-1, 0, 1}
-If X1 is good, then c1=1.
-If X1 is bad, then c1=-1.
-If it doesn't matter, c1=0.
+// inference: softmax with utility: c1*x1 + c2*x2
 
-inference: choose between two x1,x2 pairs
-The agent can choose between two x1,x2 pairs.
-Depending on the terms in the utility function,
-it might make different choices,
-given the same alternatives.
+// explain: choice between:
+// 	A (1,0)
+// 	B (1,1)
+// 	C (0,1)
+// Why A?
 
-explain: choice
-The agent must explain its choice of one x1,x2 pair over another.
-For the sake of explanations, we can use a uniform prior over {-1, 0, 1}.
+// explanations: c1, c2, c1 OR c2, c1 AND c2
 
-explanations: terms in the utility function
-The agent can use either of its c1, c2 values as its explanation, or both.
+// some utilities
+var infer = function(fn) {return Infer({method: 'enumerate'}, fn); };
+var probability = function(dist, value) {return Math.exp(dist.score(value));};
+var sampleWithUniformRV = function(dist, uniformRV) {
+	var support = dist.support();
+	var check = function(elems, probabilityMassSoFar) {
+		var elemToCheck = first(elems);
+		if (elems.length==1) {return elemToCheck;}
+		var probabilityMass = probabilityMassSoFar + probability(dist, elemToCheck);
+		if (uniformRV < probabilityMass) {
+			return elemToCheck;
+		} else {
+			var elemsRemaining = rest(elems);
+			return check(elemsRemaining, probabilityMass);
+		}
+	};
+	check(support, 0);
+};
 
-*/
+// very rational agent
+var lambda = 100;
 
-var states = [
-	{x1: 0, x2: 0},
-	{x1: 0, x2: 0.5},
-	{x1: 0, x2: 1},
-	{x1: 0.5, x2: 0},
-	{x1: 0.5, x2: 0.5},
-	{x1: 0.5, x2: 1},
-	{x1: 1, x2: 0},
-	{x1: 1, x2: 0.5},
-	{x1: 1, x2: 1}
-];
+/////////////////// utility program specification ///////////////////
 
+// state choices
+var states = {
+	A: {x1: 1, x2: 0},
+	B: {x1: 1, x2: 1},
+	C: {x1: 0, x2: 1}
+};
+
+// priors on coefficients in utility function
+var coefPrior = function() {
+	// care or don't care about a dimension
+	return uniformDraw([0, 1]);
+};
+
+var discreteUniform = infer(function() {
+	return uniformDraw([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]);
+});
+
+// utility functin just weithds the dimensions of the state by the coefficients
 var utility = function(state, coefficents) {
 	return coefficents.c1 * state.x1 +
 		coefficents.c2 * state.x2;
 };
 
-var coefPrior = function() {
-	return uniformDraw([0, 1]);
-};
+var determineAction = function(args) {
+	// get action from posterior given an independent randomness variable "actionRandomness"
+	var coefs = args.coefs;
+	var actionRandomness = args.actionRandomness;
 
-var choose = function(consequences, coefficents) {
-	return Infer({method: 'enumerate'}, function() {
-		var action = uniformDraw(['action', 'inaction']);
-		if (action=='action') {
-			factor(utility(consequences, coefficents));
-		} // inaction has no consequences in this world
-		return action;
+	// produces a posterior on actions based on the utilities of its possible actions
+	var actionPosterior = infer(function() {
+		// sample a state at uniform - no prior costs to options
+		var stateLabel = uniformDraw(['A', 'B', 'C']);
+		var state = states[stateLabel];
+
+		// weight states by utility
+		// calculate utilities of states based on your coefficients.
+		factor(lambda * utility(state, coefs));
+
+		return stateLabel;
 	});
+
+	var action = sampleWithUniformRV(actionPosterior, actionRandomness);
+
+	return action;
 };
 
-// var actualCoefs = {c1: 1, c2: 1};
+var mydist = infer(function() {
+	var stateLabel = uniformDraw(['A', 'B', 'C']);
+	var state = states[stateLabel];
 
-// var posterior = choose({x1: 0, x2: 1}, actualCoefs);
+	// weight states by utility
+	// calculate utilities of states based on your coefficients.
+	factor(lambda * utility(state, {c1: 1, c2: 0}));
 
-// var action = sample(posterior);
-// display(posterior);
-// display(action);
-
-// why was this action chosen?
-// counterfactualize over utility terms
-// possible answers:
-//		because c1=1
-//		because c2=1
-
-// for each actual pair of coefficients
-// graph a heat map of which is more likely to be
-// referenced in the explanation *of its most probable action*
-// i feel weird about explaining the unlikely action...
-// I feel like the answer should be "well P(action)=blahblah" even though...
-
-var discreteUniform = Infer(
-	{method: 'rejection', samples:100},
-	function(){return uniform(0,1);}
-);
-var prob = function(dist, val) {
-	return Math.exp(dist.score(val));
-};
-
-var explanationsPrior = function() {
-	return uniformDraw([ ['c1'], ['c2'], ['c1', 'c2'] ]);
-};
-
-var counterfactuallyifnot = function(explanation, params) {
-	var actualCoefs = params.actualCoefs;
-	var actualAction = params.actualAction;
-	var consequences = params.consequences;
-	var s = params.stickiness;
-
-	Infer({method: 'enumerate'}, function() {
-		// these inferences are actually unnecessary...
-		// but in theory, there could be latent variables, too
-		// so I'm keeping them around
-		var coefs = {
-			c1: coefPrior(),
-			c2: coefPrior()
-		};
-		condition(coefs.c1==actualCoefs.c1);
-		condition(coefs.c2==actualCoefs.c2);
-
-		var actionThreshold = sample(discreteUniform);
-		var actionPosterior = choose(consequences, coefs);
-		var actionProbability = prob(actionPosterior, 'action');
-		var action = (actionProbability >= actionThreshold ? 'action' : 'inaciton');
-		condition(action==actualAction);
-
-		var cfCoefs = {
-			c1: flip(s) ? coefs.c1 : coefPrior(),
-			c2: flip(s) ? coefs.c2 : coefPrior()
-		};
-		var cfActionThreshold = (flip(s) ? actionThreshold : sample(discreteUniform));
-		var cfAction = (actionProbability >= cfActionThreshold ? 'action' : 'inaciton');
-
-		// counterfactually, if not explanation...
-		// i.e. if that variable(s) did not have that value...
-		var explanationCoefs = map(function(ci) { return actualCoefs[ci] != cfCoefs[ci]; }, explanation);
-		var notTheSame = sum(explanationCoefs)>=1;
-		condition(notTheSame);
-
-		// then actual action would be unlikely
-		return cfAction==actualAction;
-	});
-};
-
-var explain = function(params) {
-	var actualCoefs = params.actualCoefs;
-	var actualAction = params.actualAction;
-	var consequences = params.consequences;
-	var s = params.stickiness;
-
-	return Infer({method: 'enumerate'}, function() {
-
-		var explanation = explanationsPrior();
-
-		var then = counterfactuallyifnot(explanation, params);
-		// then actual action would be unlikely
-		factor(prob(then, false));
-
-		return explanation;
-	})
-};
-
-explain({
-	actualCoefs: {c1: 0, c2: 1},
-	actualAction: 'action',
-	consequences: {x1: 1, x2: 1},
-	stickiness: 0.53
+	return stateLabel;
 });
 
-// var coefs = {
-// 	c1: coefPrior(),
-// 	c2: coefPrior()
+display(mydist);
+// display(sampleWithUniformRV(mydist, 0));
+display(sampleWithUniformRV(mydist, 0.1));
+display(sampleWithUniformRV(mydist, 0.2));
+display(sampleWithUniformRV(mydist, 0.3));
+display(sampleWithUniformRV(mydist, 0.4));
+display(sampleWithUniformRV(mydist, 0.5));
+display(sampleWithUniformRV(mydist, 0.6));
+display(sampleWithUniformRV(mydist, 0.7));
+display(sampleWithUniformRV(mydist, 0.8));
+display(sampleWithUniformRV(mydist, 0.9));
+// display(sampleWithUniformRV(mydist, 1));
+
+'finished';
+
+// display('A');
+// display(determineAction({ coefs: {c1: 1, c2: 0}, actionRandomness: 0.3 }));
+// display('B');
+// display(determineAction({ coefs: {c1: 1, c2: 0}, actionRandomness: 0.6 }));
+// display('B');
+// determineAction({ coefs: {c1: 1, c2: 0}, actionRandomness: 0.9 });
+// display('C');
+// determineAction({ coefs: {c1: 1, c2: 0}, actionRandomness: 1 });
+
+// var independentLatentsModel = function() {
+// 	// to do: eventually insert checks that these are independent
+// 	// these variables are either explanations, with their priors so we can counterfactualize
+// 	// or unkown, unobservable sources of randomness
+// 	return {
+// 		actionRandomness: sample(discreteUniform),
+// 		c1: coefPrior(),
+// 		c2: coefPrior()
+// 	}
 // };
-// var actionThreshold = sample(discreteUniform);
-// var actionPosterior = choose({x1: 0, x2: 1}, coefs);
-// var actionProbability = prob(actionPosterior, 'action');
-// var action = (actionProbability >= actionThreshold ? 'action' : 'inaciton');
-// display(actionPosterior);
-// display(actionProbability);
-// display(actionThreshold);
-// action
+// var observablesModel = function(independentRandomness) {
+// 	var actionRandomness = independentRandomness.actionRandomness;
+// 	var c1 = independentRandomness.c1;
+// 	var c2 = independentRandomness.c2;
+// 	var coefs = {c1: c1, c2: c2};
+// 	var action = getAction({coefs: coefs, actionRandomness: actionRandomness});
+// 	return {
+// 		c1: c1,
+// 		c2: c2,
+// 		action: action
+// 	}
+// };
+
+// /////////////////// counterfactualization ///////////////////
+
+// var counterfactually = function(args) {
+// 	var actualObservations = args.actualObservations;
+// 	var actualAction = args.actualAction;
+
+// 	return infer(function() {
+// 		// generate an actual world
+// 		// conditioned on observed actual observables
+// 		var actualLatents = independentLatentsModel();
+// 		var actualObservables = observablesModel(actualLatents);
+// 		// for each observation, confirm it has that value
+// 		mapObject(function(key, value) {
+// 			condition(actualObservables[key]==value);
+// 		}, actualObservations);
+// 		// factor(sum(mapObject(function(key, value) {
+// 		// 	return 0;
+// 		// }, actualObservations)));
+
+// 		// generate a conterfactual world
+// 		// hooked to the generated actual world
+// 		// conditioned on the counterfactual premise
+// 		// return the counterfactual query
+// 		return actualObservables;
+// 	});
+// };
+
+// var actualObservations = {c1: 1, c2: 0};
+// var actualAction = 'A';
+
+// display("if the agent had cared about x2, it would have chosen B (1,1)")
+// counterfactually({
+// 	actualObservations: actualObservations,
+// 	actualAction: actualAction
+// });
+
+// var counterfactually = function(args) {
+// 	var ifVariable = args.ifVariable;
+// 	var hadValue = args.hadValue;
+// 	var thenVariable = args.thenVariable;
+// 	var wouldHaveBeen = args.wouldHaveBeen;
+// 	var actualCoefs = args.actualCoefs;
+// 	var actualAction = args.actualAction;
+// 	var s = 0.53; // stickiness
+
+// 	// get posterior distribution of the "thenVariable"
+// 	// conditioned on the "ifVariable" having the value "hadValue"
+// 	var counterfactualPosterior = infer(function() {
+
+// 		// infer anything latent based on the actual coefs
+// 		// and the actual action.
+// 		var coefs = {
+// 			c1: coefPrior(),
+// 			c2: coefPrior()
+// 		};
+// 		var actionThreshold = sample(discreteUniform);
+// 		var action = getAction({coefs: coefs, actionThreshold: actionThreshold});
+// 		condition(coefs.c1==actualCoefs.c1);
+// 		condition(coefs.c2==actualCoefs.c2);
+// 		condition(action==actualAction);
+
+// 		// var cfCoefs = {
+// 		// 	c1: flip(s) ? coefs.c1 : coefPrior(),
+// 		// 	c2: flip(s) ? coefs.c2 : coefPrior()
+// 		// };
+// 		// var cfActionThreshold = (flip(s) ? actionThreshold : sample(discreteUniform));
+// 		// var cfAction = (actionProbability >= cfActionThreshold ? 'action' : 'inaciton');
+
+// 		// // infer counterfactuals based on the actual
+// 		// var cfCoefs = {
+// 		// 	c1: flip(s) ? coefs.c1 : coefPrior(),
+// 		// 	c2: flip(s) ? coefs.c2 : coefPrior()
+// 		// };
+
+// 		// condition(cfCoefs[ifVariable] == hadValue);
+
+// 		// return thenVariable;
+// 		return 'thenVariable';
+// 	});
+// 	return probability(counterfactualPosterior, wouldHaveBeen);
+// };
+
+// var actualCoefs = {c1: 1, c2: 0};
+// var actualAction = 'A';
+// // why A?
+// // why A and not B?
+// // why A and not C?
+
+// display("if the agent had cared about x2, it would have chosen B (1,1)")
+// counterfactually({
+// 	ifVariable: 'c2',
+// 	hadValue: 1,
+// 	thenVariable: 'choice',
+// 	wouldHaveBeen: 'B',
+// 	actualCoefs: actualCoefs,
+// 	actualAction: actualAction
+// })
+
+// counterfactually({
+// 	ifVariable: 'c1',
+// 	hadValue: 0,
+// 	thenVariable: choice,
+// 	wouldHaveBeen: B
+// })
+
+// counterfactually({
+// 	ifVariable: 'c1',
+// 	hadValue: 0,
+// 	thenVariable: choice,
+// 	wouldHaveBeen: C
+// })
+
+// var why = function(args) {
+// 	var thisAction = args.thisAction;
+// 	var andNotThatAction = args.andNotThatAction;
+// 	var possibleExplanations = args.possibleExplanations;
+
+// 	return Infer({method: 'enumerate'}, function() {
+// 		var explanation = uniformDraw(possibleExplanations);
+// 		return explanation;
+// 	});
+// };
+
+// why({
+// 	thisAction: 'A',
+// 	andNotThatAction: 'B',
+// 	possibleExplanations: ['c1', 'c2', 'both independently', 'both jointly']
+// });
+
+// // MAP
+// var choose = function(consequences, coefficents) {
+// 	return Infer({method: 'enumerate'}, function() {
+// 		var action = uniformDraw(['action', 'inaction']);
+// 		if (action=='action') {
+// 			factor(utility(consequences, coefficents));
+// 		} // inaction has no consequences in this world
+// 		return action;
+// 	});
+// };
+
+// choose.MAP();
+
+// // var actualCoefs = {c1: 1, c2: 1};
+
+// // var posterior = choose({x1: 0, x2: 1}, actualCoefs);
+
+// // var action = sample(posterior);
+// // display(posterior);
+// // display(action);
+
+// // why was this action chosen?
+// // counterfactualize over utility terms
+// // possible answers:
+// //		because c1=1
+// //		because c2=1
+
+// // for each actual pair of coefficients
+// // graph a heat map of which is more likely to be
+// // referenced in the explanation *of its most probable action*
+// // i feel weird about explaining the unlikely action...
+// // I feel like the answer should be "well P(action)=blahblah" even though...
+
+// var discreteUniform = Infer(
+// 	{method: 'rejection', samples:100},
+// 	function(){return uniform(0,1);}
+// );
+// var prob = function(dist, val) {
+// 	return Math.exp(dist.score(val));
+// };
+
+// var explanationsPrior = function() {
+// 	return uniformDraw([ ['c1'], ['c2'], ['c1', 'c2'] ]);
+// };
+
+// var counterfactuallyifnot = function(explanation, params) {
+// 	var actualCoefs = params.actualCoefs;
+// 	var actualAction = params.actualAction;
+// 	var consequences = params.consequences;
+// 	var s = params.stickiness;
+
+// 	Infer({method: 'enumerate'}, function() {
+// 		// these inferences are actually unnecessary...
+// 		// but in theory, there could be latent variables, too
+// 		// so I'm keeping them around
+// 		var coefs = {
+// 			c1: coefPrior(),
+// 			c2: coefPrior()
+// 		};
+// 		condition(coefs.c1==actualCoefs.c1);
+// 		condition(coefs.c2==actualCoefs.c2);
+
+// 		var actionThreshold = sample(discreteUniform);
+// 		var actionPosterior = choose(consequences, coefs);
+// 		var actionProbability = prob(actionPosterior, 'action');
+// 		var action = (actionProbability >= actionThreshold ? 'action' : 'inaciton');
+// 		condition(action==actualAction);
+
+// 		var cfCoefs = {
+// 			c1: flip(s) ? coefs.c1 : coefPrior(),
+// 			c2: flip(s) ? coefs.c2 : coefPrior()
+// 		};
+// 		var cfActionThreshold = (flip(s) ? actionThreshold : sample(discreteUniform));
+// 		var cfAction = (actionProbability >= cfActionThreshold ? 'action' : 'inaciton');
+
+// 		// counterfactually, if not explanation...
+// 		// i.e. if that variable(s) did not have that value...
+// 		var explanationCoefs = map(function(ci) { return actualCoefs[ci] != cfCoefs[ci]; }, explanation);
+// 		var notTheSame = sum(explanationCoefs)>=1;
+// 		condition(notTheSame);
+
+// 		// then actual action would be unlikely
+// 		return cfAction==actualAction;
+// 	});
+// };
+
+// var explain = function(params) {
+// 	var actualCoefs = params.actualCoefs;
+// 	var actualAction = params.actualAction;
+// 	var consequences = params.consequences;
+// 	var s = params.stickiness;
+
+// 	return Infer({method: 'enumerate'}, function() {
+
+// 		var explanation = explanationsPrior();
+
+// 		var then = counterfactuallyifnot(explanation, params);
+// 		// then actual action would be unlikely
+// 		factor(prob(then, false));
+
+// 		return explanation;
+// 	})
+// };
+
+// explain({
+// 	actualCoefs: {c1: 0, c2: 1},
+// 	actualAction: 'action',
+// 	consequences: {x1: 1, x2: 1},
+// 	stickiness: 0.53
+// });
+
+// // var coefs = {
+// // 	c1: coefPrior(),
+// // 	c2: coefPrior()
+// // };
+// // var actionThreshold = sample(discreteUniform);
+// // var actionPosterior = choose({x1: 0, x2: 1}, coefs);
+// // var actionProbability = prob(actionPosterior, 'action');
+// // var action = (actionProbability >= actionThreshold ? 'action' : 'inaciton');
+// // display(actionPosterior);
+// // display(actionProbability);
+// // display(actionThreshold);
+// // action
