@@ -84,99 +84,77 @@ var determineAction = function(args) {
 	return action;
 };
 
-var mydist = infer(function() {
-	var stateLabel = uniformDraw(['A', 'B', 'C']);
-	var state = states[stateLabel];
+var independentLatentsModel = function() {
+	// to do: eventually insert checks that these are independent
+	// these variables are either explanations, with their priors so we can counterfactualize
+	// or unkown, unobservable sources of randomness
+	return {
+		actionRandomness: sample(discreteUniform),
+		c1: coefPrior(),
+		c2: coefPrior()
+	}
+};
+var observablesModel = function(independentLatents) {
+	var actionRandomness = independentLatents.actionRandomness;
+	var c1 = independentLatents.c1;
+	var c2 = independentLatents.c2;
+	var coefs = {c1: c1, c2: c2};
+	var action = determineAction({coefs: coefs, actionRandomness: actionRandomness});
+	return {
+		c1: c1,
+		c2: c2,
+		action: action
+	}
+};
 
-	// weight states by utility
-	// calculate utilities of states based on your coefficients.
-	factor(lambda * utility(state, {c1: 1, c2: 0}));
+/////////////////// counterfactualization ///////////////////
 
-	return stateLabel;
+var counterfactualizeLatents = function(model, actual) {
+	var s = 0.53; //stickiness
+	var totallyDifferent = model();
+
+	return mapObject(function(key, value) {
+		return flip(s) ? actual[key] : totallyDifferent[key];
+	}, actual);
+}
+
+var counterfactually = function(args) {
+	var actualObservations = args.actualObservations;
+	var ifTheseThingsHadBeenTrue = args.ifTheseThingsHadBeenTrue;
+
+	return infer(function() {
+
+		// generate an actual world (with latent random states)
+		// conditioned on actual observables
+		var actualLatents = independentLatentsModel();
+		var actualObservables = observablesModel(actualLatents);
+		// for each observation, confirm it has that value
+		mapObject(function(key, value) {
+			condition(actualObservables[key]==value);
+		}, actualObservations);
+
+		// generate a conterfactual world
+		// hooked to the generated actual world
+		var cfLatents = counterfactualizeLatents(independentLatentsModel, actualLatents);
+		var cfObservables = observablesModel(cfLatents);
+
+		// conditioned on the counterfactual premise
+		mapObject(function(key, value) {
+			condition(cfObservables[key]==value);
+		}, ifTheseThingsHadBeenTrue);
+
+		// return the counterfactual query
+		return cfObservables;
+	});
+};
+
+var actualObservations = {c1: 1, c2: 0, action: 'A'};
+
+display("if the agent had cared about x2, it would have chosen B (1,1)")
+counterfactually({
+	ifTheseThingsHadBeenTrue: {c2: 1},
+	actualObservations: actualObservations
 });
-
-display(mydist);
-// display(sampleWithUniformRV(mydist, 0));
-display(sampleWithUniformRV(mydist, 0.1));
-display(sampleWithUniformRV(mydist, 0.2));
-display(sampleWithUniformRV(mydist, 0.3));
-display(sampleWithUniformRV(mydist, 0.4));
-display(sampleWithUniformRV(mydist, 0.5));
-display(sampleWithUniformRV(mydist, 0.6));
-display(sampleWithUniformRV(mydist, 0.7));
-display(sampleWithUniformRV(mydist, 0.8));
-display(sampleWithUniformRV(mydist, 0.9));
-// display(sampleWithUniformRV(mydist, 1));
-
-'finished';
-
-// display('A');
-// display(determineAction({ coefs: {c1: 1, c2: 0}, actionRandomness: 0.3 }));
-// display('B');
-// display(determineAction({ coefs: {c1: 1, c2: 0}, actionRandomness: 0.6 }));
-// display('B');
-// determineAction({ coefs: {c1: 1, c2: 0}, actionRandomness: 0.9 });
-// display('C');
-// determineAction({ coefs: {c1: 1, c2: 0}, actionRandomness: 1 });
-
-// var independentLatentsModel = function() {
-// 	// to do: eventually insert checks that these are independent
-// 	// these variables are either explanations, with their priors so we can counterfactualize
-// 	// or unkown, unobservable sources of randomness
-// 	return {
-// 		actionRandomness: sample(discreteUniform),
-// 		c1: coefPrior(),
-// 		c2: coefPrior()
-// 	}
-// };
-// var observablesModel = function(independentRandomness) {
-// 	var actionRandomness = independentRandomness.actionRandomness;
-// 	var c1 = independentRandomness.c1;
-// 	var c2 = independentRandomness.c2;
-// 	var coefs = {c1: c1, c2: c2};
-// 	var action = getAction({coefs: coefs, actionRandomness: actionRandomness});
-// 	return {
-// 		c1: c1,
-// 		c2: c2,
-// 		action: action
-// 	}
-// };
-
-// /////////////////// counterfactualization ///////////////////
-
-// var counterfactually = function(args) {
-// 	var actualObservations = args.actualObservations;
-// 	var actualAction = args.actualAction;
-
-// 	return infer(function() {
-// 		// generate an actual world
-// 		// conditioned on observed actual observables
-// 		var actualLatents = independentLatentsModel();
-// 		var actualObservables = observablesModel(actualLatents);
-// 		// for each observation, confirm it has that value
-// 		mapObject(function(key, value) {
-// 			condition(actualObservables[key]==value);
-// 		}, actualObservations);
-// 		// factor(sum(mapObject(function(key, value) {
-// 		// 	return 0;
-// 		// }, actualObservations)));
-
-// 		// generate a conterfactual world
-// 		// hooked to the generated actual world
-// 		// conditioned on the counterfactual premise
-// 		// return the counterfactual query
-// 		return actualObservables;
-// 	});
-// };
-
-// var actualObservations = {c1: 1, c2: 0};
-// var actualAction = 'A';
-
-// display("if the agent had cared about x2, it would have chosen B (1,1)")
-// counterfactually({
-// 	actualObservations: actualObservations,
-// 	actualAction: actualAction
-// });
 
 // var counterfactually = function(args) {
 // 	var ifVariable = args.ifVariable;
