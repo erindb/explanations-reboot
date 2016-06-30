@@ -121,6 +121,7 @@ var counterfactualizeLatents = function(model, actual) {
 var counterfactually = function(args) {
 	var actualObservations = args.actualObservations;
 	var ifTheseThingsHadBeenTrue = args.ifTheseThingsHadBeenTrue;
+	var whatWouldThisVariableHaveBeen = args.whatWouldThisVariableHaveBeen;
 
 	return infer(function() {
 
@@ -144,79 +145,31 @@ var counterfactually = function(args) {
 		}, ifTheseThingsHadBeenTrue);
 
 		// return the counterfactual query
-		return cfObservables;
+		return cfObservables[whatWouldThisVariableHaveBeen];
 	});
 };
 
 var actualObservations = {c1: 1, c2: 0, action: 'A'};
 
 display("if the agent had cared about x2, it would have chosen B (1,1)")
-counterfactually({
+display(counterfactually({
 	ifTheseThingsHadBeenTrue: {c2: 1},
-	actualObservations: actualObservations
-});
+	actualObservations: actualObservations,
+	whatWouldThisVariableHaveBeen: 'action'
+}));
 
-// var counterfactually = function(args) {
-// 	var ifVariable = args.ifVariable;
-// 	var hadValue = args.hadValue;
-// 	var thenVariable = args.thenVariable;
-// 	var wouldHaveBeen = args.wouldHaveBeen;
-// 	var actualCoefs = args.actualCoefs;
-// 	var actualAction = args.actualAction;
-// 	var s = 0.53; // stickiness
+display("if the agent had not cared about x1, it might have chosen B (1,1) or C (0, 1)")
+display(counterfactually({
+	ifTheseThingsHadBeenTrue: {c1: 0},
+	actualObservations: actualObservations,
+	whatWouldThisVariableHaveBeen: 'action'
+}));
 
-// 	// get posterior distribution of the "thenVariable"
-// 	// conditioned on the "ifVariable" having the value "hadValue"
-// 	var counterfactualPosterior = infer(function() {
+'finished';
 
-// 		// infer anything latent based on the actual coefs
-// 		// and the actual action.
-// 		var coefs = {
-// 			c1: coefPrior(),
-// 			c2: coefPrior()
-// 		};
-// 		var actionThreshold = sample(discreteUniform);
-// 		var action = getAction({coefs: coefs, actionThreshold: actionThreshold});
-// 		condition(coefs.c1==actualCoefs.c1);
-// 		condition(coefs.c2==actualCoefs.c2);
-// 		condition(action==actualAction);
-
-// 		// var cfCoefs = {
-// 		// 	c1: flip(s) ? coefs.c1 : coefPrior(),
-// 		// 	c2: flip(s) ? coefs.c2 : coefPrior()
-// 		// };
-// 		// var cfActionThreshold = (flip(s) ? actionThreshold : sample(discreteUniform));
-// 		// var cfAction = (actionProbability >= cfActionThreshold ? 'action' : 'inaciton');
-
-// 		// // infer counterfactuals based on the actual
-// 		// var cfCoefs = {
-// 		// 	c1: flip(s) ? coefs.c1 : coefPrior(),
-// 		// 	c2: flip(s) ? coefs.c2 : coefPrior()
-// 		// };
-
-// 		// condition(cfCoefs[ifVariable] == hadValue);
-
-// 		// return thenVariable;
-// 		return 'thenVariable';
-// 	});
-// 	return probability(counterfactualPosterior, wouldHaveBeen);
-// };
-
-// var actualCoefs = {c1: 1, c2: 0};
-// var actualAction = 'A';
-// // why A?
-// // why A and not B?
-// // why A and not C?
-
-// display("if the agent had cared about x2, it would have chosen B (1,1)")
-// counterfactually({
-// 	ifVariable: 'c2',
-// 	hadValue: 1,
-// 	thenVariable: 'choice',
-// 	wouldHaveBeen: 'B',
-// 	actualCoefs: actualCoefs,
-// 	actualAction: actualAction
-// })
+// why A?
+// why A and not B?
+// why A and not C?
 
 // counterfactually({
 // 	ifVariable: 'c1',
