@@ -37,59 +37,147 @@ in the regression as explanations of the misclassifications.
 // read data
 // 
 
-var data = utilities.readCSV("logistic-data.csv", {types: ['num','num','bool'], header: true}).data;
-var training = data.slice(0, 50);
-var test = data.slice(50, data.length);
+// webppl logistic.wppl --require utilities
 
-var sigmoid = function(t) {
-	return 1/(1 + Math.exp(-t));
-};
+// constants
+var DATA = utilities.readCSV("logistic-data.csv", {types: ['num','num','bool','str'], header: true}).data;
+var TRAIN = filter(function(d) {d.set=='train'}, DATA);
+var TEST = filter(function(d) {d.set=='test'}, DATA);
+var NTRAIN = TRAIN.length;
+var NTEST = TEST.length;
 
-var structurePrior = function() {
-	uniformDraw(['b1', 'b2', 'b1+b2']);
-};
-
-// translation of: http://forestdb.org/models/logistic-regression.html
-var trainLogisticRegression = cache(function(args) {
-	var data = args.data;
-	var structure = args.structure;
-
-	return Infer( {method: 'SMC', particles: 100}, function() {
-		var intercept = gaussian(0, 1);
-		var b1 = gaussian(0, 1);
-		var b2 = gaussian(0, 1);
-		var variance = gamma(1, 1);
-
-		var predict = function(d, structure) {
-			if (structure=='b1') {
-				return sigmoid(gaussian( intercept + b1*d.x1, variance));
-			} else if (structure=='b2') {
-				return sigmoid(gaussian( intercept + b2*d.x2, variance));
-			} else if (structure=='b1+b2') {
-				return sigmoid(gaussian( intercept + b1*d.x1 + b2*d.x2, variance));
-			}
-		};
-
-		factor(0.01 * sum(map(function(d) {
-			// factor by log prob of actual label
-			var probTrue = predict(d, structure)
-			var probLabel = d.label ? probTrue : 1-probTrue;
-			return Math.log(probLabel);
-		}, data)));
-
-		return {intercept: intercept, b1: b1, b2: b2, variance: variance};
-	});
+var probability = function(dist, value) {return Math.exp(dist.score(value));};
+var discreteUniform = Infer({method: 'rejection', samples: 1000}, function() {
+  return uniform(0, 1);
 });
+var sampleWithUniformRV = function(args) {
+	var prob = args.probability;
+	var randomness = args.randomness;
+	return randomness <= prob;
+};
 
-var classifierPosterior = trainLogisticRegression({data: training, structure: 'b1+b2'});
-var intercept = expectation(classifierPosterior, function(x){x.intercept});
-var b1 = expectation(classifierPosterior, function(x){x.b1});
-var b2 = expectation(classifierPosterior, function(x){x.b2});
-var variance = expectation(classifierPosterior, function(x){x.variance});
-display(intercept);
-display(b1);
-display(b2);
-display(variance);
+var independentLatentsModel = function() {
+	var isTermInRegressionPrior = flip;
+	var dataRandomnessPairs = map(function(i) {
+		return ['r'+i, sample(discreteUniform)];
+	}, utilities.range(0, NTEST));
+	var allRandomness = dataRandomnessPairs.concat([
+		['b1', isTermInRegressionPrior()],
+		['b2', isTermInRegressionPrior()]
+	]);
+	return _.object(allRandomness);
+};
+
+var observablesModel = function(independentLatents) {
+
+	var sigmoid = function(t) {
+		return 1 / (1 + Math.exp(-t));
+	};
+	var predict = function(args) {
+		var y = function(d, modelParams) {
+			if (modelParams.structure == 'b1') {
+				return modelParams.b1*d.x1;
+			} else if (modelParams.structure == 'b2') {
+				return modelParams.b2*d.x2;
+			} else if (modelParams.structure == 'b1+b2') {
+				return modelParams.b1*d.x1 + modelParams.b2*d.x2;
+			}
+			display('ERROR 14325: NOT IMPLEMENTED');
+		};
+		var d = args.d;
+		var modelParams = args.modelParams;
+		return sigmoid(gaussian(y(d, modelParams), modelParams.variance));
+	};
+	var fitLogisticRegression = function(includeB1, includeB2) {
+		return {structure: 'b1', b1: 1, b2: null, variance: 1};
+	};
+
+	var includeB1 = independentLatents.b1;
+	var includeB2 = independentLatents.b2;
+
+	var trainedRegression = fitLogisticRegression(includeB1, includeB2);
+
+	var observedPairs = map(function(i) {
+		// predict, using randomness in independentLatents.
+		var probTrue = predict({
+			d: TEST[i],
+			modelParams: trainedRegression
+		});
+		var randomness = independentLatents['r'+i];
+		var classification = sampleWithUniformRV({
+			probability: probTrue,
+			randomness: randomness
+		});
+		return ['y'+i, classification];
+	}, utilities.range(0, NTEST));
+
+	var allObservables = observedPairs.concat([
+		['structure', trainedRegression.structure],
+		['includeB1', includeB1],
+		['includeB2', includeB2]
+	]);
+
+	// return classificatins
+	// and whether or not each dimension was a term in regression
+	return _.object(allObservables);
+};
+
+var latents = independentLatentsModel();
+var observables = observablesModel(latents);
+display(observables);
+
+// var sigmoid = function(t) {
+// 	return 1/(1 + Math.exp(-t));
+// };
+
+// var trainLogisticRegression = function(args) {
+// 	var training = args.training;
+// 	// no inference, just return max fit for params intercept, b1, b2, and variance.
+// };
+
+// // translation of: http://forestdb.org/models/logistic-regression.html
+// var trainLogisticRegression = cache(function(args) {
+// 	var data = args.data;
+// 	var structure = args.structure;
+
+// 	return Optimize(function() {
+// 		var intercept = gaussian(0, 1);
+// 		var b1 = gaussian(0, 1);
+// 		var b2 = gaussian(0, 1);
+// 		var variance = gamma(1, 1);
+
+// 		var predict = function(d, structure) {
+// 			if (structure=='b1') {
+// 				return sigmoid(gaussian( intercept + b1*d.x1, variance));
+// 			} else if (structure=='b2') {
+// 				return sigmoid(gaussian( intercept + b2*d.x2, variance));
+// 			} else if (structure=='b1+b2') {
+// 				return sigmoid(gaussian( intercept + b1*d.x1 + b2*d.x2, variance));
+// 			}
+// 		};
+
+// 		factor(sum(map(function(d) {
+// 			// factor by log prob of actual label
+// 			var probTrue = predict(d, structure)
+// 			var probLabel = d.label ? probTrue : 1-probTrue;
+// 			return Math.log(probLabel);
+// 		}, data)));
+
+// 		// return {intercept: intercept, b1: b1, b2: b2, variance: variance};
+// 	}, {optMethod: 'sgd', steps: 100});
+// });
+
+// display(trainLogisticRegression({data: data, structure: 'b1+b2'}));
+
+// var classifierPosterior = trainLogisticRegression({data: training, structure: 'b1+b2'});
+// var intercept = expectation(classifierPosterior, function(x){x.intercept});
+// var b1 = expectation(classifierPosterior, function(x){x.b1});
+// var b2 = expectation(classifierPosterior, function(x){x.b2});
+// var variance = expectation(classifierPosterior, function(x){x.variance});
+// display(intercept);
+// display(b1);
+// display(b2);
+// display(variance);
 
 // var classify()
 

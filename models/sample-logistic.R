@@ -27,21 +27,22 @@ expand.grid(
   geom_tile() +
   theme_few()
 
-n = 100
+n = 20
 data = data.frame(
   x1 = runif(n, min=a, max=b),
-  x2 = runif(n, min=a, max=b)) %>%
+  x2 = runif(n, min=a, max=b),
+  set = c(rep('train', 50), rep('test', 50))) %>%
   mutate(
     ydet = m + b1*x1 + b2*x2,
     y = mapply(function(m,s) {return(rnorm(1, mean=m, sd=s))}, ydet, sigma),
     probs = sigmoid(y),
-    labels = (sapply(probs, function(p) {return(rbinom(1,1,p))})==1))
-ggplot(data, aes(x1, x2, colour=labels)) +
+    label = (sapply(probs, function(p) {return(rbinom(1,1,p))})==1))
+ggplot(data, aes(x1, x2, colour=label, shape=set)) +
   geom_point(size=3) +
   theme_few(base_size = 18) +
-  scale_colour_brewer('Label', palette = "Paired")
+  scale_colour_brewer(palette = "Paired")
 ggsave('logistic-data-plot.png', width=10, height=6)
 
 data %>%
-  select(x1, x2, labels) %>%
+  select(x1, x2, label) %>%
   write.csv(., row.names = F, col.names = T, file = 'logistic-data.csv')

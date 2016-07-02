@@ -236,31 +236,60 @@ var why = function(args) {
 	});
 }
 
-display("Why A?");
-// why A?
-// because if not ___ then not A.
+// display("Why A?");
+// // why A?
+// // because if not ___ then not A.
+// display(why({
+// 	variableToExplain: 'action',
+// 	possibleExplanations: ['c1', 'c2'],
+// 	actualObservations: {action: 'A', c1: 1, c2: 0}
+// }));
+
+// display("Why A (and not B)?")
+// // why A and not B?
+// display(why({
+// 	variableToExplain: 'action',
+// 	causeIThoughtItWouldBe: 'B',
+// 	possibleExplanations: ['c1', 'c2'],
+// 	actualObservations: {action: 'A', c1: 1, c2: 0}
+// }));
+
+// display("Why A (and not C)?")
+// // why A and not C?
+// display(why({
+// 	variableToExplain: 'action',
+// 	causeIThoughtItWouldBe: 'C',
+// 	possibleExplanations: ['c1', 'c2'],
+// 	actualObservations: {action: 'A', c1: 1, c2: 0}
+// }));
+
+display("Why B?")
+// why A and not C?
 display(why({
 	variableToExplain: 'action',
-	possibleExplanations: ['c1', 'c2'],
-	actualObservations: {action: 'A', c1: 1, c2: 0}
+	// possibleExplanations: ['c1', 'c2'],
+	possibleExplanations: ['c1', 'c2', 'c1 and c2 jointly', 'c1 and c2 independently'],
+	actualObservations: {action: 'B', c1: 1, c2: 1}
 }));
 
-display("Why A (and not B)?")
-// why A and not B?
+display("Why B (and not A)?")
+// why A and not C?
 display(why({
 	variableToExplain: 'action',
-	causeIThoughtItWouldBe: 'B',
-	possibleExplanations: ['c1', 'c2'],
-	actualObservations: {action: 'A', c1: 1, c2: 0}
+	causeIThoughtItWouldBe: 'A',
+	// possibleExplanations: ['c1', 'c2'],
+	possibleExplanations: ['c1', 'c2', 'c1 and c2 jointly', 'c1 and c2 independently'],
+	actualObservations: {action: 'B', c1: 1, c2: 1}
 }));
 
-display("Why A (and not C)?")
+display("Why B (and not C)?")
 // why A and not C?
 display(why({
 	variableToExplain: 'action',
 	causeIThoughtItWouldBe: 'C',
-	possibleExplanations: ['c1', 'c2'],
-	actualObservations: {action: 'A', c1: 1, c2: 0}
+	// possibleExplanations: ['c1', 'c2'],
+	possibleExplanations: ['c1', 'c2', 'c1 and c2 jointly', 'c1 and c2 independently'],
+	actualObservations: {action: 'B', c1: 1, c2: 1}
 }));
 
 'finished';
