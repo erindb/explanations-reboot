@@ -76,11 +76,13 @@ var observablesModel = function(independentLatents) {
 	var predict = function(args) {
 		var y = function(d, modelParams) {
 			if (modelParams.structure == 'b1') {
-				return modelParams.b1*d.x1;
+				return modelParams.intercept + modelParams.b1*d.x1;
 			} else if (modelParams.structure == 'b2') {
-				return modelParams.b2*d.x2;
+				return modelParams.intercept + modelParams.b2*d.x2;
 			} else if (modelParams.structure == 'b1+b2') {
-				return modelParams.b1*d.x1 + modelParams.b2*d.x2;
+				return modelParams.intercept + modelParams.b1*d.x1 + modelParams.b2*d.x2;
+			} else if (modelParams.structure == 'interceptOnly') {
+				return modelParams.intercept;
 			}
 			display('ERROR 14325: NOT IMPLEMENTED');
 		};
@@ -89,7 +91,26 @@ var observablesModel = function(independentLatents) {
 		return sigmoid(gaussian(y(d, modelParams), modelParams.variance));
 	};
 	var fitLogisticRegression = function(includeB1, includeB2) {
-		return {structure: 'b1', b1: 1, b2: null, variance: 1};
+		var getStructure = function(b1, b2) {
+			if (b1) {
+				if (b2) {
+					return 'b1+b2';
+				} else {
+					return 'b1';
+				}
+			} else {
+				if (b2) {
+					return 'b2';
+				} else {
+					return 'interceptOnly';
+				}
+			}
+		};
+		var structure = getStructure(includeB1, includeB2);
+		// predict for each datapoint in training set
+		// for cost function...
+		// map(function(d) {return predict({d: d, modelParams: modelParams})}, TRAIN);
+		return {structure: structure, intercept: 0, b1: 1, b2: null, variance: 1};
 	};
 
 	var includeB1 = independentLatents.b1;

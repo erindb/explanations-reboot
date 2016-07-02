@@ -31,7 +31,7 @@ n = 20
 data = data.frame(
   x1 = runif(n, min=a, max=b),
   x2 = runif(n, min=a, max=b),
-  set = c(rep('train', 50), rep('test', 50))) %>%
+  set = c(rep('train', n/2), rep('test', n/2))) %>%
   mutate(
     ydet = m + b1*x1 + b2*x2,
     y = mapply(function(m,s) {return(rnorm(1, mean=m, sd=s))}, ydet, sigma),
@@ -44,5 +44,5 @@ ggplot(data, aes(x1, x2, colour=label, shape=set)) +
 ggsave('logistic-data-plot.png', width=10, height=6)
 
 data %>%
-  select(x1, x2, label) %>%
+  select(x1, x2, label, set) %>%
   write.csv(., row.names = F, col.names = T, file = 'logistic-data.csv')
