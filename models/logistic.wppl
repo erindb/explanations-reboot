@@ -88,35 +88,13 @@ var observablesModel = function(independentLatents) {
 		};
 		var d = args.d;
 		var modelParams = args.modelParams;
-		return sigmoid(gaussian(y(d, modelParams), modelParams.variance));
-	};
-	var fitLogisticRegression = function(includeB1, includeB2) {
-		var getStructure = function(b1, b2) {
-			if (b1) {
-				if (b2) {
-					return 'b1+b2';
-				} else {
-					return 'b1';
-				}
-			} else {
-				if (b2) {
-					return 'b2';
-				} else {
-					return 'interceptOnly';
-				}
-			}
-		};
-		var structure = getStructure(includeB1, includeB2);
-		// predict for each datapoint in training set
-		// for cost function...
-		// map(function(d) {return predict({d: d, modelParams: modelParams})}, TRAIN);
-		return {structure: structure, intercept: 0, b1: 1, b2: null, variance: 1};
+		return sigmoid(y(d, modelParams));
 	};
 
 	var includeB1 = independentLatents.b1;
 	var includeB2 = independentLatents.b2;
 
-	var trainedRegression = fitLogisticRegression(includeB1, includeB2);
+	var trainedRegression = utilities.fitLogisticRegression(includeB1, includeB2, TRAIN);
 
 	var observedPairs = map(function(i) {
 		// predict, using randomness in independentLatents.
@@ -147,86 +125,6 @@ var latents = independentLatentsModel();
 var observables = observablesModel(latents);
 display(observables);
 
-// var sigmoid = function(t) {
-// 	return 1/(1 + Math.exp(-t));
-// };
-
-// var trainLogisticRegression = function(args) {
-// 	var training = args.training;
-// 	// no inference, just return max fit for params intercept, b1, b2, and variance.
-// };
-
-// // translation of: http://forestdb.org/models/logistic-regression.html
-// var trainLogisticRegression = cache(function(args) {
-// 	var data = args.data;
-// 	var structure = args.structure;
-
-// 	return Optimize(function() {
-// 		var intercept = gaussian(0, 1);
-// 		var b1 = gaussian(0, 1);
-// 		var b2 = gaussian(0, 1);
-// 		var variance = gamma(1, 1);
-
-// 		var predict = function(d, structure) {
-// 			if (structure=='b1') {
-// 				return sigmoid(gaussian( intercept + b1*d.x1, variance));
-// 			} else if (structure=='b2') {
-// 				return sigmoid(gaussian( intercept + b2*d.x2, variance));
-// 			} else if (structure=='b1+b2') {
-// 				return sigmoid(gaussian( intercept + b1*d.x1 + b2*d.x2, variance));
-// 			}
-// 		};
-
-// 		factor(sum(map(function(d) {
-// 			// factor by log prob of actual label
-// 			var probTrue = predict(d, structure)
-// 			var probLabel = d.label ? probTrue : 1-probTrue;
-// 			return Math.log(probLabel);
-// 		}, data)));
-
-// 		// return {intercept: intercept, b1: b1, b2: b2, variance: variance};
-// 	}, {optMethod: 'sgd', steps: 100});
-// });
-
-// display(trainLogisticRegression({data: data, structure: 'b1+b2'}));
-
-// var classifierPosterior = trainLogisticRegression({data: training, structure: 'b1+b2'});
-// var intercept = expectation(classifierPosterior, function(x){x.intercept});
-// var b1 = expectation(classifierPosterior, function(x){x.b1});
-// var b2 = expectation(classifierPosterior, function(x){x.b2});
-// var variance = expectation(classifierPosterior, function(x){x.variance});
-// display(intercept);
-// display(b1);
-// display(b2);
-// display(variance);
-
-// var classify()
-
-// // logisticRegression({data: data});
-
-// display(expectation(logisticRegression({
-// 	data: data,
-// 	structure: 'b1'
-// })));
-
-// (define samples
-//   (mh-query 
-
-//    1000 10
-
-//    (define (y x)
-//      (gaussian (+ (* m x) b) sigma-squared))
-
-//    (define (sigmoid x)
-//      (/ 1 (+ 1 (exp (* -1 (y x))))))
-
-//    (sigmoid 8)
-
-//    (all
-//     (map (lambda (x label) (equal? (flip (sigmoid x) label) label))
-//          xs
-//          labels))))
-
-// (density samples "P(label=#t) for x=8" #t)
+// display(utilities.fitLogisticRegression(false, false, TRAIN));
 
 "finished"
