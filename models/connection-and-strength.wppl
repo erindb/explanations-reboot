@@ -1,0 +1,114 @@
+// A because B
+
+var infer = function(fn) {return Infer({method: 'enumerate'}, fn); };
+var discreteUniform = function() {
+	return uniformDraw([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]);
+};
+
+var latentsModel = function() {
+	return {
+		// are A and B connected?
+		// what is the probability of B given A?
+		model: uniformDraw([
+			{causallyConnected: true, causalStrength: 0.9},
+			{causallyConnected: true, causalStrength: 0.5},
+			{causallyConnected: true, causalStrength: 0.1},
+			{causallyConnected: false, causalStrength: 0}
+		]),
+		priorA: flip(0.1),
+		backgroundB: flip(0.1),
+		causeABRandomness: discreteUniform()
+	};
+};
+
+var getBValue = function(model, backgroundB, causeABRandomness, A) {
+	if (backgroundB) {
+		return true
+	} else if (model.causallyConnected) {
+		if (A) {
+			if (causeABRandomness <= model.causalStrength) {
+				return true;
+			}
+		}
+	}
+	return false;
+};
+
+var statesModel = function(latents) {
+	var A = latents.priorA;
+	var B = getBValue(latents.model, latents.backgroundB, latents.causeABRandomness, A);
+	var causallyConnected = (latents.model).causallyConnected;
+	var causalStrength = (latents.model).causalStrength;
+	return {
+		A: A,
+		B: B,
+		causallyConnected: causallyConnected,
+		causalStrength: causalStrength
+	}
+};
+
+var counterfactualizeLatents = function(model, actual) {
+	var s = 0.53; //stickiness
+	var totallyDifferent = model();
+
+	return mapObject(function(key, value) {
+		return flip(s) ? actual[key] : totallyDifferent[key];
+	}, actual);
+};
+
+var counterfactually = cache(function(args) {
+	var ifVariable = args.ifVariable;
+	var hadBeen = args.hadBeen;
+	var thenVariable = args.thenVariable;
+	var wouldhaveBeen = args.wouldhaveBeen;
+	var givenActualLatents = args.givenActualLatents;
+	var andActualStates = args.andActualStates;
+	return infer(function() {
+		var cfLatents = counterfactualizeLatents(latentsModel, givenActualLatents);
+		var cfStates = statesModel(cfLatents);
+		condition(cfStates[ifVariable]==hadBeen);
+		return cfStates[thenVariable]==wouldhaveBeen
+	});
+});
+
+var because = function(explanans, explanandum, latents, states) {
+	// if not explanans, then not explanandum
+	return sample(counterfactually({
+		ifVariable: explanans,
+		hadBeen: false,
+		thenVariable: explanandum,
+		wouldhaveBeen: false,
+		givenActualLatents: latents, // should these get passed through???
+		andActualStates: states
+	}));
+};
+
+var meaning = function(utterance, latents, states) {
+	if (utterance=="B because A") {
+		return because("A", "B", latents, states);
+	} else if (utterance=="A because B") {
+		return because("B", "A", latents, states);
+	} else if (utterance=="") {
+		return true;
+	}
+};
+
+var literal = function(utterance) {
+	return function() {
+		var latents = latentsModel();
+		var states = statesModel(latents);
+		condition(meaning(utterance, latents, states));
+		return states;
+	};
+};
+
+var actualWorld = {
+	A: true,
+	B: true,
+	causallyConnected: true,
+	causalStrength: 0.9
+};
+
+var model = literal("B because A");
+
+"finished"
