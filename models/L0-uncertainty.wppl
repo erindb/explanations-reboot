@@ -1,67 +1,33 @@
-// A, B, C
+/*
+the simplest thing to do would be to have the variables learned in the causal schemata paper
+and communicate about those.
+but those parameters aren't independent of each other or the observable data.
+when we counterfactualize, we get problems. i think. with like, the levels of counterfactualization,
+we also thought maybe stickiness before... i will articulate this.
+*/
 
-var infer = function(fn) {return Infer({method: 'enumerate'}, fn)};
-var score = function(p) {return Math.log(p);};
+// logit(s) is drawn from a gaussian with mean mu and variance sigsquared.
+// sigsquared is drawn from an inverse gamma with shape parameter a and 
+// scale beforeand mu is drawn from a gaussina with mean m and variance n 
+// times sig squared. we set v=10, a=2, b= 0.3 for all continuous variables. 
+// for strength variables, m=1 and background m= -1
 
-var observations = {
-	A: true,
-	B: true,
-	C: true,
-	'A->B': 0.9,
-	'B->A': 0,
-	'->A': 0.5,
-	'->B': 0.5,
-	'A->C': 0,
-	'C->A': 0,
-	'->C': 0,
-	'B->C': 0,
-	'C->B': 0
+var logistic = function(t) {
+	return 1 / (1 + Math.exp(-t));
 };
 
-var observablesModel = function(latents) {
-	return infer(function() {
-		var AthenB = 0.9;
-		var BthenA = 0;
-
-		var AthenC = 0;
-		var CthenA = 0;
-
-		var BthenC = 0;
-		var CthenB = 0;
-
-		var thenA = 0.5;
-		var thenB = 0.5;
-		var thenC = 0.5;
-
-		var A = flip();
-		var B = flip();
-		var C = flip();
-
-		if (A) {
-			factor(B ? score(AthenB) : -score(AthenB) );
-			factor(0);
-		}
-
-		// // if A, then B is more probable by AthenB
-		// // and !B is less probable by AthenB...?
-		// if (A) {
-		// 	factor(B ? score(AthenB) : -score(AthenB) );
-		// 	factor(C ? score(AthenC) : -score(AthenC) );
-		// }
-		// if (B) {
-		// 	factor(A ? score(BthenA) : -score(BthenA) );
-		// 	factor(C ? score(BthenC) : -score(BthenC) );
-		// }
-		// if (C) {
-		// 	factor(A ? score(CthenA) : -score(CthenA) );
-		// 	factor(B ? score(CthenB) : -score(CthenB) );
-		// }
-
-		return { A: A, B: B, C: C }
-	})
-
+var continuousParameterPrior = function(m) {
+  var mu = gaussian(m, 10);
+  var sigsquared = 1 / gamma(2, 0.3);
+  return logistic(gaussian(mu, sigsquared));
 };
 
-display(observablesModel());
+var model = function() {
+	var a = flip();
+	var g = flip();
+	var s = continuousParameterPrior(1);
+	var b = continuousParameterPrior(-1);
+	return {a: a, g: g, s: s, b: b};
+};
 
 "finished"

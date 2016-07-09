@@ -46,6 +46,18 @@ var TEST = filter(function(d) {d.set=='test'}, DATA);
 var NTRAIN = TRAIN.length;
 var NTEST = TEST.length;
 
+// some utilities
+var infer = function(fn) {return Infer({method: 'enumerate'}, fn); };
+var score = function(dist, value) {
+	if (dist.support().indexOf(value) == -1) {
+		// the actual value would "definitely" not happen
+		return -Infinity;
+	} else {
+		return dist.score(value);
+	}
+};
+// very rational agent
+var lambda = 100;
 var probability = function(dist, value) {return Math.exp(dist.score(value));};
 var discreteUniform = Infer({method: 'rejection', samples: 1000}, function() {
   return uniform(0, 1);
@@ -68,7 +80,7 @@ var independentLatentsModel = function() {
 	return _.object(allRandomness);
 };
 
-var observablesModel = function(independentLatents) {
+var observablesModel = cache(function(independentLatents) {
 
 	var sigmoid = function(t) {
 		return 1 / (1 + Math.exp(-t));
@@ -119,12 +131,166 @@ var observablesModel = function(independentLatents) {
 	// return classificatins
 	// and whether or not each dimension was a term in regression
 	return _.object(allObservables);
-};
+});
 
 var latents = independentLatentsModel();
 var observables = observablesModel(latents);
 display(observables);
 
 // display(utilities.fitLogisticRegression(false, false, TRAIN));
+
+/////////////////// counterfactualization ///////////////////
+
+var counterfactualizeLatents = function(model, actual) {
+	var s = 0.53; //stickiness
+	var totallyDifferent = model();
+
+	return mapObject(function(key, value) {
+		return flip(s) ? actual[key] : totallyDifferent[key];
+	}, actual);
+}
+
+var counterfactually = function(args) {
+	var actualObservations = args.actualObservations;
+	var ifTheseThingsHadBeenTrue = args.ifTheseThingsHadBeenTrue ? args.ifTheseThingsHadBeenTrue : null;
+	var ifThisFunctionHadBeenTrue = args.ifThisFunctionHadBeenTrue ? args.ifThisFunctionHadBeenTrue : null;
+	var thenThisVariable = args.thenThisVariable;
+	var wouldHaveBeen = args.wouldHaveBeen ? args.wouldHaveBeen : null;
+	var wouldNotHaveBeen = args.wouldNotHaveBeen ? args.wouldNotHaveBeen : null;
+
+	return infer(function() {
+
+		// generate an actual world (with latent random states)
+		// conditioned on actual observables
+		var actualLatents = independentLatentsModel();
+		var actualObservables = observablesModel(actualLatents);
+		// for each observation, confirm it has that value
+		mapObject(function(key, value) {
+			condition(actualObservables[key]==value);
+		}, actualObservations);
+
+		// generate a conterfactual world
+		// hooked to the generated actual world
+		var cfLatents = counterfactualizeLatents(independentLatentsModel, actualLatents);
+		var cfObservables = observablesModel(cfLatents);
+
+		// conditioned on the counterfactual premise
+		if (ifTheseThingsHadBeenTrue) {
+			mapObject(function(key, value) {
+				condition(cfObservables[key]==value);
+			}, ifTheseThingsHadBeenTrue);
+		} else {
+			condition(ifThisFunctionHadBeenTrue(cfObservables));
+		}
+
+		// return the counterfactual query
+		if (wouldHaveBeen) {
+			return cfObservables[thenThisVariable]==wouldHaveBeen;
+		} else if (wouldNotHaveBeen) {
+			return cfObservables[thenThisVariable]!=wouldNotHaveBeen;
+		} else {
+			// just return the full posterior of the query's values
+			return cfObservables[thenThisVariable];
+		}
+	});
+};
+
+
+// display("if the agent had cared about x2, it would have chosen B (1,1)")
+// display(probability(counterfactually({
+// 	ifTheseThingsHadBeenTrue: {c2: 1},
+// 	actualObservations: actualObservations,
+// 	thenThisVariable: 'action',
+// 	wouldHaveBeen: 'B'
+// }), true));
+
+// display("if the agent had not cared about x1, it might have chosen B (1,1)")
+// display(probability(counterfactually({
+// 	ifTheseThingsHadBeenTrue: {c1: 0},
+// 	actualObservations: actualObservations,
+// 	thenThisVariable: 'action',
+// 	wouldHaveBeen: 'B'
+// }), true));
+
+// ------------- explanation -------------
+
+var falsifyExplanation = function(explanation, actualObservations) {
+	if (explanation == 'b1' | explanation == 'b2') {
+		return function(cfObservables) {
+			return cfObservables[explanation] != actualObservations[explanation];
+		}
+	} else {
+		console.log("error 492: not implemented")
+	}
+};
+
+var why = function(args) {
+	var variableToExplain = args.variableToExplain;
+	var causeIThoughtItWouldBe = args.causeIThoughtItWouldBe ? args.causeIThoughtItWouldBe : null;
+	var possibleExplanations = args.possibleExplanations;
+	var actualObservations = args.actualObservations;
+
+	return infer(function() {
+		var explanation = uniformDraw(possibleExplanations);
+
+		// counterfactually if not explanation,
+		// then "variableToExplain" would be different
+		// (and might have been "causeIThoughtItWouldBe")
+		var ifExplanationWereFalse = falsifyExplanation(explanation, actualObservations);
+		var ifNotExplanationCounterfactual = counterfactually({
+			ifThisFunctionHadBeenTrue: ifExplanationWereFalse,
+			actualObservations: actualObservations,
+			thenThisVariable: variableToExplain,
+			wouldHaveBeen: causeIThoughtItWouldBe ? causeIThoughtItWouldBe : null,
+			wouldNotHaveBeen: actualObservations[variableToExplain]
+		});
+		factor(score(ifNotExplanationCounterfactual, true));
+
+		return "because " + explanation + "=" + actualObservations[explanation];
+	});
+}
+
+// ------------- error analysis -------------
+var errorAnalysis = function(observations) {
+	// pick out the errors
+	// explain each of them.
+	map(function(i) {
+		var correct = observations['y'+i]==TEST[i].label;
+		// if incorrect, explain why not correct.
+		if (!correct) {
+			display("why was y" + i + " incorrect?");
+			display(why({
+				variableToExplain: 'y' + i,
+				possibleExplanations: ['b1', 'b2'],
+				actualObservations: observations
+			}))
+		}
+	}, utilities.range(0, NTEST));
+};
+
+var actualObservations = { y0: true,
+  y1: false,
+  y2: true,
+  y3: true,
+  y4: true,
+  y5: true,
+  y6: true,
+  y7: true,
+  y8: true,
+  y9: false,
+  structure: 'b2',
+  includeB1: false,
+  includeB2: true
+};
+errorAnalysis(actualObservations);
+
+// display("Why B?")
+// // why A and not C?
+// display(why({
+// 	variableToExplain: 'action',
+// 	// possibleExplanations: ['c1', 'c2'],
+// 	possibleExplanations: ['c1', 'c2', 'c1 and c2 jointly', 'c1 and c2 independently'],
+// 	actualObservations: {action: 'B', c1: 1, c2: 1}
+// }));
 
 "finished"

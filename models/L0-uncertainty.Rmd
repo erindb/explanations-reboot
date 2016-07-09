@@ -1,0 +1,36 @@
+---
+title: "L0 uncertainty"
+author: "erindb"
+output: html_document
+---
+
+```{r}
+library(rwebppl)
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+library(jsonlite)
+```
+
+```{r}
+data_to_webppl = 'placeholder'
+numSamples = 500
+
+wp = webppl(
+  program_file = "L0-uncertainty.wppl",
+  data = data_to_webppl,
+  data_var = "observed_data", 
+  inference_opts = list(method="MCMC", 
+                        samples = numSamples, 
+                        burn = numSamples/2,
+                        verbose = TRUE),
+  model_var = "model",
+  output_format = "samples"
+)
+
+wp %>% gather('variable', 'value', c(a,g,s,b)) %>%
+  mutate(value=as.numeric(value)) %>%
+  ggplot(., aes(x=value)) +
+  geom_histogram(binwidth=0.01) +
+  facet_wrap(~variable)
+```

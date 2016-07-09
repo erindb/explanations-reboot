@@ -131,7 +131,7 @@ var counterfactually = function(args) {
 	var actualObservations = args.actualObservations;
 	var ifTheseThingsHadBeenTrue = args.ifTheseThingsHadBeenTrue ? args.ifTheseThingsHadBeenTrue : null;
 	var ifThisFunctionHadBeenTrue = args.ifThisFunctionHadBeenTrue ? args.ifThisFunctionHadBeenTrue : null;
-	var thenThisVariable = args.thenThisVariable;
+	var thenThisVariable = args.thenThisVariable ? args.thenThisVariable : null;
 	var wouldHaveBeen = args.wouldHaveBeen ? args.wouldHaveBeen : null;
 	var wouldNotHaveBeen = args.wouldNotHaveBeen ? args.wouldNotHaveBeen : null;
 
@@ -165,9 +165,11 @@ var counterfactually = function(args) {
 			return cfObservables[thenThisVariable]==wouldHaveBeen;
 		} else if (wouldNotHaveBeen) {
 			return cfObservables[thenThisVariable]!=wouldNotHaveBeen;
-		} else {
+		} else if (thenThisVariable) {
 			// just return the full posterior of the query's values
 			return cfObservables[thenThisVariable];
+		} else {
+			return cfObservables;
 		}
 	});
 };
@@ -236,6 +238,7 @@ var why = function(args) {
 	});
 }
 
+
 // display("Why A?");
 // // why A?
 // // because if not ___ then not A.
@@ -263,33 +266,114 @@ var why = function(args) {
 // 	actualObservations: {action: 'A', c1: 1, c2: 0}
 // }));
 
-display("Why B?")
-// why A and not C?
-display(why({
-	variableToExplain: 'action',
-	// possibleExplanations: ['c1', 'c2'],
-	possibleExplanations: ['c1', 'c2', 'c1 and c2 jointly', 'c1 and c2 independently'],
-	actualObservations: {action: 'B', c1: 1, c2: 1}
-}));
+// display("Why B?")
+// // why A and not C?
+// display(why({
+// 	variableToExplain: 'action',
+// 	// possibleExplanations: ['c1', 'c2'],
+// 	possibleExplanations: ['c1', 'c2', 'c1 and c2 jointly', 'c1 and c2 independently'],
+// 	actualObservations: {action: 'B', c1: 1, c2: 1}
+// }));
 
-display("Why B (and not A)?")
-// why A and not C?
-display(why({
-	variableToExplain: 'action',
-	causeIThoughtItWouldBe: 'A',
-	// possibleExplanations: ['c1', 'c2'],
-	possibleExplanations: ['c1', 'c2', 'c1 and c2 jointly', 'c1 and c2 independently'],
-	actualObservations: {action: 'B', c1: 1, c2: 1}
-}));
+// display("Why B (and not A)?")
+// // why A and not C?
+// display(why({
+// 	variableToExplain: 'action',
+// 	causeIThoughtItWouldBe: 'A',
+// 	// possibleExplanations: ['c1', 'c2'],
+// 	possibleExplanations: ['c1', 'c2', 'c1 and c2 jointly', 'c1 and c2 independently'],
+// 	actualObservations: {action: 'B', c1: 1, c2: 1}
+// }));
 
-display("Why B (and not C)?")
-// why A and not C?
-display(why({
-	variableToExplain: 'action',
-	causeIThoughtItWouldBe: 'C',
-	// possibleExplanations: ['c1', 'c2'],
-	possibleExplanations: ['c1', 'c2', 'c1 and c2 jointly', 'c1 and c2 independently'],
-	actualObservations: {action: 'B', c1: 1, c2: 1}
-}));
+// display("Why B (and not C)?")
+// // why A and not C?
+// display(why({
+// 	variableToExplain: 'action',
+// 	causeIThoughtItWouldBe: 'C',
+// 	// possibleExplanations: ['c1', 'c2'],
+// 	possibleExplanations: ['c1', 'c2', 'c1 and c2 jointly', 'c1 and c2 independently'],
+// 	actualObservations: {action: 'B', c1: 1, c2: 1}
+// }));
+
+/////////////////// explanation: take 2 ///////////////////
+
+// B because A means: Counterfactually if not A then not B.
+
+var because = cache(function(args) {
+	var variableToExplain = args.variableToExplain;
+	var actualValue = args.actualValue;
+	var explanation = args.explanation;
+	// counterfactually, if not explanation, then not explanans.
+	// common ground?
+	// qud?
+
+	infer(function() {
+		// counterfactually if not explanation
+		var ifExplanationWereFalse = falsifyExplanation(explanation, actualObservations);
+
+		// infer actual latents and observables
+		var actualLatents = independentLatentsModel();
+		var actualObservables = observablesModel(actualLatents);
+
+		// infer counterfactual observables
+		// factor so that in CF world, explanans is not actual value
+		var cfExplanans = counterfactually({
+			ifThisFunctionHadBeenTrue: ifExplanationWereFalse,
+			actualObservations: actualObservations,
+			thenThisVariable: variableToExplain,
+			wouldNotHaveBeen: actualValue
+		});
+		factor(score(cfExplanans, true));
+
+		actualObservations;
+	});
+});
+
+var literal = cache(function(utterance) {
+	return infer(function() {
+		var latents = independentLatentsModel();
+		var observables = observablesModel(latents);
+		if (utterance=="B because c1") {
+			factor(because({
+				variableToExplain: 'action',
+				actualValue: "B",
+				explanation: "c1"
+			}).score(observables));
+		} else if (utterance=="B because c2") {
+			factor(because({
+				variableToExplain: 'action',
+				actualValue: "B",
+				explanation: "c2"
+			}).score(observables));
+		}
+		return observables;
+	});
+});
+
+var speaker = function(observations) {
+	var utterance = uniformDraw(["B because c1", "B because c2", ""]);
+	factor(literal(utterance).score(observations));
+	return utterance;
+};
+
+display(literal("B because c1"));
+display(speaker({'action': 'B', c1: 1, c2: 1}));
+
+
+// display("B because c1");
+// display(because({
+// 	variableToExplain: 'action',
+// 	actualValue: "B",
+// 	explanation: "c1"
+// }));
+
+// display("B because c2");
+// display(because({
+// 	variableToExplain: 'action',
+// 	actualValue: "B",
+// 	explanation: "c2"
+// }));
+
+// display("B because c1? or c2?");
 
 'finished';
