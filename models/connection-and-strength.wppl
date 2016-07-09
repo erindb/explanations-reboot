@@ -73,7 +73,7 @@ var counterfactually = cache(function(args) {
 
 var because = function(explanans, explanandum, latents, states) {
 	// if not explanans, then not explanandum
-	return sample(counterfactually({
+	var counterfactuallyIfNotExplanansThenNotExplanandum = sample(counterfactually({
 		ifVariable: explanans,
 		hadBeen: false,
 		thenVariable: explanandum,
@@ -81,6 +81,10 @@ var because = function(explanans, explanandum, latents, states) {
 		givenActualLatents: latents, // should these get passed through???
 		andActualStates: states
 	}));
+	var explanansTrue = states[explanans]==true;
+	var explanandumTrue = states[explanandum]==true;
+	return explanansTrue && explanandumTrue && 
+		counterfactuallyIfNotExplanansThenNotExplanandum;
 };
 
 var meaning = function(utterance, latents, states) {
@@ -109,6 +113,13 @@ var actualWorld = {
 	causalStrength: 0.9
 };
 
-var model = literal("B because A");
+var bcauseA = literal("B because A");
+var acauseB = literal("A because B");
+var noUtterance = literal("");
+var prior = function() {
+	var latents = latentsModel();
+	var states = statesModel(latents);
+	return states;
+}
 
 "finished"

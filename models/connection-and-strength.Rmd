@@ -1,5 +1,5 @@
 ---
-title: "L0 uncertainty"
+title: "Connection and Strength Parameters"
 author: "erindb"
 output: html_document
 ---
@@ -12,25 +12,43 @@ library(dplyr)
 library(jsonlite)
 ```
 
+In this case, no connection could correspond to strength=0.
+
 ```{r}
-data_to_webppl = 'placeholder'
-numSamples = 500
+runmodel = function(model) {
+  webppl(
+    program_file = "connection-and-strength.wppl",
+    inference_opts = list(method="enumerate"),
+    model_var = model
+  )
+}
+prior = runmodel("prior") %>% mutate(model = "prior")
+bcauseA = runmodel("bcauseA") %>% mutate(model = "bcauseA")
+acauseB = runmodel("acauseB") %>% mutate(model = "acauseB")
+noUtterance = runmodel("noUtterance") %>% mutate(model = "noUtterance")
 
-wp = webppl(
-  program_file = "L0-uncertainty.wppl",
-  data = data_to_webppl,
-  data_var = "observed_data", 
-  inference_opts = list(method="MCMC", 
-                        samples = numSamples, 
-                        burn = numSamples/2,
-                        verbose = TRUE),
-  model_var = "model",
-  output_format = "samples"
-)
+rbind(prior, bcauseA, acauseB, noUtterance) %>%
+  group_by(model, causallyConnected) %>%
+  summarise(prob=sum(prob)) %>%
+  ggplot(., aes(x=causallyConnected, y=prob, fill=model)) +
+  geom_bar(stat="identity", position='dodge')
 
-wp %>% gather('variable', 'value', c(a,g,s,b)) %>%
-  mutate(value=as.numeric(value)) %>%
-  ggplot(., aes(x=value)) +
-  geom_histogram(binwidth=0.01) +
-  facet_wrap(~variable)
+rbind(prior, bcauseA, acauseB, noUtterance) %>%
+  group_by(model, causalStrength) %>%
+  summarise(prob=sum(prob)) %>%
+  ggplot(., aes(x=causalStrength, y=prob, fill=model)) +
+  geom_bar(stat="identity", position='dodge')
+
+rbind(prior, bcauseA, acauseB, noUtterance) %>%
+  group_by(model, A) %>%
+  summarise(prob=sum(prob)) %>%
+  ggplot(., aes(x=A, y=prob, fill=model)) +
+  geom_bar(stat="identity", position='dodge')
+
+rbind(prior, bcauseA, acauseB, noUtterance) %>%
+  group_by(model, B) %>%
+  summarise(prob=sum(prob)) %>%
+  ggplot(., aes(x=B, y=prob, fill=model)) +
+  geom_bar(stat="identity", position='dodge')
+
 ```
