@@ -49,41 +49,98 @@ var counterfactually = function(args) {
 	});
 };
 
-var latents = latentsModel();
-var states = statesModel(latents);
-display(states);
+var utterancePrior = function() {
+	return uniformDraw([
+		['B', 'because', 'A'],
+		[''],
+		['A', 'because', 'B']
+	]);
+};
 
-display("If not A then not B (when connected)");
-display(counterfactually({
-	ifVariable: "A",
-	hadBeen: false,
-	thenVariable: "B",
-	wouldhaveBeen: false,
-	givenActualStates: {connected: true, A: true, B: true}
-}));
-display("If not B then not A (when connected)")
-display(counterfactually({
-	ifVariable: "B",
-	hadBeen: false,
-	thenVariable: "A",
-	wouldhaveBeen: false,
-	givenActualStates: {connected: true, A: true, B: true}
-}));
-display("If not A then not B (when not connected)");
-display(counterfactually({
-	ifVariable: "A",
-	hadBeen: false,
-	thenVariable: "B",
-	wouldhaveBeen: false,
-	givenActualStates: {connected: false, A: true, B: true}
-}));
-display("If not B then not A (when not connected)")
-display(counterfactually({
-	ifVariable: "B",
-	hadBeen: false,
-	thenVariable: "A",
-	wouldhaveBeen: false,
-	givenActualStates: {connected: false, A: true, B: true}
-}));
+var literal = function(utterance) {
+	return infer(function() {
+		var latents = latentsModel();
+		var states = statesModel(latents);
+		if (utterance.length>1) {
+			if (utterance[1]=='because') {
+				var scoreUtt = counterfactually({
+					ifVariable: utterance[2],
+					hadBeen: false,
+					thenVariable: utterance[0],
+					wouldhaveBeen: false,
+					givenActualStates: states
+				}).score(true);
+				factor(scoreUtt);
+			}
+		}
+		return states;
+	});
+};
+
+var speaker = function(states, qud) {
+	return infer(function() {
+		var utterance = utterancePrior();
+		var interpretation = sample(literal(utterance));
+		// condition(_.isEqual(interpretation, states));
+		condition(interpretation[qud]==states[qud]);
+		return utterance;
+	});
+};
+
+var listener = function(utterance, qud) {
+	return infer(function() {
+		var latents = latentsModel();
+		var states = statesModel(latents);
+
+		factor(speaker(states, qud).score(utterance));
+		
+		return states[qud];
+	});
+};
+
+display(listener(['B', 'because', 'A'], 'connected'));
+
+// display(speaker({A: true, B: true, connected: true}, "connected"))
+
+// display(literal(['B', 'cause', 'A']));
+// display(literal(['']));
+// display(literal(['A', 'cause', 'B']));
+
+// var latents = latentsModel();
+// var states = statesModel(latents);
+// display(states);
+
+// display("If not A then not B (when connected)");
+// display(counterfactually({
+// 	ifVariable: "A",
+// 	hadBeen: false,
+// 	thenVariable: "B",
+// 	wouldhaveBeen: false,
+// 	givenActualStates: {connected: true, A: true, B: true}
+// }));
+// display("If not B then not A (when connected)")
+// display(counterfactually({
+// 	ifVariable: "B",
+// 	hadBeen: false,
+// 	thenVariable: "A",
+// 	wouldhaveBeen: false,
+// 	givenActualStates: {connected: true, A: true, B: true}
+// }));
+// display("If not A then not B (when not connected)");
+// display(counterfactually({
+// 	ifVariable: "A",
+// 	hadBeen: false,
+// 	thenVariable: "B",
+// 	wouldhaveBeen: false,
+// 	givenActualStates: {connected: false, A: true, B: true}
+// }));
+// display("If not B then not A (when not connected)")
+// display(counterfactually({
+// 	ifVariable: "B",
+// 	hadBeen: false,
+// 	thenVariable: "A",
+// 	wouldhaveBeen: false,
+// 	givenActualStates: {connected: false, A: true, B: true}
+// }));
 
 "finished";
