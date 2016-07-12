@@ -8,13 +8,14 @@ var infer = function(fn) {return Infer({method: 'enumerate'}, fn); };
 var latentsModel = function() {
 	return {
 		model: uniformDraw(["A->B", "A,B"]),
-		A: flip()
+		A: flip(),
+		Bbackground: flip(0.9)
 	};
 };
 
 var statesModel = function(latents) {
 	var A = latents.A;
-	var B = latents.model=="A->B" ? A : false;
+	var B = (latents.model=="A->B") ? (A || latents.Bbackground ? true : false) : (latents.Bbackground ? true : false);
 	var connected = latents.model=="A->B";
 	return { A: A, B: B, connected: connected };
 };
@@ -33,10 +34,15 @@ var counterfactually = function(args) {
 	var hadBeen = args.hadBeen;
 	var thenVariable = args.thenVariable;
 	var wouldhaveBeen = args.wouldhaveBeen;
-	var givenActualLatents = args.givenActualLatents;
-	var givenActualStates = args.givenActualStates ? args.givenActualStates : statesModel(givenActualLatents);
 	return infer(function() {
-		var cfLatents = counterfactualizeLatents(latentsModel, givenActualLatents);
+
+		var actulLatents = args.givenActualLatents ? args.givenActualLatents : latentsModel();
+		var actualStates = statesModel(actulLatents);
+		if (args.givenActualStates) {
+			condition(_.isEqual(args.givenActualStates, actualStates));
+		}
+
+		var cfLatents = counterfactualizeLatents(latentsModel, actulLatents);
 		var cfStates = statesModel(cfLatents);
 		condition(cfStates[ifVariable]==hadBeen);
 		return cfStates[thenVariable]==wouldhaveBeen
@@ -47,22 +53,37 @@ var latents = latentsModel();
 var states = statesModel(latents);
 display(states);
 
-var ifNotAThenNotB = counterfactually({
+display("If not A then not B (when connected)");
+display(counterfactually({
 	ifVariable: "A",
 	hadBeen: false,
 	thenVariable: "B",
 	wouldhaveBeen: false,
-	givenActualLatents: {model: "A->B", A: true}
-});
-var ifNotBThenNotA = counterfactually({
+	givenActualStates: {connected: true, A: true, B: true}
+}));
+display("If not B then not A (when connected)")
+display(counterfactually({
 	ifVariable: "B",
 	hadBeen: false,
 	thenVariable: "A",
 	wouldhaveBeen: false,
-	givenActualLatents: {model: "A->B", A: true}
-});
-
-display(ifNotAThenNotB);
-display(ifNotBThenNotA);
+	givenActualStates: {connected: true, A: true, B: true}
+}));
+display("If not A then not B (when not connected)");
+display(counterfactually({
+	ifVariable: "A",
+	hadBeen: false,
+	thenVariable: "B",
+	wouldhaveBeen: false,
+	givenActualStates: {connected: false, A: true, B: true}
+}));
+display("If not B then not A (when not connected)")
+display(counterfactually({
+	ifVariable: "B",
+	hadBeen: false,
+	thenVariable: "A",
+	wouldhaveBeen: false,
+	givenActualStates: {connected: false, A: true, B: true}
+}));
 
 "finished";

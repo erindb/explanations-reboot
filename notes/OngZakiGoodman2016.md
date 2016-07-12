@@ -1,6 +1,7 @@
 * Experiments:
 	1. elicit things to explain with emotions
 	2. elicit explanations for those things
+	3. multiple choice between explanation categories
 * Clustered events by ratings of what kinds of explanations are good
 	- k means with bootstrap clustering stability analyses (Hennig 2007)
 * Emotions influence actions. How?
