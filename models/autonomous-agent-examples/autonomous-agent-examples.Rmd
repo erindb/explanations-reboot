@@ -1,0 +1,171 @@
+---
+title: "Examples Explaining an Autonomous Agent's Choices"
+author: "erindb"
+output: html_document
+---
+
+```{r}
+knitr::opts_chunk$set(echo=F, warning=F, message=F)
+```
+
+```{r}
+library(rwebppl)
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+library(jsonlite)
+library(ggthemes)
+theme_new = theme_set(theme_few(base_size = 14))
+```
+
+```{r}
+forward_model = webppl(
+  program_file = "gift-example-2d.wppl",
+  inference_opts = list(method="MCMC", samples=4000),
+  model_var = "forwardModel",
+  data = data.frame(),
+  data_var = "dataFromR",
+  packages = c("./node_modules/explanations")
+)
+forward_model %>%
+  mutate(prettiness=ifelse(prettiness==1, 'should be pretty', "prettiness: meh"),
+         yumminess=ifelse(yumminess==1, 'should be yummy', "taste: meh")) %>%
+  ggplot(., aes(x=action, y=prob, fill=action, colour=action)) +
+  geom_bar(stat='identity') +
+  scale_fill_few() +
+  scale_colour_few() +
+  facet_grid(prettiness ~ yumminess) +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0)) +
+  theme(legend.position="none") +
+  xlab("choice of gift")
+```
+
+```{r}
+statesToExplainFrom = expand.grid(
+  prettiness=c(0,1),
+  yumminess=c(0,1),
+  action=c("brownies", "cupcakes", "flowers")) %>%
+  filter(!(prettiness==1 & action=="brownies")) %>%
+  filter(!(yumminess==1 & action=="flowers"))
+explanationPosteriors = webppl(
+    program_file = "gift-example-2d.wppl",
+    model_var = "explanationsModel",
+    inference_opts = list(method="enumerate"),
+    data = statesToExplainFrom,
+    data_var = "dataFromR",
+    packages = c("./node_modules/explanations")
+  ) %>%
+  # rescale so that given a state, total prob=1
+  mutate(prob = prob*nrow(statesToExplainFrom))
+
+explanationText = function(p, y, expl) {
+  if (expl=="yumminess") {
+    if (y==1) {
+      return("b/c it should be yummy")
+    } else {
+      return("b/c taste doesn't matter")
+    }
+  } else {
+    if (p==1) {
+      return("b/c it should be pretty")
+    } else {
+      return("b/c prettiness doesn't matter")
+    }
+  }
+}
+# make some graphs!
+explanationPosteriors %>%
+  mutate(
+    explanationText=mapply(explanationText,
+                           prettiness,
+                           yumminess,
+                           explanation),
+    prettinessCoef=ifelse(prettiness==1,
+                          'should be pretty',
+                          "prettiness: meh"),
+    yumminessCoef=ifelse(yumminess==1,
+                         'should be yummy',
+                         "taste: meh")) %>%
+  ggplot(., aes(x=action, y=prob, fill=explanation, colour=explanation)) +
+  geom_bar(stat="identity", position="dodge") +
+  geom_text(aes(label=explanationText,
+                x=action,
+                group=explanation,
+                y=0),
+            position=position_dodge(0.9),
+            colour='black',
+            angle=90,
+            hjust=-0.05,
+            size=2) +
+  facet_grid(prettinessCoef ~ yumminessCoef) +
+  scale_fill_few() +
+  scale_colour_few() +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0))
+```
+
+```{r}
+forward_model = webppl(
+  program_file = "gift-example-3d.wppl",
+  inference_opts = list(method="MCMC", samples=4000),
+  model_var = "forwardModel",
+  data = data.frame(),
+  data_var = "dataFromR",
+  packages = c("./node_modules/explanations")
+)
+forward_model %>%
+  mutate(utilityFunction = paste(prettiness, yumminess, shelfLife)) %>%
+  ggplot(., aes(x=action, y=prob, fill=action, colour=action)) +
+  geom_bar(stat='identity') +
+  scale_fill_few() +
+  scale_colour_few() +
+  facet_wrap( ~ utilityFunction) +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0)) +
+  theme(legend.position="none") +
+  xlab("choice of gift")
+```
+
+```{r}
+statesToExplainFrom = expand.grid(
+  prettiness=c(0,1),
+  yumminess=c(0,1),
+  shelfLife=c(0,1),
+  action=c("brownies", "cupcakes", "flowers", "letter", "wine", "necklace", "chocolates")) %>%
+  filter(!(prettiness==1 & action %in% c("brownies", "letter", "wine"))) %>%
+  filter(!(yumminess==1 & action %in% c("flowers", "necklace", "letter"))) %>%
+  filter(!(shelfLife==1 & action %in% c("cupcakes", "flowers", "brownies")))
+
+explanationPosteriors = webppl(
+    program_file = "gift-example-3d.wppl",
+    model_var = "explanationsModel",
+    inference_opts = list(method="enumerate"),
+    data = statesToExplainFrom,
+    data_var = "dataFromR",
+    packages = c("./node_modules/explanations")
+  ) %>%
+  # rescale so that given a state, total prob=1
+  mutate(prob = prob*nrow(statesToExplainFrom))
+```
+
+```{r}
+explanationPosteriors %>%
+  mutate(utilityFunction = paste(prettiness, yumminess, shelfLife),
+         action = factor(action, levels=c(
+           "flowers", "necklace", "letter",
+           "wine", "brownies", "cupcakes",
+           "chocolates"))) %>%
+  ggplot(., aes(x=action, y=prob, fill=explanation, colour=explanation)) +
+  geom_bar(stat="identity", position="dodge") +
+  geom_text(aes(label=explanationText,
+                x=action,
+                group=explanation,
+                y=0),
+            position=position_dodge(0.9),
+            colour='black',
+            angle=90,
+            hjust=-0.05,
+            size=2) +
+  facet_wrap(~utilityFunction) +
+  scale_fill_few() +
+  scale_colour_few() +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0))
+```

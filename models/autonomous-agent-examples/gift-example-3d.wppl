@@ -1,0 +1,99 @@
+var latentsModel = function() {
+	return {
+		actionRandomness: discreteUniform(),
+		prettinessCoef: uniformDraw([0, 1]),
+		yumminessCoef: uniformDraw([0, 1]),
+		shelfLifeCoef: uniformDraw([0, 1]),
+		rationality: 1000 // could change this to something lower later
+	};
+};
+
+// bring this out of statesModel so we can cache it globally
+var actionPosterior = cache(function(args) {
+	var features = {
+		cupcakes: {prettiness: 1, yumminess: 1, shelfLife: 0},
+		flowers: {prettiness: 1, yumminess: 0, shelfLife: 0},
+		brownies: {prettiness: 0, yumminess: 1, shelfLife: 0},
+		letter: {prettiness: 0, yumminess: 0, shelfLife: 1},
+		necklace: {prettiness: 1, yumminess: 0, shelfLife: 1},
+		wine: {prettiness: 0, yumminess: 1, shelfLife: 1},
+		chocolates: {prettiness: 1, yumminess: 1, shelfLife: 1}
+	};
+	var prettinessCoef = args.prettinessCoef;
+	var yumminessCoef = args.yumminessCoef;
+	var shelfLifeCoef = args.shelfLifeCoef;
+	var rationality = args.rationality;
+	return enumerate(function() {
+		var actionChoice = uniformDraw([
+			"cupcakes", "flowers", "brownies",
+			"letter", "necklace", "wine",
+			"chocolates"
+		]);
+		var utility = features[actionChoice].prettiness*prettinessCoef + 
+			features[actionChoice].yumminess*yumminessCoef +
+			features[actionChoice].shelfLife*shelfLifeCoef;
+		factor(utility*rationality);
+		return actionChoice;
+	});
+});
+
+// should we cache this? probably not, since there are
+// so many values for actionRandomness
+var statesModel = function(latents) {
+	var actionRandomness = latents.actionRandomness;
+	var prettinessCoef = latents.prettinessCoef;
+	var yumminessCoef = latents.yumminessCoef;
+	var shelfLifeCoef = latents.shelfLifeCoef;
+	var rationality = latents.rationality;
+
+	var action = explanations.inverseCDF(
+		actionPosterior({
+			prettinessCoef: prettinessCoef,
+			yumminessCoef: yumminessCoef,
+			shelfLifeCoef: shelfLifeCoef,
+			rationality: rationality
+		}),
+		actionRandomness
+	);
+
+	return {
+		prettiness: prettinessCoef,
+		yumminess: yumminessCoef,
+		shelfLife: shelfLifeCoef,
+		action: action
+	};
+};
+
+var example = initializeExample({
+	latentsModel: latentsModel,
+	statesModel: statesModel,
+	possibleExplanations: ["prettiness", 'yumminess', "shelfLife"],
+	propositions: {
+		action: function(states, actualStates) {
+			return states.action==actualStates.action;
+		},
+		prettiness: function(states, actualStates) {
+			return states.prettiness==actualStates.prettiness;
+		},
+		yumminess: function(states, actualStates) {
+			return states.yumminess==actualStates.yumminess;
+		},
+		shelfLife: function(states, actualStates) {
+			return states.shelfLife==actualStates.shelfLife;
+		}
+	},
+	inferenceOptions: {method: "MCMC", samples: 4000}
+});
+
+var why = example.why;
+var forwardModel = example.forwardModel;
+
+var explanationsModel = function() {
+	var actualStates = uniformDraw(dataFromR);
+	return sample(enumerate(why({
+		actualStates: actualStates,
+		propositionToExplain: "action"
+	})));
+};
+
+"finished";
