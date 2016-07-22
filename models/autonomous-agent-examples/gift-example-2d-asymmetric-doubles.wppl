@@ -1,0 +1,105 @@
+var latentsModel = function() {
+	// care or don't care about dimensions with equal probability
+	return {
+		// actionRandomness: sample(UniformDrift({a: 0, b: 1, r: 0.1})),
+		actionRandomnessAllChoices: uniform(0,1),
+		actionRandomnessPrettyChoices: uniform(0,1),
+		actionRandomnessYummyChoices: uniform(0,1),
+		actionRandomnessOptimalChoices: uniform(0,1),
+		prettinessCoef: uniformDraw([0, 1]),
+		yumminessCoef: uniformDraw([0, 1]),
+		rationality: 1000 // could change this to something lower later
+	};
+};
+
+// bring this out of statesModel so we can cache it globally
+var actionPosterior = cache(function(args) {
+	var features = {
+		cupcakes: {prettiness: 1, yumminess: 1},
+		chocolates: {prettiness: 1, yumminess: 1},
+		cake: {prettiness: 1, yumminess: 1},
+		pie: {prettiness: 1, yumminess: 1},
+		flowers: {prettiness: 1, yumminess: 0},
+		brownies: {prettiness: 0, yumminess: 1}
+	};
+	var prettinessCoef = args.prettinessCoef;
+	var yumminessCoef = args.yumminessCoef;
+	var rationality = args.rationality;
+	return enumerate(function() {
+		var actionChoice = uniformDraw(_.keys(features));
+		var utility = features[actionChoice].prettiness*prettinessCoef + 
+			features[actionChoice].yumminess*yumminessCoef;
+		factor(utility*rationality);
+		return actionChoice;
+	});
+});
+
+// should we cache this? probably not, since there are
+// so many values for actionRandomness
+var statesModel = function(latents) {
+	var prettinessCoef = latents.prettinessCoef;
+	var yumminessCoef = latents.yumminessCoef;
+	var rationality = latents.rationality;
+
+	var actionRandomness = (
+		(prettinessCoef==0 & yumminessCoef==0) ?
+		latents.actionRandomnessAllChoices :
+		(
+			(prettinessCoef==0 & yumminessCoef==1) ?
+			latents.actionRandomnessYummyChoices :
+			(
+				(prettinessCoef==1 & yumminessCoef==0) ?
+				latents.actionRandomnessPrettyChoices :
+				latents.actionRandomnessOptimalChoices
+			)
+		)
+	);
+
+	var action = explanations.inverseCDF(
+		actionPosterior({
+			prettinessCoef: prettinessCoef,
+			yumminessCoef: yumminessCoef,
+			rationality: rationality
+		}),
+		actionRandomness
+	);
+
+	return {
+		prettiness: prettinessCoef,
+		yumminess: yumminessCoef,
+		action: action
+	};
+};
+
+var inferenceOptions = {method: "MCMC", samples: 4000};
+
+var example = initializeExample({
+	latentsModel: latentsModel,
+	statesModel: statesModel,
+	possibleExplanations: ["prettiness", 'yumminess'],
+	propositions: {
+		action: function(states, actualStates) {
+			return states.action==actualStates.action;
+		},
+		prettiness: function(states, actualStates) {
+			return states.prettiness==actualStates.prettiness;
+		},
+		yumminess: function(states, actualStates) {
+			return states.yumminess==actualStates.yumminess;
+		}
+	},
+	inferenceOptions: inferenceOptions
+});
+
+var why = example.why;
+var forwardModel = example.forwardModel;
+
+var explanationsModel = function() {
+	var actualStates = uniformDraw(dataFromR);
+	return sample(enumerate(why({
+		actualStates: actualStates,
+		propositionToExplain: "action"
+	})));
+};
+
+"finished";

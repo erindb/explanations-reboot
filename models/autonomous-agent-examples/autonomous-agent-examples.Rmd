@@ -576,9 +576,218 @@ explanationPosteriorsNull %>%
   theme(axis.text.x = element_text(angle = -45, hjust = 0))
 ```
 
+## Asymmetric Doubles
+
+What if there were tons of cupcake-like things, but only one brownie and we care about taste. Would that change our explanation for why we choose the brownie?
+
+```{r}
+forward_model_asymmetric = webppl(
+  program_file = "gift-example-2d-asymmetric-doubles.wppl",
+  inference_opts = list(method="MCMC", samples=4000),
+  model_var = "forwardModel",
+  data = data.frame(),
+  data_var = "dataFromR",
+  packages = c("./node_modules/explanations")
+)
+forward_model_asymmetric %>%
+  mutate(prettiness=ifelse(prettiness==1, 'should be pretty', "prettiness: meh"),
+         yumminess=ifelse(yumminess==1, 'should be yummy', "taste: meh")) %>%
+  ggplot(., aes(x=action, y=prob, fill=action, colour=action)) +
+  geom_bar(stat='identity') +
+  scale_fill_few() +
+  scale_colour_few() +
+  facet_grid(prettiness ~ yumminess) +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0)) +
+  theme(legend.position="none") +
+  xlab("choice of gift")
+```
+
+```{r}
+statesToExplainFromAsymmetricDoubles = expand.grid(
+  prettiness=c(0,1),
+  yumminess=c(0,1),
+  action=c("cupcakes", "chocolates", "cake", "pie", "flowers", "brownies")) %>%
+  filter(!(prettiness==1 & action%in%c("brownies"))) %>%
+  filter(!(yumminess==1 & action%in%c("flowers")))
+explanationPosteriorsAsymmetricDoubles = webppl(
+    program_file = "gift-example-2d-asymmetric-doubles.wppl",
+    model_var = "explanationsModel",
+    inference_opts = list(method="enumerate"),
+    data = statesToExplainFromAsymmetricDoubles,
+    data_var = "dataFromR",
+    packages = c("./node_modules/explanations")
+  ) %>%
+  # rescale so that given a state, total prob=1
+  mutate(prob = prob*nrow(statesToExplainFromAsymmetricDoubles))
+
+# make some graphs!
+explanationPosteriorsAsymmetricDoubles %>%
+  mutate(
+    explanationText=mapply(explanationText,
+                           prettiness,
+                           yumminess,
+                           explanation),
+    prettinessCoef=ifelse(prettiness==1,
+                          'should be pretty',
+                          "prettiness: meh"),
+    yumminessCoef=ifelse(yumminess==1,
+                         'should be yummy',
+                         "taste: meh")) %>%
+  ggplot(., aes(x=action, y=prob, fill=explanation, colour=explanation)) +
+  geom_bar(stat="identity", position="dodge") +
+  geom_text(aes(label=explanationText,
+                x=action,
+                group=explanation,
+                y=0),
+            position=position_dodge(0.9),
+            colour='black',
+            angle=90,
+            hjust=-0.05,
+            size=2) +
+  facet_grid(prettinessCoef ~ yumminessCoef) +
+  scale_fill_few() +
+  scale_colour_few() +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0))
+```
+
+Not getting a lot from that example...
+
 ## Fractional feature values
 
-## Negative weights on utility terms
+Let's add some fractional values.
+
+![](choices-fractional.png)
+
+```{r}
+forward_model_fractional = webppl(
+  program_file = "gift-example-2d-fractional-feature-values.wppl",
+  inference_opts = list(method="MCMC", samples=4000),
+  model_var = "forwardModel",
+  data = data.frame(),
+  data_var = "dataFromR",
+  packages = c("./node_modules/explanations")
+)
+forward_model_fractional %>%
+  mutate(prettiness=ifelse(prettiness==1, 'should be pretty', "prettiness: meh"),
+         yumminess=ifelse(yumminess==1, 'should be yummy', "taste: meh")) %>%
+  ggplot(., aes(x=action, y=prob, fill=action, colour=action)) +
+  geom_bar(stat='identity') +
+  facet_grid(prettiness ~ yumminess) +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0)) +
+  theme(legend.position="none") +
+  xlab("choice of gift")
+```
+
+This example probably won't be very interesting until we vary the rationality.
+
+```{r}
+# statesToExplainFromFractional = expand.grid(
+#   prettiness=c(0,1),
+#   yumminess=c(0,1),
+#   action=c("cupcakes", "chocolateChipCookies", "fruitArrangement", "paperweight", "candy", "decoratedSugarCookies", "flowers", "brownies")) %>%
+#   filter(!(prettiness==1 & action%in%c("brownies", "chocolateChipCookes", "fruitArrangement", "paperweight", "candy"))) %>%
+#   filter(!(yumminess==1 & action%in%c("flowers", "fruitArrangement", "paperweight", "candy", "decoratedSugarCookies")))
+# explanationPosteriorsFractional = webppl(
+#     program_file = "gift-example-2d-asymmetric-doubles.wppl",
+#     model_var = "explanationsModel",
+#     inference_opts = list(method="enumerate"),
+#     data = statesToExplainFromFractional,
+#     data_var = "dataFromR",
+#     packages = c("./node_modules/explanations")
+#   ) %>%
+#   # rescale so that given a state, total prob=1
+#   mutate(prob = prob*nrow(statesToExplainFromFractional))
+# 
+# # make some graphs!
+# explanationPosteriorsFractional %>%
+#   mutate(
+#     explanationText=mapply(explanationText,
+#                            prettiness,
+#                            yumminess,
+#                            explanation),
+#     prettinessCoef=ifelse(prettiness==1,
+#                           'should be pretty',
+#                           "prettiness: meh"),
+#     yumminessCoef=ifelse(yumminess==1,
+#                          'should be yummy',
+#                          "taste: meh")) %>%
+#   ggplot(., aes(x=action, y=prob, fill=explanation, colour=explanation)) +
+#   geom_bar(stat="identity", position="dodge") +
+#   geom_text(aes(label=explanationText,
+#                 x=action,
+#                 group=explanation,
+#                 y=0),
+#             position=position_dodge(0.9),
+#             colour='black',
+#             angle=90,
+#             hjust=-0.05,
+#             size=2) +
+#   facet_grid(prettinessCoef ~ yumminessCoef) +
+#   scale_fill_few() +
+#   scale_colour_few() +
+#   theme(axis.text.x = element_text(angle = -45, hjust = 0))
+```
 
 ## Vary utility magnitudes
 
+## Vary rationality
+
+```{r}
+forward_model_rationality = webppl(
+  program_file = "gift-example-2d-rationality.wppl",
+  inference_opts = list(method="MCMC", samples=4000),
+  model_var = "forwardModel",
+  data = data.frame(),
+  data_var = "dataFromR",
+  packages = c("./node_modules/explanations")
+)
+forward_model_rationality %>%
+  mutate(utilityFn = paste(prettiness, yumminess)) %>%
+  ggplot(., aes(x=action, y=prob, fill=action, colour=action)) +
+  geom_bar(stat='identity') +
+  scale_fill_few() +
+  scale_colour_few() +
+  facet_grid(utilityFn ~ rationality) +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0)) +
+  theme(legend.position="none") +
+  xlab("choice of gift")
+```
+
+```{r}
+statesToExplainFromRationality = expand.grid(
+  prettiness=c(0,1),
+  yumminess=c(0,1),
+  rationality=c(1,1000),
+  action=c("brownies", "cupcakes", "flowers")) %>%
+  filter(!(rationality==1000 & prettiness==1 & action=="brownies")) %>%
+  filter(!(rationality==1000 & yumminess==1 & action=="flowers"))
+explanationPosteriorsRationality = webppl(
+    program_file = "gift-example-2d-rationality.wppl",
+    model_var = "explanationsModel",
+    inference_opts = list(method="enumerate"),
+    data = statesToExplainFromRationality,
+    data_var = "dataFromR",
+    packages = c("./node_modules/explanations")
+  ) %>%
+  # rescale so that given a state, total prob=1
+  mutate(prob = prob*nrow(statesToExplainFromRationality))
+
+# make some graphs!
+explanationPosteriorsRationality %>%
+  mutate(utilityFn = paste(prettiness, yumminess)) %>%
+  ggplot(., aes(x=action, y=prob, fill=explanation, colour=explanation)) +
+  geom_bar(stat="identity", position="dodge") +
+  geom_text(aes(label=explanationText,
+                x=action,
+                group=explanation,
+                y=0),
+            position=position_dodge(0.9),
+            colour='black',
+            angle=90,
+            hjust=-0.05,
+            size=2) +
+  facet_grid(prettinessCoef ~ yumminessCoef) +
+  scale_fill_few() +
+  scale_colour_few() +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0))
+```
