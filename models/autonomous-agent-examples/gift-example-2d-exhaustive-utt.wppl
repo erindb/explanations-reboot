@@ -74,8 +74,11 @@ var inferenceOptions = {method: "MCMC", samples: 4000};
 var example = initializeExample({
 	latentsModel: latentsModel,
 	statesModel: statesModel,
-	possibleExplanations: ["prettiness", 'yumminess'],
+	possibleExplanations: ["prettiness", 'yumminess', 'no utterance', 'exhaustive'],
 	propositions: {
+		"no utterance": function(states, actualStates) {
+			return false;
+		},
 		action: function(states, actualStates) {
 			return states.action==actualStates.action;
 		},
@@ -84,6 +87,9 @@ var example = initializeExample({
 		},
 		yumminess: function(states, actualStates) {
 			return states.yumminess==actualStates.yumminess;
+		},
+		exhaustive: function(states, actualStates) {
+			return _.isEqual(states, actualStates);
 		}
 	},
 	inferenceOptions: inferenceOptions

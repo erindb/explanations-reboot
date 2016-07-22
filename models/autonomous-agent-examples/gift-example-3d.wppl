@@ -1,6 +1,13 @@
 var latentsModel = function() {
 	return {
-		actionRandomness: discreteUniform(),
+		"0 0 0": uniform(0,1),
+		"0 0 1": uniform(0,1),
+		"0 1 0": uniform(0,1),
+		"0 1 1": uniform(0,1),
+		"1 0 0": uniform(0,1),
+		"1 0 1": uniform(0,1),
+		"1 1 0": uniform(0,1),
+		"1 1 1": uniform(0,1),
 		prettinessCoef: uniformDraw([0, 1]),
 		yumminessCoef: uniformDraw([0, 1]),
 		shelfLifeCoef: uniformDraw([0, 1]),
@@ -40,11 +47,19 @@ var actionPosterior = cache(function(args) {
 // should we cache this? probably not, since there are
 // so many values for actionRandomness
 var statesModel = function(latents) {
-	var actionRandomness = latents.actionRandomness;
+
 	var prettinessCoef = latents.prettinessCoef;
 	var yumminessCoef = latents.yumminessCoef;
 	var shelfLifeCoef = latents.shelfLifeCoef;
 	var rationality = latents.rationality;
+
+	var choiceSetLabel = [
+		prettinessCoef,
+		yumminessCoef,
+		shelfLifeCoef
+	].join(' ');
+
+	var actionRandomness = latents[choiceSetLabel];
 
 	var action = explanations.inverseCDF(
 		actionPosterior({
@@ -82,7 +97,7 @@ var example = initializeExample({
 			return states.shelfLife==actualStates.shelfLife;
 		}
 	},
-	inferenceOptions: {method: "MCMC", samples: 4000}
+	inferenceOptions: {method: "MCMC", samples: 1000}
 });
 
 var why = example.why;

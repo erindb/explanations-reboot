@@ -17,15 +17,16 @@ var actionPosterior = cache(function(args) {
 	var features = {
 		cupcakes: {prettiness: 1, yumminess: 1},
 		flowers: {prettiness: 1, yumminess: 0},
-		brownies: {prettiness: 0, yumminess: 1}
+		brownies: {prettiness: 0, yumminess: 1},
+		letter: {prettiness: 0, yumminess: 0}
 	};
 	var prettinessCoef = args.prettinessCoef;
 	var yumminessCoef = args.yumminessCoef;
 	var rationality = args.rationality;
 	return enumerate(function() {
-		var actionChoice = uniformDraw(["cupcakes", "flowers", "brownies"]);
+		var actionChoice = uniformDraw(["letter", "cupcakes", "flowers", "brownies"]);
 		var utility = features[actionChoice].prettiness*prettinessCoef + 
-		features[actionChoice].yumminess*yumminessCoef;
+			features[actionChoice].yumminess*yumminessCoef;
 		factor(utility*rationality);
 		return actionChoice;
 	});
@@ -33,7 +34,6 @@ var actionPosterior = cache(function(args) {
 
 // should we cache this? probably not, since there are
 // so many values for actionRandomness
-// now there are even more... one for each possible distribution.
 var statesModel = function(latents) {
 	var prettinessCoef = latents.prettinessCoef;
 	var yumminessCoef = latents.yumminessCoef;
