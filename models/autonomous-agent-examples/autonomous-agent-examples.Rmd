@@ -138,6 +138,7 @@ So this is one simple example that seems to have the kind of behavior I expect. 
     - a null utterance
     - conjunctions and disjunctions
     - the feature values for different options.
+    - explain in terms of available options. we could have a prior on whether the agent will have access to each choice.
         
 ## 3D Feature Space Example
 
@@ -728,8 +729,6 @@ This example probably won't be very interesting until we vary the rationality.
 #   theme(axis.text.x = element_text(angle = -45, hjust = 0))
 ```
 
-## Vary utility magnitudes
-
 ## Vary rationality
 
 ```{r}
@@ -753,6 +752,8 @@ forward_model_rationality %>%
   xlab("choice of gift")
 ```
 
+There might be a tiny "because I'm irrational" explanation happening when we choose flowers or brownies but we care about prettiness and yumminess. "Because I'm rational" is never a better explanation than a utility-based explanation (given equal priors on each explanation).
+
 ```{r}
 statesToExplainFromRationality = expand.grid(
   prettiness=c(0,1),
@@ -774,20 +775,15 @@ explanationPosteriorsRationality = webppl(
 
 # make some graphs!
 explanationPosteriorsRationality %>%
-  mutate(utilityFn = paste(prettiness, yumminess)) %>%
+  mutate(utilityFn = paste(prettiness, yumminess),
+         explanation=factor(explanation, levels=c('prettiness', 'yumminess', 'rationality'))) %>%
   ggplot(., aes(x=action, y=prob, fill=explanation, colour=explanation)) +
   geom_bar(stat="identity", position="dodge") +
-  geom_text(aes(label=explanationText,
-                x=action,
-                group=explanation,
-                y=0),
-            position=position_dodge(0.9),
-            colour='black',
-            angle=90,
-            hjust=-0.05,
-            size=2) +
-  facet_grid(prettinessCoef ~ yumminessCoef) +
+  facet_grid(utilityFn ~ rationality) +
   scale_fill_few() +
   scale_colour_few() +
   theme(axis.text.x = element_text(angle = -45, hjust = 0))
 ```
+
+## Vary utility magnitudes
+
