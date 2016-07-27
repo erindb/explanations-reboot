@@ -1,0 +1,131 @@
+---
+title: "Examples Explaining an Autonomous Agent's Choices"
+author: "erindb"
+output: html_document
+---
+
+```{r}
+knitr::opts_chunk$set(echo=F, warning=F, message=F)
+```
+
+```{r}
+library(rwebppl)
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+library(jsonlite)
+library(ggthemes)
+theme_new = theme_set(theme_few(base_size = 14))
+```
+
+## Context
+
+To sample counterfactually, we need to "pop free" of the actual state of the world.
+
+But we want to preserve probabilistic causal relationships between variables, so we can't pop *completely* free.
+
+So we **infer** independent, exogenous random variables. All observables are deterministic functions of the states of those exogenous variables.
+
+For a binary RV whose probability depends on an upstream variable, we can use a uniform RV as the independent, exogenous, latent variable.
+
+## A problem
+
+Generalizing from binary variables to categorical variables, it seems intuitive that we could use a uniform RV and the CDF to sample.
+
+But this causes some undesirable asymmetries.
+
+## Simulations
+
+We have a variable u that's sampled at uniform.
+
+```{r, fig.width=4, fig.height=2}
+unif = webppl(
+  program_file = "sampler-simulations.wppl",
+  inference_opts = list(method="enumerate"),
+  model_var = "unif",
+  packages = c("./node_modules/explanations")
+)
+ggplot(unif, aes(x=support, y=prob)) +
+  geom_point() +
+  geom_line() +
+  ggtitle("u ~ uniform(0,1)")
+```
+
+Given this variable u, we sample from 2 categorical distributions.
+
+That is, we sample a value of u. Then we sample a value from a distribution deterministically using that value of u.
+
+```{r, fig.width=4, fig.height=2}
+plot.dist = function(dist, title) {
+  dist.output = webppl(
+    program_file = "sampler-simulations.wppl",
+    inference_opts = list(method="enumerate"),
+    model_var = dist,
+    packages = c("./node_modules/explanations")
+  )
+  ggplot(dist.output, aes(x=support, y=prob, fill=support, colour=support)) +
+    geom_bar(stat="identity") +
+    ggtitle(title) +
+    scale_fill_few() +
+    scale_colour_few() +
+    theme(legend.position="none")
+}
+plot.dist("dist1", "dist1 ~ cat(0.4, 0.4, 0.2)")
+plot.dist("dist2", "dist2 ~ cat(0.2, 0.2, 0.6)")
+```
+
+We can then sample from *the other* distribution using *the same value* of u. When we marginalize across all values of u and only look at the second sample, the marginal distributions are correct.
+
+```{r, fig.width=4, fig.height=2}
+plot.cfdist = function(tag, title) {
+  cfdist.output = webppl(
+    program_file = "sampler-simulations.wppl",
+    inference_opts = list(method="enumerate"),
+    model_var = tag,
+    packages = c("./node_modules/explanations")
+  )
+  ggplot(cfdist.output, aes(x=support, y=prob, fill=support, colour=support)) +
+    geom_bar(stat="identity") +
+    ggtitle(title) +
+    scale_fill_few() +
+    scale_colour_few() +
+    theme(legend.position="none")
+}
+plot.cfdist("resampleDist1ToDist2", "resample dist1 -> dist2")
+plot.cfdist("resampleDist2ToDist1", "resample dist2 -> dist1")
+```
+
+But if we record the *pairs* of samples, we see that this resampling process does not preserve probabilities in the way we would like.
+
+<!-- contrast this with a binary variable -->
+
+It should be the case that the value is likely to stay the same across the two distributions. (The diagonal should have relatively high probability) and it should be the case that no cells have 0 probability.
+
+```{r, fig.width=4, fig.height=2}
+actualStates = expand.grid(actualDist = c("dist1", "dist2"),
+                           actualSample=c("A", "B", "C")) %>%
+  mutate(cfDist = ifelse(actualDist=="dist1", "dist2", "dist1"))
+conditionals = webppl(
+  program_file = "sampler-simulations.wppl",
+  inference_opts = list(method="enumerate"),
+  data = actualStates,
+  data_var = "dataFromR",
+  model_var = "conditionals",
+  packages = c("./node_modules/explanations")
+) %>% mutate(prob = prob*nrow(actualStates)) %>%
+  mutate(dist = paste(actualDist, "->", cfDist))
+getprob = function(d, cf, actual) {
+  df = filter(conditionals, 
+                dist==d & cfSample==cf & 
+                actualSample==actual)
+  if (nrow(df)==0) {return(0)} else {return(df$prob[[1]])}
+}
+full.conditionals = expand.grid(dist = c("dist1 -> dist2", "dist2 -> dist1"),
+            cfSample = c("A", "B", "C"),i
+            actualSample = c("A", "B", "C")) %>%
+  mutate(prob = mapply(getprob, dist, cfSample, actualSample))
+full.conditionals %>%
+  ggplot(., aes(x=cfSample, y=actualSample, fill=prob)) +
+  geom_tile() +
+  facet_grid(~ dist)
+```

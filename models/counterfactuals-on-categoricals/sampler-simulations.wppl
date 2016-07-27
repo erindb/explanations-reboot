@@ -1,0 +1,67 @@
+var unif = function() {
+	var u = discreteUniform(0.01);
+	return u;
+};
+
+var distSampler = function(probs) {
+	return function() {
+		var u = unif();
+		var erp = Categorical({
+			ps: probs.split(" "),
+			vs: ["A", "B", "C"]
+		});
+		return explanations.inverseCDF(erp, u);
+	};
+};
+
+var distributions = {
+	"dist1": "0.4 0.4 0.2",
+	"dist2": "0.2 0.2 0.6"
+};
+
+var dist1 = distSampler(distributions.dist1);
+var dist2 = distSampler(distributions.dist2);
+
+var resampler = function(args) {
+	return function() {
+		var actualProbs = distributions[args.actualDist];
+		var cfProbs = distributions[args.cfDist];
+		var actualSample = args.actualSample;
+
+		var u = unif();
+		var actualERP = Categorical({
+			ps: actualProbs.split(" "),
+			vs: ["A", "B", "C"]
+		});
+		var cfERP = Categorical({
+			ps: cfProbs.split(" "),
+			vs: ["A", "B", "C"]
+		});
+		var sample = explanations.inverseCDF(actualERP, u);
+		if (actualSample) { condition(sample==actualSample); }
+		return explanations.inverseCDF(cfERP, u);
+	};
+};
+
+var resampleDist1ToDist2 = resampler({
+	actualDist: "dist1",
+	cfDist: "dist2"
+});
+
+var resampleDist2ToDist1 = resampler({
+	actualDist: "dist2",
+	cfDist: "dist1"
+});
+
+var conditionals = function() {
+	var actualStates = uniformDraw(dataFromR);
+	var cfSample = sample(enumerate(resampler(actualStates)))
+	return {
+		cfSample: cfSample,
+		actualDist: actualStates.actualDist,
+		cfDist: actualStates.cfDist,
+		actualSample: actualStates.actualSample
+	};
+};
+
+"finished"
