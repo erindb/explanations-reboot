@@ -7,16 +7,24 @@ var distSampler = function(probs) {
 	return function() {
 		var u = unif();
 		var erp = Categorical({
-			ps: probs.split(" "),
-			vs: ["A", "B", "C"]
+			ps: (probs.probs).split(" "),
+			vs: (probs.vals).split(" ")
 		});
 		return explanations.inverseCDF(erp, u);
 	};
 };
 
 var distributions = {
-	"dist1": "0.4 0.4 0.2",
-	"dist2": "0.2 0.2 0.6"
+	"dist1": {probs: "0.4 0.4 0.2", vals: "A B C"},
+	"dist2": {probs: "0.2 0.2 0.6", vals: "A B C"},
+	"dist1B": {probs: "0.2 0.4 0.4", vals: "C B A"},
+	"dist2B": {probs: "0.6 0.2 0.2", vals: "C B A"},
+	"dist1C": {probs: "0.4 0.2 0.4", vals: "A C B"},
+	"dist2C": {probs: "0.2 0.6 0.2", vals: "A C B"},
+	"bin1": {probs: "0.5 0.5", vals: "A B"},
+	"bin2": {probs: "0.8 0.2", vals: "A B"},
+	"bin1B": {probs: "0.5 0.5", vals: "B A"},
+	"bin2B": {probs: "0.2 0.8", vals: "B A"}
 };
 
 var dist1 = distSampler(distributions.dist1);
@@ -30,12 +38,12 @@ var resampler = function(args) {
 
 		var u = unif();
 		var actualERP = Categorical({
-			ps: actualProbs.split(" "),
-			vs: ["A", "B", "C"]
+			ps: (actualProbs.probs).split(" "),
+			vs: (actualProbs.vals).split(" ")
 		});
 		var cfERP = Categorical({
-			ps: cfProbs.split(" "),
-			vs: ["A", "B", "C"]
+			ps: (cfProbs.probs).split(" "),
+			vs: (cfProbs.vals).split(" ")
 		});
 		var sample = explanations.inverseCDF(actualERP, u);
 		if (actualSample) { condition(sample==actualSample); }
@@ -52,6 +60,17 @@ var resampleDist2ToDist1 = resampler({
 	actualDist: "dist2",
 	cfDist: "dist1"
 });
+
+var independentConditionals = function() {
+	var actualStates = uniformDraw(dataFromR);
+	var cfSample = sample(enumerate(resampler(actualStates)))
+	return {
+		cfSample: cfSample,
+		actualDist: actualStates.actualDist,
+		cfDist: actualStates.cfDist,
+		actualSample: actualStates.actualSample
+	};
+};
 
 var conditionals = function() {
 	var actualStates = uniformDraw(dataFromR);
