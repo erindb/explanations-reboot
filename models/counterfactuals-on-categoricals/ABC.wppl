@@ -1,0 +1,45 @@
+var latentsModel = function() {
+	return {
+		u: discreteUniform(0.01),
+		probs: uniformDraw([
+			"0.4 0.4 0.2",
+			"0.2 0.2 0.6"
+		])
+	}
+};
+var statesModel = function(latents) {
+	var u = latents.u;
+	var distNum = latents.distNum;
+	var probs = latents.probs;
+	var dist = Categorical({
+		ps: probs.split(" "),
+		vs: ["A", "B", "C"]
+	});
+	return {
+		probs: probs,
+		sample: explanations.inverseCDF(dist, u)
+	};
+};
+
+// given a particular actual value,
+// what's the counterfactual probability of each value
+// 
+
+var model = function() {
+	var actualStates = uniformDraw(dataFromR);
+	return sample(enumerate(function() {
+		var latents = latentsModel();
+		var states = statesModel(latents);
+		condition(_.isEqual(states, actualStates));
+		var cfLatents = counterfactualizeLatents(latentsModel, latents);
+		var cfStates = statesModel(cfLatents);
+		return {
+			actualSample: states.sample,
+			actualProbs: states.probs,
+			cfSample: cfStates.sample,
+			cfProbs: cfStates.probs
+		};
+	}));
+};
+
+"finished"
