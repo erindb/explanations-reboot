@@ -1,0 +1,6 @@
+var origERP = enumerate(function() {return flip(0.8);});
+var erp = enumerate(flip);
+display(explanations.inverseCDF(origERP, 0.9));
+display(explanations.inverseCDFMaxOverlap(erp, 0.9, origERP));
+
+"finished";
