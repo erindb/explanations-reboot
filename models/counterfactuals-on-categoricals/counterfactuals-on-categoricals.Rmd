@@ -188,6 +188,8 @@ plot.binary.heatmap("bin1", "bin2")
 plot.binary.heatmap("bin1B", "bin2B")
 ```
 
+## Possible Solution
+
 One extension of the CDF sampler that might be more well-behaved is one where maximal overlap is maintained betwen actual and countrfactual values.
 
 The disadvantage of this is that some values with nonzero counterfactual probability cannot be reached from some actual values without the latent random variable being updated. But the binary case also has this property, so maybe it doesn't matter. In fact, the more I think about this, the less I think it matters. Like, what if there were infinitely many unique values? Then it would be perfectly sensible for not every value to be reached from every other value.
@@ -234,3 +236,51 @@ plot.max.overlap.heatmap("dist1C", "dist2C")
 ```
 
 Note that order does not matter and that A and B (which have identical probabilities to each other in both distributions) have analogous counterfactual distributions.
+
+```{r, fig.width=4, fig.height=2}
+plot.4.max.overlap.heatmap = function(dist1, dist2) {
+  getprob = function(d, cf, actual) {
+    df = filter(conditionals, 
+                dist==d & cfSample==cf & 
+                  actualSample==actual)
+    if (nrow(df)==0) {return(0)} else {return(df$prob[[1]])}
+  }
+  actualStates = expand.grid(actualDist = c(dist1, dist2),
+                             actualSample=c("A", "B", "C", "D")) %>%
+    mutate(cfDist = ifelse(actualDist==dist1, dist2, dist1))
+  conditionals = webppl(
+    program_file = "sampler-simulations.wppl",
+    inference_opts = list(method="enumerate"),
+    data = actualStates,
+    data_var = "dataFromR",
+    model_var = "maxOverlapConditionals",
+    packages = c("./node_modules/explanations")
+  ) %>% 
+    mutate(prob = prob*nrow(actualStates)) %>%
+    mutate(dist = paste(actualDist, "->", cfDist))
+  
+  full.conditionals = expand.grid(
+    dist = c(paste(dist1, "->", dist2), paste(dist2, "->", dist1)),
+    cfSample = c("A", "B", "C", "D"),
+    actualSample = c("A", "B", "C", "D")) %>%
+    mutate(prob = mapply(getprob, dist, cfSample, actualSample))
+  h = full.conditionals %>%
+    ggplot(., aes(x=cfSample, y=actualSample, fill=prob)) +
+    geom_tile() +
+    facet_grid(~ dist)
+  print(h)
+  ggsave(paste(dist1, dist2, "heatmap", "png", sep="."), width=5, height=3)
+}
+plot.4.max.overlap.heatmap("four1", "four2")
+plot.4.max.overlap.heatmap("four1B", "four2B")
+plot.4.max.overlap.heatmap("four1C", "four2C")
+plot.4.max.overlap.heatmap("four1D", "four2D")
+```
+
+## How does this affect counterfactualizing?
+
+How do the asymmetries we identified for the CDF sampler affect counterfactual sampling when we can pop free the latent uniform random variable?
+
+Like, obviously a lot. I don't really need to say more...
+
+I mean, if sometimes the actual value doesn't carry over at all, of course you're going to run into weird counterfactual effects.

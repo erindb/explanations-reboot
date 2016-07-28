@@ -1,5 +1,5 @@
 var unif = function() {
-	var u = discreteUniform(0.01);
+	var u = discreteUniform(0.002);
 	return u;
 };
 
@@ -24,7 +24,15 @@ var distributions = {
 	"bin1": {probs: "0.5 0.5", vals: "A B"},
 	"bin2": {probs: "0.8 0.2", vals: "A B"},
 	"bin1B": {probs: "0.5 0.5", vals: "B A"},
-	"bin2B": {probs: "0.2 0.8", vals: "B A"}
+	"bin2B": {probs: "0.2 0.8", vals: "B A"},
+	"four1": {probs: "0.1 0.1 0.3 0.5", vals: "A B C D"},
+	"four1B": {probs: "0.1 0.3 0.5 0.1", vals: "A C D B"},
+	"four1C": {probs: "0.1 0.5 0.1 0.3", vals: "A D B C"},
+	"four1D": {probs: "0.3 0.1 0.1 0.5", vals: "C A B D"},
+	"four2": {probs: "0.2 0.2 0.2 0.4", vals: "A B C D"},
+	"four2B": {probs: "0.2 0.2 0.4 0.2", vals: "A C D B"},
+	"four2C": {probs: "0.2 0.4 0.2 0.2", vals: "A D B C"},
+	"four2D": {probs: "0.2 0.2 0.2 0.4", vals: "C A B D"}
 };
 
 var dist1 = distSampler(distributions.dist1);
