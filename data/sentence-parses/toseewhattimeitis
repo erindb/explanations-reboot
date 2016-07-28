@@ -1,0 +1,13 @@
+<!DOCTYPE HTML public "-//w3c//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD>
+  <TITLE>Login - Meinberg - LantimeV5</TITLE>
+  <META HTTP-EQUIV="Content-Type" CONTENT="text/html;CHARSET=iso-8859-1">
+  <META http-equiv="cache-control" content="no-cache">
+  <META http-equiv="refresh" content="1; URL=/cgi-bin/main">
+</HEAD>
+<BODY><br><br><br><center>
+<a href='cgi-bin/main'>
+<img src="/pics/mbg.logo.jpg" border=0 alt="Welcome"><P>
+Please use this link if you are not redirected automatically within a second</a></center></BODY>
+</HTML>
+{"sentences":[{"index":0,"parse":"(ROOT\n  (INTJ (`` ``) (TO to)))","basic-dependencies":[{"dep":"ROOT","governor":0,"governorGloss":"ROOT","dependent":2,"dependentGloss":"to"},{"dep":"punct","governor":2,"governorGloss":"to","dependent":1,"dependentGloss":"``"}],"collapsed-dependencies":[{"dep":"ROOT","governor":0,"governorGloss":"ROOT","dependent":2,"dependentGloss":"to"},{"dep":"punct","governor":2,"governorGloss":"to","dependent":1,"dependentGloss":"``"}],"collapsed-ccprocessed-dependencies":[{"dep":"ROOT","governor":0,"governorGloss":"ROOT","dependent":2,"dependentGloss":"to"},{"dep":"punct","governor":2,"governorGloss":"to","dependent":1,"dependentGloss":"``"}],"tokens":[{"index":1,"word":"``","originalText":"\"","lemma":"``","characterOffsetBegin":0,"characterOffsetEnd":1,"pos":"``","before":"","after":""},{"index":2,"word":"to","originalText":"to","lemma":"to","characterOffsetBegin":1,"characterOffsetEnd":3,"pos":"TO","before":"","after":""}]}]}

@@ -1,0 +1,320 @@
+﻿
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+<head>
+  <meta name="blitz" content="mu-0e24b17b-23dce65a-c0b14b75-e70133da">
+  <meta charset="utf-8" />
+<link rel="shortcut icon" href="http://library.stanford.edu/sites/all/themes/sulair_framework/favicon.ico" type="image/vnd.microsoft.icon" />
+<link rel="next" href="/projects/web-archiving/archivability" />
+  <title>Web Archiving | Stanford University Libraries</title>
+  <link type="text/css" rel="stylesheet" href="http://library.stanford.edu/sites/default/files/css/css_xE-rWrJf-fncB6ztZfd2huxqgxu4WO-qwma6Xer30m4.css" media="all" />
+<link type="text/css" rel="stylesheet" href="http://library.stanford.edu/sites/default/files/css/css_uAVCPhtWI_EI9U9EqlIeD9CZo8PNGaLGS4_-DMijUFQ.css" media="all" />
+<link type="text/css" rel="stylesheet" href="http://library.stanford.edu/sites/default/files/css/css_HbzRNaupCKOMWHmcn5yaV42NPUIxqcP_HfZjEpsG8xQ.css" media="all" />
+<link type="text/css" rel="stylesheet" href="http://library.stanford.edu/sites/default/files/css/css__Ox2l4o8BuGnQTbol6dLYEMJV2KZaFDfSGJ-4ixtB3g.css" media="all" />
+  <!--[if IE 7]><link type="text/css" rel="stylesheet" media="all" href="/sites/all/themes/sulair_framework/css/ie7.css" /><![endif]-->
+  <!--[if IE 8]><link type="text/css" rel="stylesheet" media="all" href="/sites/all/themes/sulair_framework/css/ie8.css" /><![endif]-->
+  <!--[if IE 9]><link type="text/css" rel="stylesheet" media="all" href="/sites/all/themes/sulair_framework/css/ie9.css" /><![endif]-->
+  <script type="text/javascript" src="http://library.stanford.edu/sites/default/files/js/js_UWQINlriydSoeSiGQxToOUdv493zEa7dpsXC1OtYlZU.js"></script>
+<script type="text/javascript" src="http://library.stanford.edu/sites/default/files/js/js__YrPicXZPHIucOmRNzKyV0bO4FZHeF_2-i7NLiyS2-w.js"></script>
+<script type="text/javascript" src="http://library.stanford.edu/sites/default/files/js/js_W4KgbembwAbZBEJlQk-6uA7utjbv5rf4txaKmFzqkEA.js"></script>
+<script type="text/javascript">
+<!--//--><![CDATA[//><!--
+(function(i,s,o,g,r,a,m){i["GoogleAnalyticsObject"]=r;i[r]=i[r]||function(){(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)})(window,document,"script","//www.google-analytics.com/analytics.js","ga");ga("create", "UA-7219229-14", {"cookieDomain":"auto"});ga('require', 'linkid');ga("send", "pageview");
+//--><!]]>
+</script>
+<script type="text/javascript" src="http://library.stanford.edu/sites/default/files/js/js_taJXNnfZmtws73_-jge7ZisVBeqQAG6cRxpKe3wMmuw.js"></script>
+<script type="text/javascript">
+<!--//--><![CDATA[//><!--
+jQuery.extend(Drupal.settings, {"basePath":"\/","pathPrefix":"","ajaxPageState":{"theme":"sulair_framework","theme_token":"E4Qu2OO4YhHQHTTHGxpz0dSBIPZxULz43TYGGm8tOV4","js":{"\/\/libraryh3lp.com\/js\/libraryh3lp.js?multi,poll,popup":1,"misc\/jquery.js":1,"misc\/jquery.once.js":1,"misc\/drupal.js":1,"misc\/ajax.js":1,"sites\/all\/modules\/custom\/sulair\/js\/administration.js":1,"sites\/all\/modules\/hint\/hint.js":1,"sites\/all\/modules\/lightbox2\/js\/auto_image_handling.js":1,"sites\/all\/modules\/lightbox2\/js\/lightbox.js":1,"misc\/progress.js":1,"sites\/all\/modules\/views_slideshow\/js\/views_slideshow.js":1,"sites\/all\/modules\/google_analytics\/googleanalytics.js":1,"0":1,"sites\/all\/themes\/sulair_framework\/js\/jquery.jcarousel.min.js":1,"sites\/all\/themes\/sulair_framework\/js\/script.js":1},"css":{"modules\/system\/system.base.css":1,"modules\/system\/system.menus.css":1,"modules\/system\/system.messages.css":1,"modules\/system\/system.theme.css":1,"modules\/book\/book.css":1,"modules\/comment\/comment.css":1,"sites\/all\/modules\/date\/date_api\/date.css":1,"sites\/all\/modules\/date\/date_popup\/themes\/datepicker.1.7.css":1,"modules\/field\/theme\/field.css":1,"modules\/node\/node.css":1,"modules\/search\/search.css":1,"modules\/user\/user.css":1,"sites\/all\/modules\/calendar\/css\/calendar_multiday.css":1,"sites\/all\/modules\/views\/css\/views.css":1,"sites\/all\/modules\/ctools\/css\/ctools.css":1,"sites\/all\/modules\/lightbox2\/css\/lightbox.css":1,"sites\/all\/modules\/panels\/css\/panels.css":1,"sites\/all\/modules\/views_slideshow\/views_slideshow.css":1,"sites\/all\/modules\/panels\/plugins\/layouts\/twocol\/twocol.css":1,"sites\/all\/modules\/panels\/plugins\/layouts\/onecol\/onecol.css":1,"sites\/all\/themes\/sulair_framework\/css\/reset.css":1,"sites\/all\/themes\/sulair_framework\/css\/extlink.css":1,"sites\/all\/themes\/sulair_framework\/css\/jquery.ui.tabs.css":1,"sites\/all\/themes\/sulair_framework\/css\/jcarousel-default.css":1,"sites\/all\/themes\/sulair_framework\/css\/demo_table.css":1,"sites\/all\/themes\/sulair_framework\/css\/hours.css":1,"sites\/all\/themes\/sulair_framework\/css\/branches.css":1,"sites\/all\/themes\/sulair_framework\/css\/microsite.css":1,"sites\/all\/themes\/sulair_framework\/css\/widgets.css":1,"sites\/all\/themes\/sulair_framework\/css\/blogs.css":1,"sites\/all\/themes\/sulair_framework\/css\/book-navigation.css":1,"sites\/all\/themes\/sulair_framework\/css\/modal-calendar.css":1,"sites\/all\/themes\/sulair_framework\/css\/style.css":1}},"jcarousel":{"ajaxPath":"\/jcarousel\/ajax\/views"},"lightbox2":{"rtl":0,"file_path":"\/(\\w\\w\/)public:\/","default_image":"\/sites\/all\/modules\/lightbox2\/images\/brokenimage.jpg","border_size":10,"font_color":"000","box_color":"fff","top_position":"","overlay_opacity":"0.8","overlay_color":"000","disable_close_click":1,"resize_sequence":0,"resize_speed":400,"fade_in_speed":400,"slide_down_speed":600,"use_alt_layout":0,"disable_resize":0,"disable_zoom":0,"force_show_nav":0,"show_caption":1,"loop_items":0,"node_link_text":"View Image Details","node_link_target":0,"image_count":"Image !current of !total","video_count":"Video !current of !total","page_count":"Page !current of !total","lite_press_x_close":"press \u003Ca href=\u0022#\u0022 onclick=\u0022hideLightbox(); return FALSE;\u0022\u003E\u003Ckbd\u003Ex\u003C\/kbd\u003E\u003C\/a\u003E to close","download_link_text":"","enable_login":false,"enable_contact":false,"keys_close":"c x 27","keys_previous":"p 37","keys_next":"n 39","keys_zoom":"z","keys_play_pause":"32","display_image_size":"original","image_node_sizes":"()","trigger_lightbox_classes":"","trigger_lightbox_group_classes":"","trigger_slideshow_classes":"","trigger_lightframe_classes":"","trigger_lightframe_group_classes":"","custom_class_handler":"lightbox_ungrouped","custom_trigger_classes":"img.lightbox-wysiwyg","disable_for_gallery_lists":1,"disable_for_acidfree_gallery_lists":true,"enable_acidfree_videos":true,"slideshow_interval":5000,"slideshow_automatic_start":0,"slideshow_automatic_exit":0,"show_play_pause":0,"pause_on_next_click":0,"pause_on_previous_click":0,"loop_slides":0,"iframe_width":600,"iframe_height":400,"iframe_border":1,"enable_video":0},"googleanalytics":{"trackOutbound":1,"trackMailto":1,"trackDownload":1,"trackDownloadExtensions":"7z|aac|arc|arj|asf|asx|avi|bin|csv|doc(x|m)?|dot(x|m)?|exe|flv|gif|gz|gzip|hqx|jar|jpe?g|js|mp(2|3|4|e?g)|mov(ie)?|msi|msp|pdf|phps|png|ppt(x|m)?|pot(x|m)?|pps(x|m)?|ppam|sld(x|m)?|thmx|qtm?|ra(m|r)?|sea|sit|tar|tgz|torrent|txt|wav|wma|wmv|wpd|xls(x|m|b)?|xlt(x|m)|xlam|xml|z|zip"},"urlIsAjaxTrusted":{"\/search\/node":true}});
+//--><!]]>
+</script>
+  <!--[if lt IE 9]><script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>	<![endif]-->
+</head>
+
+<body class="html not-front not-logged-in no-sidebars page-node page-node- page-node-47547 node-type-site-microsite role-id-1 role-anonymous-user user-uid-0" >
+ <div class="site-wrapper"> 	
+    <div id="wrapper" class="clearfix">
+ <div id="wrapper-inner">
+  <div id="skip-link">
+    <a href="#main-content" class="element-invisible element-focusable">Skip to main content</a>
+          <a href="#navigation" class="element-invisible element-focusable">Skip to navigation</a>
+      </div>
+
+  <header id="header" role="banner" class="clearfix">
+		      <a id="logo" href="/" title="Home">
+        <img src="http://library.stanford.edu/sites/all/themes/sulair_framework/logo.png" alt="Home" />
+      </a>
+              <h1 id="site-name" class="element-invisible">
+        <a href="/" title="Home" rel="home"><span>Stanford University Libraries</span></a>
+      </h1>
+    		<div id="navigation-secondary">
+	    <h2 class="element-invisible">Secondary menu</h2><ul class="links secondary-menu clearfix"><li class="menu-968 first"><a href="http://library.stanford.edu/myaccount">My Account</a></li>
+<li class="menu-4838"><a href="/ask/email/feedback">Feedback</a></li>
+<li class="menu-login last"><a href="/sites/default/webauth/login?destination=node/47547">Staff login</a></li>
+</ul>		</div>
+  </header> <!-- /#header -->
+
+  <nav id="navigation" role="navigation" class="clearfix">
+		<div class="region region-navigation">
+  <section id="block-menu-block-2" class="block block-menu-block">
+
+      
+  <div class="content">
+    <div class="menu-block-wrapper menu-block-2 menu-name-main-menu parent-mlid-0 menu-level-1">
+  <ul class="menu"><li class="first expanded menu-mlid-2015 parent-menu-item"><a href="/about">About</a><ul class="menu"><li class="first last expanded menu-mlid-2016 parent-menu-item"><a href="/hours">Hours &amp; locations</a><ul class="menu"><li class="first leaf menu-mlid-2017"><a href="/people" title="">People</a></li>
+<li class="leaf menu-mlid-2018"><a href="/contacts" title="">Contacts</a></li>
+<li class="leaf menu-mlid-2019"><a href="/news" title="">News</a></li>
+<li class="leaf menu-mlid-3815"><a href="/events" title="">Events</a></li>
+<li class="leaf menu-mlid-2533"><a href="/blogs" title="">Blogs</a></li>
+<li class="last leaf menu-mlid-2020"><a href="/projects" title="">Projects &amp; innovations</a></li>
+</ul></li>
+</ul></li>
+<li class="expanded menu-mlid-459 parent-menu-item"><a href="/libraries" title="">Libraries</a><ul class="menu"><li class="first expanded menu-mlid-1922 parent-menu-item"><a href="/libraries/ars/about" class="menu-node-unpublished">Archive of Recorded Sound</a><ul class="menu"><li class="first leaf menu-mlid-1923"><a href="/libraries/art/about" class="menu-node-unpublished">Art &amp; Architecture (Bowes)</a></li>
+<li class="leaf menu-mlid-1924"><a href="/libraries/falconer/about" class="menu-node-unpublished">Biology (Falconer)</a></li>
+<li class="leaf menu-mlid-1925"><a href="/libraries/business/about" class="menu-node-unpublished">Business</a></li>
+<li class="leaf menu-mlid-1926"><a href="/libraries/swain/about" class="menu-node-unpublished">Chemistry &amp; ChemEng (Swain)</a></li>
+<li class="leaf menu-mlid-2628"><a href="/libraries/classics-library/about">Classics</a></li>
+<li class="leaf menu-mlid-7524"><a href="/libraries/rumsey/about">David Rumsey Map Center</a></li>
+<li class="leaf menu-mlid-1927"><a href="/libraries/branner/about" class="menu-node-unpublished">Earth Sciences (Branner)</a></li>
+<li class="leaf menu-mlid-1928"><a href="/libraries/eal/about" class="menu-node-unpublished">East Asia</a></li>
+<li class="leaf menu-mlid-1929"><a href="/libraries/cubberley/about" class="menu-node-unpublished">Education (Cubberley)</a></li>
+<li class="leaf menu-mlid-1939"><a href="/libraries/englib/about" class="menu-node-unpublished">Engineering (Terman)</a></li>
+<li class="last leaf menu-mlid-2028"><a href="/libraries/green/about" class="menu-node-unpublished">Green</a></li>
+</ul></li>
+<li class="last expanded menu-mlid-1931 parent-menu-item"><a href="/libraries/hoover/about" class="menu-node-unpublished">Hoover</a><ul class="menu"><li class="first leaf menu-mlid-1930"><a href="/libraries/hila/about" class="menu-node-unpublished">Hoover Archives</a></li>
+<li class="leaf menu-mlid-2029"><a href="/libraries/lathrop/about" class="menu-node-unpublished">Lathrop</a></li>
+<li class="leaf menu-mlid-1932"><a href="/libraries/law/about" class="menu-node-unpublished">Law (Crown)</a></li>
+<li class="leaf menu-mlid-1933"><a href="/libraries/hopkins/about" class="menu-node-unpublished">Marine Biology (Miller)</a></li>
+<li class="leaf menu-mlid-1934"><a href="/libraries/mathstat/about" class="menu-node-unpublished">Math &amp; Statistics</a></li>
+<li class="leaf menu-mlid-1935"><a href="/libraries/lane/about" class="menu-node-unpublished">Medical (Lane)</a></li>
+<li class="leaf menu-mlid-1936"><a href="/libraries/music/about" class="menu-node-unpublished">Music</a></li>
+<li class="leaf menu-mlid-2629"><a href="/libraries/philosophy/about" class="menu-node-unpublished">Philosophy (Tanner)</a></li>
+<li class="leaf menu-mlid-1938"><a href="/libraries/sal/about" class="menu-node-unpublished">SAL1&amp;2</a></li>
+<li class="leaf menu-mlid-2339"><a href="/libraries/sal3/about" class="menu-node-unpublished">SAL3</a></li>
+<li class="leaf menu-mlid-2340"><a href="/libraries/newark/about" class="menu-node-unpublished">SAL Newark</a></li>
+<li class="leaf menu-mlid-2423"><a href="/libraries/slac/about" class="menu-node-unpublished">SLAC</a></li>
+<li class="last leaf menu-mlid-1937"><a href="/libraries/spc/about" class="menu-node-unpublished">Special Collections</a></li>
+</ul></li>
+</ul></li>
+<li class="expanded menu-mlid-458 parent-menu-item"><a href="/using">Using the libraries</a><ul class="menu"><li class="first last expanded menu-mlid-1942 parent-menu-item"><a href="/using/access-and-privileges" class="menu-node-unpublished">Access &amp; privileges</a><ul class="menu"><li class="first leaf menu-mlid-1943"><a href="/using/borrow-renew-return" class="menu-node-unpublished">Borrow, renew, return</a></li>
+<li class="leaf menu-mlid-1945"><a href="/using/connect-campus" class="menu-node-unpublished">Connect from off campus</a></li>
+<li class="leaf menu-mlid-1944"><a href="/using/interlibrary-borrowing" class="menu-node-unpublished">Interlibrary borrowing</a></li>
+<li class="leaf menu-mlid-1946"><a href="/using/study" title="">Places to study</a></li>
+<li class="leaf menu-mlid-1947"><a href="/using/print-copy-scan" class="menu-node-unpublished">Print, copy, scan</a></li>
+<li class="last leaf menu-mlid-1948"><a href="/using/accessibility" title="">Access for persons with limited mobility</a></li>
+</ul></li>
+</ul></li>
+<li class="expanded menu-mlid-4836 parent-menu-item"><a href="/areas" title="">Collections</a><ul class="menu"><li class="first last expanded menu-mlid-4834 parent-menu-item"><a href="/areas" title="">Collecting areas</a><ul class="menu"><li class="first last leaf menu-mlid-4835"><a href="/collections" title="">Notable collections</a></li>
+</ul></li>
+</ul></li>
+<li class="expanded menu-mlid-462 parent-menu-item"><a href="/research" title="">Research support</a><ul class="menu"><li class="first last expanded menu-mlid-1940 parent-menu-item"><a href="/research" title="">Research services</a><ul class="menu"><li class="first leaf menu-mlid-2508"><a href="/guides/course" title="">Course guides</a></li>
+<li class="leaf menu-mlid-4837"><a href="/guides/topic" title="">Topic guides</a></li>
+<li class="last leaf menu-mlid-463"><a href="/search-services">Search tools</a></li>
+</ul></li>
+</ul></li>
+<li class="last leaf menu-mlid-457"><a href="/ask" title="">Ask us</a></li>
+</ul></div>
+  </div>
+  
+</section> <!-- /.block -->
+</div>
+ <!-- /.region -->
+		<div  id="search" role="search"><form class="search-form" action="/search/node" method="post" id="search-form" accept-charset="UTF-8"><div><div class="container-inline form-wrapper" id="edit-basic"><div class="form-item form-type-textfield form-item-keys">
+  <label for="edit-keys">Search </label>
+ <input title="Search" class="hint-enabled form-text" type="text" id="edit-keys" name="keys" value="" size="40" maxlength="255" />
+</div>
+<input type="submit" id="edit-submit" name="op" value="Search" class="form-submit" /></div><input type="hidden" name="form_build_id" value="form-4XSKRU3KaM32LdVlw3PJdmHxSgl_ECv0kFtJCWQPIY4" />
+<input type="hidden" name="form_id" value="search_form" />
+</div></form></div>
+  </nav> <!-- /#navigation -->
+
+	<h2 class="element-invisible">You are here</h2><nav class="breadcrumb"><a href="/">Home</a> › <a href="/about">About</a> › <a href="/projects">Projects</a> › <span >Web Archiving</span></nav>				
+  <section id="main" role="main" class="clearfix">
+		<div id="main-inner">
+			<div id="main-inner-inner" class="clearfix">
+		    <a id="main-content" tabindex="0"></a>
+		    		    		    <div id="content-left-sidebar">
+		      <div class="inside">
+		      <div class="panel-display panel-1col clearfix" id="mini-panel-site_microsite__left_sidebar">
+  <div class="panel-panel panel-col">
+    <div>    <div class="panel-pane pane-views-panes pane-sulair-microsite-panel-pane-1" >
+    
+            
+    
+    <div class="pane-content">
+      <div class="view view-sulair-microsite view-id-sulair_microsite view-display-id-panel_pane_1 view-dom-id-91048340aa03a1aba55d72fdcf1f479b">
+        
+  
+  
+      <div class="view-content">
+        <div class="views-row views-row-1 views-row-odd views-row-first views-row-last">
+      
+  <div class="views-field views-field-field-site-microsite-image">        <div class="field-content"><img src="http://library.stanford.edu/sites/default/files/styles/square_large/public/stanford.edu-1996.jpg?itok=Vlof-vah" width="150" height="150" alt="Stanford University website home page, December 1996" title="Stanford University website home page, December 1996" /></div>  </div>  
+  <div class="views-field views-field-field-site-microsite-phone phone">        <div class="field-content"></div>  </div>  
+  <div class="views-field views-field-field-site-microsite-email email">        <div class="field-content"></div>  </div>  
+  <div class="views-field views-field-field-site-microsite-chat-name">        <div class="field-content"></div>  </div>  
+  <div class="views-field views-field-field-site-microsite-follow">        <div class="field-content"></div>  </div>  </div>
+    </div>
+  
+  
+  
+  
+  
+  
+</div>    </div>
+
+    
+      </div>
+  <div class="panel-separator"></div>    <div class="panel-pane pane-sulair-book-nav" >
+    
+            
+    
+    <div class="pane-content">
+        <div id="book-navigation-47547" class="book-navigation">
+    <ul class="menu"><li class="first active-trail parent-menu-item"><a href="/projects/web-archiving" hide="" class="menu-node-unpublished active-trail active">Web Archiving</a></li>
+<li class="parent-menu-item"><a href="/projects/web-archiving/archivability" hide="" class="menu-node-unpublished">Archivability</a></li>
+<li class="leaf"><a href="/projects/web-archiving/collection-development" hide="" class="menu-node-unpublished">Collection development</a></li>
+<li class="leaf"><a href="/projects/web-archiving/contact" hide="" class="menu-node-unpublished">Contact</a></li>
+<li class="leaf"><a href="/projects/web-archiving/frequently-asked-questions" hide="" class="menu-node-unpublished">Frequently asked questions</a></li>
+<li class="leaf"><a href="/projects/web-archiving/news-and-events" hide="" class="menu-node-unpublished">News and events</a></li>
+<li class="leaf"><a href="/projects/web-archiving/policy" hide="" class="menu-node-unpublished">Policy</a></li>
+<li class="parent-menu-item"><a href="/projects/web-archiving/research-resources" hide="" class="menu-node-unpublished">Research resources</a></li>
+<li class="parent-menu-item"><a href="/projects/web-archiving/stanfordedu-archiving" hide="" class="menu-node-unpublished">stanford.edu archiving</a></li>
+<li class="last leaf"><a href="/projects/web-archiving/use-cases" hide="" class="menu-node-unpublished">Use cases</a></li>
+</ul>
+    
+  </div>
+    </div>
+
+    
+      </div>
+  </div>
+  </div>
+</div>
+		      </div>
+		    </div>
+		    
+		    <div id="content" class="panelized-main">
+		      <div class="inside">
+		      		      <h1 class="title" id="page-title">Web Archiving</h1>		      		      <div class="region region-content">
+  <section id="block-system-main" class="block block-system">
+
+      
+  <div class="content">
+    <div class="panel-display panel-2col clearfix" >
+  <div class="panel-panel panel-col-first">
+    <div class="inside">    <div class="panel-pane pane-fieldable-panels-pane pane-fpid-6828 pane-bundle-text" >
+    
+            
+    
+    <div class="pane-content">
+      <div class="fieldable-panels-pane">
+    <div class="field field-name-field-widget-text field-type-text-long field-label-hidden"><div class="field-items"><div class="field-item even"><p>The Web has become a singularly important communication medium, for scholarship, social history, and cultural heritage. Unique and valuable information is threatened, however, as content on the Web is continually being updated, replaced, or lost.</p>
+<p>Examples of such at-risk materials include: political candidates' campaign websites, that live only for the duration of the election season; the websites of grant-funded projects, whose value to scholarship persists well beyond the period of funding; dissident political speech subject to government censorship; online news related to fast-breaking events, which is quickly amended and submerged; the orphaned web presence of important, deceased personages; and more. Ensuring the continued ability to access web content that has disappeared or been overwritten is imperative for such diverse aims as research, teaching, library collection building, institutional legacy, legal compliance, and government information stewardship.</p>
+<p>Recognizing these needs, we are building a web archiving service to support collecting, preserving, and providing access to at-risk web content. This effort leverages our experience from ongoing web archiving projects and is informed by an internal 2011 survey of use cases, feedback from Stanford University stakeholders, and the evolving best practices of the national and international web archiving communities, and it is based on standard data formats and open source technologies.</p>
+<p>We will identify valuable web content through collaboration with librarians, faculty, researchers, and other Stanford University staff. We will store the web archives in the <a href="/research/stanford-digital-repository">Stanford Digital Repository</a>, provide discovery through <a href="http://searchworks.stanford.edu/">SearchWorks</a>, and enable browsing through a local instance of the <a href="https://github.com/iipc/openwayback/wiki">Wayback web archive replay platform</a>. We will explore additional access services and strategies for collected content, with a focus on research use.</p>
+<p>Please <a href="/web-archiving/contact/">contact us</a> with feedback, questions, or recommendations concerning service development, pilot crawling activity, or consultative support for web archiving projects.</p>
+</div></div></div></div>
+    </div>
+
+    
+      </div>
+  </div>
+  </div>
+
+  <div class="panel-panel panel-col-last">
+    <div class="inside"></div>
+  </div>
+</div>
+  </div>
+  
+</section> <!-- /.block -->
+</div>
+ <!-- /.region -->
+		      </div>
+		    </div>
+    	</div><!-- /.main-inner-inner -->
+		</div><!-- /.main-inner -->
+  </section> <!-- /#main -->
+
+</div></div> <!-- /#wrapper -->
+
+<footer id="footer" role="contentinfo" class="clearfix">
+  <div class="region region-footer">
+  <section id="block-menu-block-1" class="block block-menu-block">
+
+      
+  <div class="content">
+    <div class="menu-block-wrapper menu-block-1 menu-name-menu-global-footer parent-mlid-0 menu-level-1">
+  <ul class="menu"><li class="first expanded menu-mlid-2021 parent-menu-item"><a href="/about" title="">About</a><ul class="menu"><li class="first leaf menu-mlid-2617"><a href="/hours" title="">Hours &amp; locations</a></li>
+<li class="leaf menu-mlid-2023"><a href="/people" title="">People</a></li>
+<li class="leaf menu-mlid-2025"><a href="/contacts" title="">Contacts</a></li>
+<li class="leaf menu-mlid-2026"><a href="/news" title="">News</a></li>
+<li class="leaf menu-mlid-4620"><a href="/events" title="">Events</a></li>
+<li class="leaf menu-mlid-2618"><a href="/blogs" title="">Blogs</a></li>
+<li class="leaf menu-mlid-2027"><a href="/projects" title="">Projects &amp; innovations</a></li>
+<li class="leaf menu-mlid-3615"><a href="/using/employment-opportunities" title="">Jobs</a></li>
+<li class="leaf menu-mlid-3616"><a href="http://lib.stanford.edu/giving" title="">Support the Libraries</a></li>
+<li class="last leaf menu-mlid-3696"><a href="/using/copyright-reminder" title="">Copyright reminder</a></li>
+</ul></li>
+<li class="expanded menu-mlid-860 parent-menu-item"><a href="/using">Using the Libraries</a><ul class="menu"><li class="first menu-mlid-798 parent-menu-item"><a href="/using/access-and-privileges" title="Access &amp; privileges">Access &amp; privileges</a></li>
+<li class="leaf menu-mlid-561"><a href="/using/borrow-renew-return" title="Borrow, renew, return">Borrow, renew, return</a></li>
+<li class="leaf menu-mlid-797"><a href="/using/connect-campus" title="">Connect from off campus</a></li>
+<li class="leaf menu-mlid-796"><a href="/using/interlibrary-borrowing" title="Interlibrary borrowing">Interlibrary borrowing</a></li>
+<li class="leaf menu-mlid-563"><a href="/using/study" title="Places to study">Places to study</a></li>
+<li class="leaf menu-mlid-562"><a href="/using/print-copy-scan" title="Print, copy, scan">Print, copy, scan</a></li>
+<li class="last leaf menu-mlid-1032"><a href="/using/accessibility" title="">Access for persons with limited mobility</a></li>
+</ul></li>
+<li class="expanded menu-mlid-861 parent-menu-item"><a href="/libraries" title="Libraries">Libraries</a><ul class="menu"><li class="first last leaf menu-mlid-862"><a href="/collections" title="Collections" style="border-top: 1px dotted #91886b; border-bottom: 1px dotted #91886b; padding-top: 10px; padding-bottom: 10px; display: block;">Collections</a></li>
+</ul></li>
+<li class="expanded menu-mlid-864 parent-menu-item"><a href="/research">Research Support</a><ul class="menu"><li class="first leaf menu-mlid-4848"><a href="/research">Research services</a></li>
+<li class="leaf menu-mlid-2619"><a href="/guides/topic">Topic guides</a></li>
+<li class="last leaf menu-mlid-2620"><a href="/guides/course">Course guides</a></li>
+</ul></li>
+<li class="expanded menu-mlid-4849 parent-menu-item"><a href="/search-services">Search tools</a><ul class="menu"><li class="first leaf menu-mlid-793"><a href="http://searchworks.stanford.edu" title="SearchWorks">SearchWorks</a></li>
+<li class="leaf menu-mlid-3684"><a href="http://sul-sfx.stanford.edu/sfxlcl41/az">eJournals</a></li>
+<li class="last leaf menu-mlid-795"><a href="http://searchworks.stanford.edu/databases" title="Databases in SearchWorks">Databases</a></li>
+</ul></li>
+<li class="last expanded menu-mlid-801 parent-menu-item"><a href="/ask" title="ASK US">ASK US</a><ul class="menu"><li class="first leaf menu-mlid-866"><a href="/ask" title="">(650) 725-1064</a></li>
+<li class="leaf menu-mlid-867"><a href="/ask" title="">Chat</a></li>
+<li class="leaf menu-mlid-868"><a href="/ask/email/reference" title="Ask a reference question, and other requests">Email us</a></li>
+<li class="last leaf menu-mlid-4341"><a href="/system-status" title="">Check system status</a></li>
+</ul></li>
+</ul></div>
+  </div>
+  
+</section> <!-- /.block -->
+</div>
+ <!-- /.region -->
+</footer> <!-- /#footer -->
+
+<div id="copyright-footer" role="contentinfo" class="clearfix">
+  <div class="region region-copyright-footer">
+  <section id="block-block-1" class="block block-block">
+
+      
+  <div class="content">
+    <div id="footer-links">
+	<a href="http://www.stanford.edu"><img src="/sites/all/themes/sulair_framework/images/footer-stanford-logo.png" style="float: left;" alt="" />Stanford University Home</a> <a href="http://visit.stanford.edu/plan/maps.html">Maps &amp; Directions</a> <a href="http://www.stanford.edu/search/">Search Stanford</a> <a href="/about/terms-of-use">Terms of Use</a> <a href="http://www.stanford.edu/site/copyright.html">Copyright Complaints</a> <a href="/opt-out">Opt Out of Analytics</a><br /><span class="copyright-statement">© Stanford University, Stanford, California 94305. (650) 723-2300</span>
+</div>
+  </div>
+  
+</section> <!-- /.block -->
+</div>
+ <!-- /.region -->
+</div> <!-- /#coprightfooter -->
+ </div>
+</body>  
+<div class="region region-page-bottom">
+  <script type="text/javascript">
+   (function() {
+       var mf = document.createElement("script"); mf.type = "text/javascript"; mf.async = true;
+       mf.src = "//cdn.mouseflow.com/projects/dd31473b-d667-4129-b968-22d78b1c69e3.js";
+       document.getElementsByTagName("head")[0].appendChild(mf);
+   })();
+</script></div>
+ <!-- /.region -->
+<script type="text/javascript" src="//libraryh3lp.com/js/libraryh3lp.js?multi,poll,popup"></script>
+</html>
+{"sentences":[{"index":0,"parse":"(ROOT\n  (INTJ (`` ``) (PRP she)))","basic-dependencies":[{"dep":"ROOT","governor":0,"governorGloss":"ROOT","dependent":2,"dependentGloss":"she"},{"dep":"punct","governor":2,"governorGloss":"she","dependent":1,"dependentGloss":"``"}],"collapsed-dependencies":[{"dep":"ROOT","governor":0,"governorGloss":"ROOT","dependent":2,"dependentGloss":"she"},{"dep":"punct","governor":2,"governorGloss":"she","dependent":1,"dependentGloss":"``"}],"collapsed-ccprocessed-dependencies":[{"dep":"ROOT","governor":0,"governorGloss":"ROOT","dependent":2,"dependentGloss":"she"},{"dep":"punct","governor":2,"governorGloss":"she","dependent":1,"dependentGloss":"``"}],"tokens":[{"index":1,"word":"``","originalText":"\"","lemma":"``","characterOffsetBegin":0,"characterOffsetEnd":1,"pos":"``","before":"","after":""},{"index":2,"word":"she","originalText":"she","lemma":"she","characterOffsetBegin":1,"characterOffsetEnd":4,"pos":"PRP","before":"","after":""}]}]}

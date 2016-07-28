@@ -1,0 +1,5 @@
+<html><body><h1>It works!</h1>
+<p>This is the default web page for this server.</p>
+<p>The web server software is running but no content has been added, yet.</p>
+</body></html>
+{"sentences":[{"index":0,"parse":"(ROOT\n  (INTJ (`` ``) (PRP she)))","basic-dependencies":[{"dep":"ROOT","governor":0,"governorGloss":"ROOT","dependent":2,"dependentGloss":"she"},{"dep":"punct","governor":2,"governorGloss":"she","dependent":1,"dependentGloss":"``"}],"collapsed-dependencies":[{"dep":"ROOT","governor":0,"governorGloss":"ROOT","dependent":2,"dependentGloss":"she"},{"dep":"punct","governor":2,"governorGloss":"she","dependent":1,"dependentGloss":"``"}],"collapsed-ccprocessed-dependencies":[{"dep":"ROOT","governor":0,"governorGloss":"ROOT","dependent":2,"dependentGloss":"she"},{"dep":"punct","governor":2,"governorGloss":"she","dependent":1,"dependentGloss":"``"}],"tokens":[{"index":1,"word":"``","originalText":"\"","lemma":"``","characterOffsetBegin":0,"characterOffsetEnd":1,"pos":"``","before":"","after":""},{"index":2,"word":"she","originalText":"she","lemma":"she","characterOffsetBegin":1,"characterOffsetEnd":4,"pos":"PRP","before":"","after":""}]}]}

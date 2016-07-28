@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<!--[if lt IE 7]> <html class="ie6 ie" lang="en" dir="ltr"> <![endif]-->
+<!--[if IE 7]>    <html class="ie7 ie" lang="en" dir="ltr"> <![endif]-->
+<!--[if IE 8]>    <html class="ie8 ie" lang="en" dir="ltr"> <![endif]-->
+<!--[if IE 9]>    <html class="ie9 ie" lang="en" dir="ltr"> <![endif]-->
+<!--[if !IE]> --> <html lang="en" dir="ltr"> <!-- <![endif]-->
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link href="/sites/all/themes/stanford_framework/apple-touch-icon-144x144.png" rel="apple-touch-icon" sizes="144x144" />
+<link href="/sites/all/themes/stanford_framework/apple-touch-icon-120x120.png" rel="apple-touch-icon" sizes="120x120" />
+<link href="/sites/all/themes/stanford_framework/apple-touch-icon-152x152.png" rel="apple-touch-icon" sizes="152x152" />
+<link href="/sites/all/themes/stanford_framework/apple-touch-icon-167x167.png" rel="apple-touch-icon" sizes="167x167" />
+<link href="/sites/all/themes/stanford_framework/apple-touch-icon.png" rel="apple-touch-icon" />
+<link href="/sites/all/themes/stanford_framework/apple-touch-icon-180x180.png" rel="apple-touch-icon" sizes="180x180" />
+<link href="/sites/all/themes/stanford_framework/apple-touch-icon-114x114.png" rel="apple-touch-icon" sizes="114x114" />
+<link href="/sites/all/themes/stanford_framework/apple-touch-icon-72x72.png" rel="apple-touch-icon" sizes="72x72" />
+<link href="/sites/all/themes/stanford_framework/apple-touch-icon-76x76.png" rel="apple-touch-icon" sizes="76x76" />
+<link rel="shortcut icon" href="https://uit.stanford.edu/sites/all/themes/stanford_uit/favicon.ico" type="image/vnd.microsoft.icon" />
+<link href="/sites/all/themes/stanford_framework/apple-touch-icon-57x57.png" rel="apple-touch-icon" sizes="57x57" />
+<meta name="generator" content="Drupal 7 (http://drupal.org)" />
+<link rel="canonical" href="https://uit.stanford.edu/node" />
+<link rel="shortlink" href="https://uit.stanford.edu/node" />
+  <!-- Set the viewport width to device width for mobile -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to University IT | University IT</title>
+  <link type="text/css" rel="stylesheet" href="https://uit.stanford.edu/sites/default/files/css/css_xE-rWrJf-fncB6ztZfd2huxqgxu4WO-qwma6Xer30m4.css" media="all" />
+<link type="text/css" rel="stylesheet" href="https://uit.stanford.edu/sites/default/files/css/css_8WsBE51ZLaFfp0zwBAlE3X3LwLPjbG0g87gpHZu-DlA.css" media="all" />
+<link type="text/css" rel="stylesheet" href="https://uit.stanford.edu/sites/default/files/css/css_x6o3ScdKNs2WuO2v5P9aGXcJb641yf8xviQIaw-S5s8.css" media="all" />
+<link type="text/css" rel="stylesheet" href="https://uit.stanford.edu/sites/default/files/css/css_ZgpmDdAJ0MoYiqQqaqBM_qGVSt-coG93a2sBXGrJ0gE.css" media="all" />
+<link type="text/css" rel="stylesheet" href="https://uit.stanford.edu/sites/default/files/css/css_nGZ0EUi6HATidAf3pITrpLdyTGtTsmfVAzXLpUp2gr4.css" media="print" />
+<link type="text/css" rel="stylesheet" href="https://uit.stanford.edu/sites/all/themes/stanford_uit/css/stanford_uit_custom.css?o8j0xy" media="all" />
+<link type="text/css" rel="stylesheet" href="https://uit.stanford.edu/sites/default/files/css/css_HU5QNRkxv1ZBTki45ms3iKc628qLewXxxJX-uIDVge0.css" media="all" />
+  <script type="text/javascript" src="https://uit.stanford.edu/sites/all/themes/open_framework/js/jquery-1.9.1.min.js?v=1.9.1"></script>
+<script type="text/javascript" src="https://uit.stanford.edu/sites/all/themes/open_framework/js/jquery-migrate-1.2.1.min.js?v=1.2.1"></script>
+<script type="text/javascript" src="https://uit.stanford.edu/misc/jquery.once.js?v=1.2"></script>
+<script type="text/javascript" src="https://uit.stanford.edu/misc/drupal.js?o8j0xy"></script>
+<script type="text/javascript" src="https://uit.stanford.edu/sites/all/modules/itservices/js/google_cse.js?o8j0xy"></script>
+<script type="text/javascript" src="https://uit.stanford.edu/sites/all/modules/google_analytics/googleanalytics.js?o8j0xy"></script>
+<script type="text/javascript">
+<!--//--><![CDATA[//><!--
+(function(i,s,o,g,r,a,m){i["GoogleAnalyticsObject"]=r;i[r]=i[r]||function(){(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)})(window,document,"script","//www.google-analytics.com/analytics.js","ga");ga("create", "UA-2886499-18", {"cookieDomain":"auto"});ga("send", "pageview");
+//--><!]]>
+</script>
+<script type="text/javascript" src="https://uit.stanford.edu/sites/all/themes/open_framework/packages/bootstrap-2.3.1/js/bootstrap.min.js?o8j0xy"></script>
+<script type="text/javascript" src="https://uit.stanford.edu/sites/all/themes/open_framework/js/open_framework.js?o8j0xy"></script>
+<script type="text/javascript" src="https://uit.stanford.edu/sites/all/themes/open_framework/js/jquery.placeholder.min.js?o8j0xy"></script>
+<script type="text/javascript" src="https://uit.stanford.edu/sites/all/themes/stanford_uit/js/override.js?o8j0xy"></script>
+<script type="text/javascript" src="https://uit.stanford.edu/sites/all/themes/stanford_framework/js/stanford-framework.js?o8j0xy"></script>
+<script type="text/javascript" src="https://uit.stanford.edu/sites/all/themes/stanford_uit/js/stanford_uit.js?o8j0xy"></script>
+<script type="text/javascript" src="https://uit.stanford.edu/sites/all/themes/stanford_uit/footable/js/footable.js?o8j0xy"></script>
+<script type="text/javascript" src="https://uit.stanford.edu/sites/all/themes/stanford_uit/fancybox/jquery.fancybox.pack.js?o8j0xy"></script>
+<script type="text/javascript" src="https://uit.stanford.edu/sites/default/files/js_injector/js_injector_10.js?o8j0xy"></script>
+<script type="text/javascript" src="https://uit.stanford.edu/sites/default/files/js_injector/js_injector_11.js?o8j0xy"></script>
+<script type="text/javascript" src="https://uit.stanford.edu/sites/default/files/js_injector/js_injector_12.js?o8j0xy"></script>
+<script type="text/javascript">
+<!--//--><![CDATA[//><!--
+jQuery.extend(Drupal.settings, {"basePath":"\/","pathPrefix":"","ajaxPageState":{"theme":"stanford_uit","theme_token":"-6baI1niiFONRblpAMwr6NED0eQqvh43qneV2fCh6xg","css":{"modules\/system\/system.base.css":1,"modules\/system\/system.menus.css":1,"modules\/system\/system.messages.css":1,"modules\/system\/system.theme.css":1,"modules\/aggregator\/aggregator.css":1,"sites\/all\/modules\/date\/date_api\/date.css":1,"sites\/all\/modules\/date\/date_popup\/themes\/datepicker.1.7.css":1,"modules\/field\/theme\/field.css":1,"modules\/node\/node.css":1,"sites\/all\/modules\/custom\/simple_registration\/all.css":1,"modules\/user\/user.css":1,"sites\/all\/modules\/views\/css\/views.css":1,"sites\/all\/modules\/ckeditor\/css\/ckeditor.css":1,"sites\/all\/modules\/ctools\/css\/ctools.css":1,"sites\/all\/themes\/open_framework\/packages\/bootstrap-2.3.1\/css\/bootstrap.min.css":1,"sites\/all\/themes\/open_framework\/packages\/bootstrap-2.3.1\/css\/bootstrap-responsive.min.css":1,"sites\/all\/themes\/open_framework\/packages\/font-awesome-4.6.1\/css\/font-awesome.min.css":1,"sites\/all\/themes\/open_framework\/css\/open_framework.css":1,"sites\/all\/themes\/stanford_framework\/css\/stanford-framework.css":1,"sites\/all\/themes\/stanford_framework\/css\/stanford_default\/stanford-default.css":1,"sites\/all\/themes\/stanford_framework\/css\/ie.css":1,"sites\/all\/themes\/stanford_uit\/css\/stanford_uit.css":1,"sites\/all\/themes\/stanford_uit\/footable\/css\/footable.css":1,"sites\/all\/themes\/stanford_uit\/fancybox\/jquery.fancybox.css":1,"sites\/all\/themes\/open_framework\/css\/open_framework_print.css":1,"sites\/all\/themes\/stanford_uit\/css\/stanford_uit_custom.css":1,"public:\/\/css_injector\/css_injector_20.css":1,"public:\/\/css_injector\/css_injector_22.css":1},"js":{"misc\/jquery.js":1,"sites\/all\/themes\/open_framework\/js\/jquery-migrate-1.2.1.min.js":1,"misc\/jquery.once.js":1,"misc\/drupal.js":1,"sites\/all\/modules\/itservices\/js\/google_cse.js":1,"sites\/all\/modules\/google_analytics\/googleanalytics.js":1,"0":1,"sites\/all\/themes\/open_framework\/packages\/bootstrap-2.3.1\/js\/bootstrap.min.js":1,"sites\/all\/themes\/open_framework\/js\/open_framework.js":1,"sites\/all\/themes\/open_framework\/js\/jquery.placeholder.min.js":1,"sites\/all\/themes\/stanford_uit\/js\/override.js":1,"sites\/all\/themes\/stanford_framework\/js\/stanford-framework.js":1,"sites\/all\/themes\/stanford_uit\/js\/stanford_uit.js":1,"sites\/all\/themes\/stanford_uit\/footable\/js\/footable.js":1,"sites\/all\/themes\/stanford_uit\/fancybox\/jquery.fancybox.pack.js":1,"sites\/default\/files\/js_injector\/js_injector_10.js":1,"sites\/default\/files\/js_injector\/js_injector_11.js":1,"sites\/default\/files\/js_injector\/js_injector_12.js":1}},"googleanalytics":{"trackOutbound":1,"trackMailto":1,"trackDownload":1,"trackDownloadExtensions":"7z|aac|arc|arj|asf|asx|avi|bin|csv|doc|exe|flv|gif|gz|gzip|hqx|jar|jpe?g|js|mp(2|3|4|e?g)|mov(ie)?|msi|msp|pdf|phps|png|ppt|qtm?|ra(m|r)?|sea|sit|tar|tgz|torrent|txt|wav|wma|wmv|wpd|xls|xml|z|zip|dmg"}});
+//--><!]]>
+</script>
+  <!--[if IE 7]>
+    <![endif]-->
+  <!-- IE Fix for HTML5 Tags -->
+  <!--[if lt IE 9]>
+    <script src="/sites/all/themes/open_framework/js/html5shiv.js"></script>
+  <![endif]-->
+</head>
+
+<body class="html front not-logged-in one-sidebar sidebar-second page-node        style-uit  header-bkg-image header-bkg-text-light" >
+    <div id="wrap"><a href="#main" class="element-invisible element-focusable">Skip to content</a>
+    <a href="#main-nav" class="element-invisible element-focusable">Skip to navigation</a>
+    <!-- /#skipnav -->
+    <!-- /#admin-shortcuts -->
+  <div id="global-header">
+    <div class="container">
+      <div class="row-fluid">
+        <div id="top-logo" class="span4"><a href="http://www.stanford.edu"><img src="/sites/all/themes/stanford_uit/images/header-stanford-logo@2x.png" alt="Stanford University"></a></div>
+                <div id="top-menu" class="span8"><div class="region region-global-header clearfix">
+  <div id="block-webauth-webauth-login-block" class="clearfix block block-webauth">     <h2>WebAuth Login</h2>
+      <div class="content"> <div id="webauth_login_url">
+  <a class="button" href="https://uit.stanford.edu/sites/default/webauth/login?destination=node">SUNet Login</a>
+</div>
+ </div>
+</div></div>
+ <!-- /.region -->
+</div>
+              </div>
+    </div>
+  </div>
+  <!-- /#global-header -->
+  <div id="header" class="clearfix header" role="banner">
+    <div class="container">
+      <div class="row">
+        <div class="span9">
+                    <div id="logo" class=" "> <a href="/" title="Home" rel="home"> <img src="https://uit.stanford.edu/sites/all/themes/stanford_uit/logo.png" alt="Stanford" role="presentation"> </a>
+                      </div>
+                    <!-- /#logo -->
+                    <div id="name-and-slogan"  class="with-logo">
+                        <div id="site-name" class="site-name"><a href="/" title="Home" rel="home">University IT</a></div>
+                                                                      </div>
+                                        <!-- /#name-and-slogan -->
+                    <!-- /#header-content -->
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- /#header -->
+    <div id="main-menu" class="clearfix site-main-menu">
+    <div class="container">
+      <div class="navbar">
+                <div class="navbar-inner">
+                              <div id="nav-search" class="nav-search"> <div class="region region-search-box clearfix">
+  <div id="block-its-search-its-search-search" class="clearfix block block-its-search">       <div class="content"> <gcse:searchbox-only linktarget="https://uit.stanford.edu" queryparametername="q_as"></gcse:searchbox-only> </div>
+</div></div>
+ <!-- /.region -->
+ </div>
+                              <button aria-label="Navigation menu" class="btn btn-navbar collapsed" data-toggle="collapse" data-target=".nav-collapse"> <span class="hide">Navigation menu</span> <span class="icon-bar"></span> <span class="icon-bar"></span> <span class="icon-bar"></span> </button>
+                    <div class="nav-collapse collapse">
+            <nav id="main-nav" role="navigation">
+                            <ul class="menu nav"><li class="first expanded dropdown"><a href="https://uit.stanford.edu" title="" class="dropdown-toggle" data-toggle="dropdown" data-target="#">Find Services <span class="caret"></span></a><ul class="dropdown-menu"><li class="first leaf"><a href="/services" title="">All</a></li>
+<li class="leaf"><a href="/services/category/accounts-and-access" title="">Accounts and Access</a></li>
+<li class="leaf"><a href="/services/category/backup-and-storage" title="">Backup and Storage</a></li>
+<li class="leaf"><a href="/services/category/business-intelligence-and-reporting" title="">Business Intelligence and Reporting</a></li>
+<li class="leaf"><a href="/services/category/communications" title="">Communications</a></li>
+<li class="leaf"><a href="/services/category/consulting-and-development" title="">Consulting and Development</a></li>
+<li class="leaf"><a href="/services/category/document-and-digital-asset-management" title="">Document and Digital Asset Management</a></li>
+<li class="leaf"><a href="/services/category/email-and-calendar" title="">Email and Calendar</a></li>
+<li class="leaf"><a href="/services/category/networks-and-connectivity" title="">Networks and Connectivity</a></li>
+<li class="leaf"><a href="/services/category/productivity-and-collaboration" title="">Productivity and Collaboration</a></li>
+<li class="leaf"><a href="/services/category/research-computing" title="">Research Computing</a></li>
+<li class="leaf"><a href="/services/category/security" title="">Security</a></li>
+<li class="leaf"><a href="/services/category/servers-and-data" title="">Servers and Data</a></li>
+<li class="leaf"><a href="/services/category/software-and-business-applications" title="">Software and Business Applications</a></li>
+<li class="leaf"><a href="/services/category/support-and-training" title="">Support and Training</a></li>
+<li class="last leaf"><a href="/services/category/web-development-and-hosting" title="">Web Development and Hosting</a></li>
+</ul></li>
+<li class="expanded dropdown"><a href="https://uit.stanford.edu" title="" class="dropdown-toggle" data-toggle="dropdown" data-target="#">I want to ... <span class="caret"></span></a><ul class="dropdown-menu"><li class="first leaf"><a href="/service/webauth/twostep" title="">Set up two-step authentication</a></li>
+<li class="leaf"><a href="/service/sponsorship/process" title="">Sponsor a SUNet ID</a></li>
+<li class="leaf"><a href="/guide/connecting-to-network" title="">Connect to the network</a></li>
+<li class="leaf"><a href="http://software.stanford.edu" title="">Get software</a></li>
+<li class="leaf"><a href="/emailcalendar/config" title="">Set up email</a></li>
+<li class="leaf"><a href="/service/phone/singleline/placing" title="">Make a call</a></li>
+<li class="leaf"><a href="/service/voicemessaging/univ_connect" title="">Check voicemail</a></li>
+<li class="leaf"><a href="/service/mobiledevice">Select a cell phone</a></li>
+<li class="leaf"><a href="/service/storage" title="">Store files and data</a></li>
+<li class="leaf"><a href="/service/backup" title="">Back up files and data</a></li>
+<li class="leaf"><a href="/guide/document-mgt" title="">Manage documents</a></li>
+<li class="leaf"><a href="/guide/website" title="">Publish a website</a></li>
+<li class="leaf"><a href="/service/videoconference">Arrange a video conference</a></li>
+<li class="leaf"><a href="/service/techtraining/schedule" title="">Get IT training</a></li>
+<li class="last leaf"><a href="/service/orderit/billing-new" title="">Run service billing reports</a></li>
+</ul></li>
+<li class="expanded dropdown"><a href="https://uit.stanford.edu" title="" class="dropdown-toggle" data-toggle="dropdown" data-target="#">Get Help <span class="caret"></span></a><ul class="dropdown-menu"><li class="first leaf"><a href="http://helpsu.stanford.edu" title="">Submit a HelpSU request</a></li>
+<li class="leaf"><a href="http://answers.stanford.edu" title="">Frequently Asked Questions</a></li>
+<li class="leaf"><a href="/service/techtraining" title="">Training Opportunities</a></li>
+<li class="leaf"><a href="/status-metrics" title="">Status and Metrics</a></li>
+<li class="last leaf"><a href="http://www.stanford.edu/site/accessibility" title="Link to university web accessibility page per Web Accessibility Advisory Committee via Jennifer Sutton, University Communications.">Report accessibility issues</a></li>
+</ul></li>
+<li class="expanded dropdown"><a href="/security" title="" class="dropdown-toggle" data-toggle="dropdown" data-target="#">Security <span class="caret"></span></a><ul class="dropdown-menu"><li class="first leaf"><a href="/security" title="">Information Security</a></li>
+<li class="leaf"><a href="/service/mobiledevice/management">Mobile Device Management</a></li>
+<li class="leaf"><a href="/service/encryption/wholedisk">Whole Disk Encryption</a></li>
+<li class="last leaf"><a href="/service/bigfix">Computer Security, Patch, &amp; Power Management</a></li>
+</ul></li>
+<li class="leaf"><a href="/newsletter" title="">Newsletter</a></li>
+<li class="last leaf"><a href="/organization" title="">About Us</a></li>
+</ul>              <!-- /#primary-menu -->
+                                        </nav>
+          </div>
+                                      </div>
+              </div>
+    </div>
+  </div>
+  <!-- /#main-menu -->
+    <div id="main" class="clearfix main" role="main">
+    <div class="container">
+                        <div id="main-content" class="row main-content">
+                <div id="content" class="mc-content span8">
+          <div id="content-wrapper" class="content-wrapper">
+            <div id="content-head" class="row-fluid content-head">
+                                                        <h1 class="title" id="page-title"> Welcome to University IT </h1>
+                                                                                                </div>
+                        <div id="content-top" class="row-fluid content-top"> <div class="region region-content-top clearfix">
+  <div id="block-block-16" class="clearfix block block-block">       <div class="content"> <div class="banner banner-box banner-red banner-medium">
+<div class="banner-image"><img alt="" src="https://uit.stanford.edu/sites/default/files/card-reader-student.jpg" /></div>
+
+<div class="banner-content">
+<h1>Improving building access</h1>
+<p>Cross-campus effort results in more reliable access control system</p>
+</div>
+
+<div class="banner-link"><a href="https://uit.stanford.edu/newsletter/building-access-improvements-increase-safety-reliability-and-efficiency"><span class="element-invisible">Learn more about building access improvements</span></a></div>
+</div>
+ </div>
+</div></div>
+ <!-- /.region -->
+ </div>
+                                    <div id="content-upper" class="row-fluid content-upper">
+              <!--<h2><a href="services">Services <i class="icon-double-angle-right"></i></a></h2>-->
+              <div id="front-services"> <div class="region region-content-upper clearfix">
+  <div id="block-block-9" class="clearfix block block-block span4 block-menu">     <h2>I want to ...</h2>
+      <div class="content"> <ul>
+	<li class="accounts-access-bullet"><a href="https://uit.stanford.edu/service/webauth/twostep" title="">Set up two-step authentication</a></li>
+	<li class="accounts-access-bullet"><a href="https://uit.stanford.edu/service/sponsorship/process">Sponsor a SUNet ID</a></li>
+	<li class="networks-connectivity-bullet"><a href="https://uit.stanford.edu/guide/connecting-to-network" title="">Connect to the network</a></li>
+	<li class="software-business-applications-bullet"><a href="http://software.stanford.edu" title="">Get software</a></li>
+	<li class="email-calendar-bullet"><a href="https://uit.stanford.edu/emailcalendar/config" title="">Set up email</a></li>
+	<li class="communications-bullet"><a href="https://uit.stanford.edu/service/phone/singleline/placing" title="">Make a call</a></li>
+	<li class="communications-bullet"><a href="https://uit.stanford.edu/service/voicemessaging/univ_connect" title="">Check voicemail</a></li>
+	<li class="communications-bullet"><a href="https://uit.stanford.edu/service/mobiledevice" title="">Select a cell phone</a></li>
+	<li class="backup-storage-bullet"><a href="https://uit.stanford.edu/service/storage" title="">Store files and data</a></li>
+	<li class="backup-storage-bullet"><a href="https://uit.stanford.edu/service/backup" title="">Back up files and data</a></li>
+	<li class="web-collaboration-bullet"><a href="https://uit.stanford.edu/guide/document-mgt" title="">Manage documents</a></li>
+	<li class="web-collaboration-bullet"><a href="https://uit.stanford.edu/guide/website" title="">Publish a website</a></li>
+	<li class="communications-bullet"><a href="https://uit.stanford.edu/service/videoconference">Arrange a video conference</a></li>
+	<li class="help-training-bullet"><a href="https://uit.stanford.edu/service/techtraining/schedule" title="">Get IT training</a></li>
+	<li class="help-training-bullet"><a href="https://uit.stanford.edu/service/orderit/billing-new">Run service billing reports</a></li>
+</ul>
+ </div>
+</div><div id="block-views-service-catalog-block-1" class="clearfix block block-views span8">       <div class="content"> <div class="view view-service-catalog view-id-service_catalog view-display-id-block_1 view-dom-id-1f04f6f1f0967c9c26e883639ab9edd8">
+        
+  
+  
+      <div class="view-content">
+      <div class="grouping">
+        <div class="span3">
+        
+  <div class="views-field views-field-name">        <span class="field-content"><a href="/services/category/accounts-and-access" title="includes Stanford WebLogin and Two-Step Authentication, ID Card, Authority Manager, and more."><i class="fa fa-key"></i> Accounts and Access</a></span>  </div>    </div>
+      <div class="span3">
+        
+  <div class="views-field views-field-name">        <span class="field-content"><a href="/services/category/backup-and-storage" title="includes Encryption, Data Storage, and Backup services."><i class="fa fa-cloud-upload"></i> Backup and Storage</a></span>  </div>    </div>
+      <div class="span3">
+        
+  <div class="views-field views-field-name">        <span class="field-content"><a href="/services/category/business-intelligence-and-reporting" title="includes Oracle Business Intelligence - Enterprise Edition (OBIEE)."><i class="fa fa-bar-chart"></i> Business Intelligence and Reporting</a></span>  </div>    </div>
+      <div class="span3">
+        
+  <div class="views-field views-field-name">        <span class="field-content"><a href="/services/category/communications" title="includes Telephones, Cell Phones, Cable TV, and more."><i class="fa fa-phone"></i> Communications</a></span>  </div>    </div>
+      <div class="span3">
+        
+  <div class="views-field views-field-name">        <span class="field-content"><a href="/services/category/consulting-and-development" title="includes Business Solutions Consulting and Development, CRC, BigFix, Apple, Dell, and Lenovo bundles, and more."><i class="fa fa-cubes"></i> Consulting and Development</a></span>  </div>    </div>
+      <div class="span3">
+        
+  <div class="views-field views-field-name">        <span class="field-content"><a href="/services/category/document-and-digital-asset-management" title="includes Google Apps at Stanford, Box, Nolij, and SALLIE."><i class="fa fa-file-text"></i> Document and Digital Asset Management</a></span>  </div>    </div>
+      <div class="span3">
+        
+  <div class="views-field views-field-name">        <span class="field-content"><a href="/services/category/email-and-calendar" title="includes Stanford Email &amp; Calendar, Mailing Lists, and more."><i class="fa fa-envelope"></i> Email and Calendar</a></span>  </div>    </div>
+      <div class="span3">
+        
+  <div class="views-field views-field-name">        <span class="field-content"><a href="/services/category/networks-and-connectivity" title="includes the Stanford University Network, Wi-Fi, VPN, and more."><i class="fa fa-wifi"></i> Networks and Connectivity</a></span>  </div>    </div>
+      <div class="span3">
+        
+  <div class="views-field views-field-name">        <span class="field-content"><a href="/services/category/productivity-and-collaboration" title="includes Confluence, Blue Jeans video conferencing, Drupal, Instant Messaging, JIRA, Qualtrics Surveys, Remedy, and Web Forms Service."><i class="fa fa-group"></i> Productivity and Collaboration</a></span>  </div>    </div>
+      <div class="span3">
+        
+  <div class="views-field views-field-name">        <span class="field-content"><a href="/services/category/research-computing" title="includes consulting, server hosting and system administration, a scientific facilities management system, and data storage services."><i class="fa fa-flask"></i> Research Computing</a></span>  </div>    </div>
+      <div class="span3">
+        
+  <div class="views-field views-field-name">        <span class="field-content"><a href="/services/category/security" title="includes desktop and mobile device management, antivirus, disk encryption, and more."><i class="fa fa-shield"></i> Security</a></span>  </div>    </div>
+      <div class="span3">
+        
+  <div class="views-field views-field-name">        <span class="field-content"><a href="/services/category/servers-and-data" title="includes centralized server hosting, system administration, virtual servers, and databases."><i class="fa fa-database"></i> Servers and Data</a></span>  </div>    </div>
+      <div class="span3">
+        
+  <div class="views-field views-field-name">        <span class="field-content"><a href="/services/category/software-and-business-applications" title="includes software distribution and licensing, service ordering, and application implementation and/or hosting."><i class="fa fa-download"></i> Software and Business Applications</a></span>  </div>    </div>
+      <div class="span3">
+        
+  <div class="views-field views-field-name">        <span class="field-content"><a href="/services/category/support-and-training" title="includes HelpSU online help system, Stanford Answers, Technology Training programs, and more."><i class="fa fa-question-circle"></i> Support and Training</a></span>  </div>    </div>
+      <div class="span3">
+        
+  <div class="views-field views-field-name">        <span class="field-content"><a href="/services/category/web-development-and-hosting" title="includes Stanford Web Services, WWW hosting, blogs, survey and form tools, and more."><i class="fa fa-globe"></i> Web Development and Hosting</a></span>  </div>    </div>
+  </div><!--end grouping div-->
+
+    </div>
+  
+  
+  
+  
+      <div class="view-footer">
+      <a href="https://uit.stanford.edu/services" class="pull-right more-link">View all services</a>    </div>
+  
+  
+</div> </div>
+</div></div>
+ <!-- /.region -->
+ </div>
+            </div>
+                                    <div id="content-body" class="row-fluid content-body"> <div class="region region-content clearfix">
+  <div id="block-system-main" class="clearfix block block-system">       <div class="content"> <div id="first-time"><p>No front page content has been created yet.</p></div> </div>
+</div></div>
+ <!-- /.region -->
+  </div>
+                                                                                                                      </div>
+          <!-- /#content-wrap -->
+        </div>
+        <!-- /#content -->
+                <div id="sidebar-second" class="sidebar sidebar-second span4">
+          <div class="row-fluid"><div class="region region-sidebar-second clearfix">
+  <div id="block-views-announcements-block" class="clearfix block block-views">       <div class="content"> <div class="view view-announcements view-id-announcements view-display-id-block well view-dom-id-6f34e5da2ff009642a70542c2132dd35">
+            <div class="view-header">
+      <a title="Subscribe to Stanford IT Services Announcements" class="feed-icon" href="https://uit.stanford.edu/announcements/feed" style="float: right; display: block; border: medium none;"><img width="16" height="16" alt="Subscribe to Stanford IT Services Announcements" src="https://uit.stanford.edu/misc/feed.png"></a><i class="fa fa-bullhorn"></i><h2>Announcements</h2>    </div>
+  
+  
+  
+      <div class="view-content">
+      <div class="item-list">    <ul>          <li class="views-row views-row-1 views-row-odd views-row-first">  
+          <span class="field-content announcement-date"><span class="date-display-single">Jun 13</span></span>    
+          <div class="announcement-title"><a href="/announcement/2016-06-13-000000">PeopleSoft Upgrade Scheduled July 5 </a></div>  </li>
+          <li class="views-row views-row-2 views-row-even">  
+          <span class="field-content announcement-date"><span class="date-display-single">Jun 1</span></span>    
+          <div class="announcement-title"><a href="/announcement/2016-06-01-000000">June University IT Newsletter Now Available  </a></div>  </li>
+          <li class="views-row views-row-3 views-row-odd views-row-last">  
+          <span class="field-content announcement-date"><span class="date-display-single">May 2</span></span>    
+          <div class="announcement-title"><a href="/announcement/2016-05-02-000000">May University IT Newsletter Now Available </a></div>  </li>
+      </ul></div>    </div>
+  
+  
+  
+  
+      <div class="view-footer">
+      <a href="https://uit.stanford.edu/announcements" class="more-link">View all announcements</a>    </div>
+  
+  
+</div> </div>
+</div>
+<div id="block-block-15" class="clearfix block block-block well">       <div class="content"> <i class="fa fa-lock"></i>
+<h2>Security Resources</h2>
+
+<ul><!--<li><a href="http://news.stanford.edu/news/2014/april/password-update-security-042414.html">Stronger SUNet passwords required</a></li>--><!--<li><a href="http://ucomm.stanford.edu/computersecurity">Information Security Mandates</a></li>-->
+	<li><a href="https://uit.stanford.edu/guide/encrypt">Encryption at Stanford</a></li>
+	<li><a href="https://uit.stanford.edu/security/faq">Security Requirements Questions and Answers</a></li>
+	<li><a href="https://helpsu.stanford.edu/?pcat=iso">Report a security incident</a></li>
+	<li><a href="https://uit.stanford.edu/security">Visit Information Security</a></li>
+	<!--<li><a href="http://news.stanford.edu/news/2013/november/prevent-email-phishing-111213.html">Avoiding email phishing attacks</a></li>-->
+</ul>
+ </div>
+</div>
+<div id="block-block-14" class="clearfix block block-block well">       <div class="content"> <i class="fa fa-envelope"></i>
+<h2>Received an email from University IT?</h2>
+
+<ul>
+	<li><a href="https://uit.stanford.edu/announcements/email">Verified email from University IT</a></li>
+	<li><a href="https://uit.stanford.edu/phishing">Examples of phishing email (scams)</a></li>
+</ul>
+ </div>
+</div>
+<div id="block-its-status-block-its-status-block" class="clearfix block block-its-status-block">       <div class="content"> <h2 class="system-status-heading"><a href="https://dashboard.stanford.edu/">System Status <i class="icon-double-angle-right"></i></a></h2><iframe title="System Status" frameborder="0" height="170" marginheight="0" marginwidth="0" scrolling="no" src="https://apps.stanford.edu/status?new" style="overflow: hidden;" width="100%"></iframe> </div>
+</div>
+</div>
+ <!-- /.region -->
+</div>
+        </div>
+        <!-- /#sidebar-second -->
+              </div>
+                </div>
+  </div>
+  <!-- /#main, /#main-wrapper -->
+  <div id="push"></div>
+  <!-- /#push -->
+</div>
+<!-- /#wrap -->
+<div id="footer" class="clearfix footer">
+  <div class="container">
+        <div id="footer-content" class="row-fluid footer-content"> <div class="region region-footer clearfix">
+  <div id="block-menu-menu-university-it" class="clearfix block block-menu span3">     <h2>University IT</h2>
+      <div class="content"> <ul class="menu nav"><li class="first leaf"><a href="http://uit.stanford.edu/about" title="">About Us</a></li>
+<li class="leaf"><a href="/organization/orgchart" title="">Organization Chart</a></li>
+<li class="leaf"><a href="http://stanfordcareers.stanford.edu/" title="">Jobs</a></li>
+<li class="last leaf"><a href="http://helpsu.stanford.edu/" title="">Contact Us</a></li>
+</ul> </div>
+</div>
+<div id="block-menu-menu-news" class="clearfix block block-menu span3">     <h2>News</h2>
+      <div class="content"> <ul class="menu nav"><li class="first leaf"><a href="/announcements" title="">Recent Announcements</a></li>
+<li class="leaf"><a href="https://uit.stanford.edu/newsletter" title="">Newsletter</a></li>
+<li class="last leaf"><a href="/announcements/email" title="" class="restricted">Verified Emails</a></li>
+</ul> </div>
+</div>
+<div id="block-menu-menu-footer-services" class="clearfix block block-menu span3">     <h2>Services</h2>
+      <div class="content"> <ul class="menu nav"><li class="first leaf"><a href="/services" title="">Service Catalog</a></li>
+<li class="leaf"><a href="http://securecomputing.stanford.edu/" title="">Information Security</a></li>
+<li class="leaf"><a href="/emailcalendar" title="">Email and Calendar</a></li>
+<li class="last leaf"><a href="/service/ess" title="">Essential Stanford Software</a></li>
+</ul> </div>
+</div>
+<div id="block-menu-menu-support" class="clearfix block block-menu span3">     <h2>Support</h2>
+      <div class="content"> <ul class="menu nav"><li class="first leaf"><a href="http://helpsu.stanford.edu/" title="">HelpSU Request</a></li>
+<li class="leaf"><a href="/status-metrics" title="">Status and Metrics</a></li>
+<li class="leaf"><a href="http://answers.stanford.edu/" title="">Stanford Answers</a></li>
+<li class="leaf"><a href="/guide/browser-recommendations" title="">Browser Recommendations</a></li>
+<li class="last leaf"><a href="http://uitcomm.stanford.edu/" title="">Site Feedback</a></li>
+</ul> </div>
+</div>
+</div>
+ <!-- /.region -->
+ </div>
+      </div>
+</div>
+<!-- /#footer -->
+<div id="global-footer" role="contentinfo">
+  <div class="container">
+    <div class="row">
+      <div id="bottom-logo" class="span2"><a href="http://www.stanford.edu"><img src="/sites/all/themes/stanford_uit/images/footer-stanford-logo@2x.png" alt="Stanford University"></a></div>
+      <div id="bottom-menu" class="span10">
+        <ul>
+          <li><a href="http://www.stanford.edu">SU Home</a></li>
+          <li><a href="http://visit.stanford.edu/plan/maps.html">Maps &amp; Directions</a></li>
+          <li><a href="http://www.stanford.edu/search/">Search Stanford</a></li>
+          <li><a href="http://www.stanford.edu/site/terms.html">Terms of Use</a></li>
+          <li><a href="http://emergency.stanford.edu/">Emergency Info</a></li>
+        </ul>
+      </div>
+      <div id="copyright" class="span10 offset2">
+        <p class="vcard">&copy; <span class="fn org">Stanford University</span>, <span class="adr"><span class="locality">Stanford</span>, <span class="region">California</span> <span class="postal-code">94305</span></span>. <span class="copyright-links"><a href="http://www.stanford.edu/site/copyright.html">Copyright Complaints</a></span></p>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- /#global-footer -->
+
+   <!-- /.region -->
+</body>
+
+</html><html><body><h1>It works!</h1>
+<p>This is the default web page for this server.</p>
+<p>The web server software is running but no content has been added, yet.</p>
+</body></html>
+{"sentences":[{"index":0,"parse":"(ROOT\n  (S\n    (VP (`` ``)\n      (NP (PRP it)))))","basic-dependencies":[{"dep":"ROOT","governor":0,"governorGloss":"ROOT","dependent":2,"dependentGloss":"it"},{"dep":"punct","governor":2,"governorGloss":"it","dependent":1,"dependentGloss":"``"}],"collapsed-dependencies":[{"dep":"ROOT","governor":0,"governorGloss":"ROOT","dependent":2,"dependentGloss":"it"},{"dep":"punct","governor":2,"governorGloss":"it","dependent":1,"dependentGloss":"``"}],"collapsed-ccprocessed-dependencies":[{"dep":"ROOT","governor":0,"governorGloss":"ROOT","dependent":2,"dependentGloss":"it"},{"dep":"punct","governor":2,"governorGloss":"it","dependent":1,"dependentGloss":"``"}],"tokens":[{"index":1,"word":"``","originalText":"\"","lemma":"``","characterOffsetBegin":0,"characterOffsetEnd":1,"pos":"``","before":"","after":""},{"index":2,"word":"it","originalText":"it","lemma":"it","characterOffsetBegin":1,"characterOffsetEnd":3,"pos":"PRP","before":"","after":""}]}]}
