@@ -1,0 +1,100 @@
+
+var latentsModel = function() {
+	// care or don't care about dimensions with equal probability
+	return {
+		actionRandomness: discreteUniform(0.02), // discreteUniform(.002) for no problems
+		prettiness: uniformDraw([0, 1]),
+		yumminess: uniformDraw([0, 1]),
+		rationality: uniformDraw([1, 2, 4])
+	};
+};
+
+// bring this out of statesModel so we can cache it globally
+var actionPosterior = cache(function(args) {
+	var features = {
+		cupcakes: {prettiness: 1, yumminess: 1},
+		flowers: {prettiness: 1, yumminess: 0},
+		brownies: {prettiness: 0, yumminess: 1}
+	};
+	var coefs = {prettiness: args.prettiness, yumminess: args.yumminess}
+	var rationality = args.rationality;
+	return enumerate(function() {
+		var actionChoice = uniformDraw(_.keys(features));
+		var utility = sum(map(function(dim) {return (features[actionChoice])[dim]*coefs[dim]}, ["prettiness", "yumminess"]));
+		factor(utility*rationality);
+		return actionChoice;
+	});
+});
+
+var statesModel = function(latents, actualActionERP) {
+	var prettiness = latents.prettiness;
+	var yumminess = latents.yumminess;
+	var rationality = latents.rationality;
+	var actionRandomness = latents.actionRandomness;
+
+	var actionERP = actionPosterior({
+		prettiness: prettiness,
+		yumminess: yumminess,
+		rationality: rationality
+	});
+
+	var action = ( actualActionERP ?  
+		explanations.inverseCDFMaxOverlap(actionERP, actionRandomness, actualActionERP) : 
+		explanations.inverseCDF(actionERP, actionRandomness) );
+
+	return [{
+		prettiness: prettiness,
+		yumminess: yumminess,
+		action: action,
+		rationality: rationality
+	}, actionERP];
+};
+
+// var inferenceOptions = {method: "enumerate"}
+var inferenceOptions = {method: "MCMC", samples: 1000, lag: 10};
+
+var example = initializeExample({
+	latentsModel: latentsModel,
+	statesModel: statesModel,
+	possibleExplanations: ["prettiness", "yumminess", "nocomment", "tmi", "rationality"],
+	propositions: {
+		rationality: function(states, actualStates) {
+			return states.rationality==actualStates.rationality;
+		},
+		action: function(states, actualStates) {
+			return states.action==actualStates.action;
+		},
+		prettiness: function(states, actualStates) {
+			return states.prettiness==actualStates.prettiness;
+		},
+		yumminess: function(states, actualStates) {
+			return states.yumminess==actualStates.yumminess;
+		},
+		nocomment: function(states, actualStates) {
+			return false;
+		},
+		tmi: function(states, actualStates) {
+			return _.isEqual(states, actualStates);
+		}
+	},
+	inferenceOptions: inferenceOptions
+});
+
+var why = example.why;
+var getExplanationRatings = cache(function(actualStates) {
+	return Infer(
+		{method: "enumerate"},
+		why({
+			actualStates: actualStates,
+			propositionToExplain: "action"
+		})
+	);
+});
+var forwardModel = example.forwardModel;
+
+var explanationsModel = function() {
+	var actualStates = uniformDraw(dataFromR);
+	return sample(getExplanationRatings(actualStates));
+};
+
+"finished"

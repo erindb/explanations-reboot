@@ -1,0 +1,128 @@
+---
+title: "Explaining an Agent's Choices"
+author: "erindb"
+output: html_document
+---
+
+```{r}
+knitr::opts_chunk$set(echo=F, warning=F, message=F)
+```
+
+```{r}
+library(rwebppl)
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+library(jsonlite)
+library(ggthemes)
+theme_new = theme_set(theme_few(base_size = 14))
+```
+
+Basic softmax example. Some weirdness, e.g. with negation.
+
+```{r}
+plot.forward.model = function(tag) {
+  forward = webppl(
+    program_file = paste(tag, "wppl", sep="."),
+    inference_opts = list(method="enumerate"),
+    model_var = "forwardModel",
+    packages = c("./node_modules/explanations")
+  )
+  h = forward %>%
+    mutate(prettiness=ifelse(prettiness==1, 'should be pretty', "prettiness: meh"),
+           yumminess=ifelse(yumminess==1, 'should be yummy', "taste: meh")) %>%
+    ggplot(., aes(x=action, y=prob, fill=action, colour=action, group=rationality)) +
+    geom_bar(stat='identity', position="dodge") +
+    scale_fill_few() +
+    scale_colour_few() +
+    facet_grid(prettiness ~ yumminess) +
+    theme(axis.text.x = element_text(angle = -45, hjust = 0)) +
+    theme(legend.position="none") +
+    xlab("choice of gift")
+  print(h)
+}
+plot.forward.model("basic")
+```
+
+```{r}
+plot.explanations.model = function(model.tag, states) {
+  basic_explanations = webppl(
+    program_file = paste(model.tag, "wppl", sep="."),
+    model_var = "explanationsModel",
+    inference_opts = list(method="enumerate"),
+    data = states,
+    data_var = "dataFromR",
+    packages = c("./node_modules/explanations")
+  ) %>%
+    # rescale so that given a state, total prob=1
+    mutate(prob = prob*nrow(states))
+  explanationText = function(expl, pretty, yummy, rational) {
+    utility = c(prettiness=pretty, yumminess=yummy)
+    adj = c(prettiness="pretty", yumminess="yummy")
+    if (expl=="yumminess" | expl=="prettiness") {
+      if (utility[expl]==1) { return(paste("b/c it should be", adj[expl])) } else { return(paste("b/c", expl, "doesn't matter")) }
+    } else if (expl=="rationality") {
+      return("b/c rationality")
+      # return(paste("b/c rationality=", rational, sep=""))
+    } else if (expl=="tmi") {return("b/c all the things")} else { return(expl) }
+  }
+  h = basic_explanations %>%
+    mutate(explanationText=mapply(explanationText, explanation, prettiness, yumminess, rationality),
+           prettiness=ifelse(prettiness==1, 'should be pretty', "prettiness: meh"),
+           yumminess=ifelse(yumminess==1, 'should be yummy', "taste: meh"),
+           group = paste(explanation, rationality)) %>%
+    ggplot(., aes(x=action, y=prob, fill=explanation, colour=explanation, group=group)) +
+    geom_bar(stat="identity", position="dodge") +
+    geom_text(aes(label=explanationText,
+                  x=action,
+                  group=explanation,
+                  y=0),
+              position=position_dodge(0.9),
+              colour='black',
+              angle=90,
+              hjust=-0.05,
+              size=4) +
+    facet_grid(prettiness ~ yumminess) +
+    scale_fill_few() +
+    scale_colour_few() +
+    theme(axis.text.x = element_text(angle = -45, hjust = 0))
+  print(h)
+  ggsave(paste(model.tag, "explanations", "png", sep="."), width=10, height=6)
+}
+features = as.data.frame(list(
+  flowers=c(prettiness=1, yumminess=0),
+  cupcakes=c(prettiness=1, yumminess=1),
+  brownies=c(prettiness=0, yumminess=1)
+))
+states = expand.grid(
+  prettiness=c(0,1),
+  yumminess=c(0,1),
+  action=colnames(features),
+  rationality=1)
+plot.explanations.model("basic", states)
+```
+
+Try the full set of these:
+
+* null response
+* exhaustive response
+* utility term
+* feature value
+* rationality term
+
+```{r}
+plot.forward.model("complete")
+```
+
+```{r}
+complete.states = expand.grid(
+  prettiness=c(0,1),
+  yumminess=c(0,1),
+  action=colnames(features),
+  rationality=c(1,2,4))
+plot.explanations.model("complete", complete.states)
+```
+
+And then try taking some away and see what happens.
+
+![](choices-images.png)
