@@ -1,5 +1,5 @@
 ---
-title: "Examples Explaining an Autonomous Agent's Choices"
+title: "Counterfactual Sampler for Categorical Distributions"
 author: "erindb"
 output: html_document
 ---
