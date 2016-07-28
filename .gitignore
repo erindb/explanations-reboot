@@ -3,3 +3,5 @@
 *.Rhistory
 data-collection/*
 archive/*
+experiments/experiment0/stims
+*/*/rsconnect/
