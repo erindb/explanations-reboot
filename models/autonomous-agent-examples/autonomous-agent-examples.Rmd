@@ -115,6 +115,29 @@ explanationPosteriorsBasic %>%
 
 In general, if we pick an option that's high in one of the dimensions we care about, we tend to explain choosing it with, "Because I care about the dimension it's good on." When we pick an options that's low on a dimension we don't care about, we explain choosing it with, "Because I don't care about the dimension it's low on." Because of our high rationality, we never pick anything that's low on a dimension we care about.
 
+```{r}
+pretty = c(flowers=1, cupcakes=1, brownies=0)
+yummy = c(flowers=0, cupcakes=1, brownies=1)
+explanationPosteriorsBasic %>%
+  mutate(utility.of.choice=prettiness*pretty[action] + yumminess*yummy[action],
+         explain.in.terms.of.feature=ifelse((explanation=="prettiness" & pretty[action]==1) | (explanation=="yumminess" & yummy[action]==1), "present", "absent"),
+         explain.in.terms.of.utility=ifelse((explanation=="prettiness" & prettiness==1) | (explanation=="yumminess" & yumminess==1), "care", "don't care"),
+         utility.of.choice=factor(utility.of.choice),
+         highest.possible.utility = factor(prettiness+yumminess),
+         action.choice = ifelse(action=="cupcakes", "cupcakes", "brownies/flowers"),
+         utility.function=paste(prettiness, yumminess),
+         highest.possible.utility.of.choice = factor(pretty[action] + yummy[action]),
+         group=paste(explain.in.terms.of.utility, utility.function, explanation)) %>%
+  # group_by(explain.in.terms.of, action, highest.possible.utility) %>%
+  # summarise(average.prob = mean(prob)) %>%
+  ggplot(., aes(x=explain.in.terms.of.feature, y=prob, fill=highest.possible.utility, colour=highest.possible.utility, group=group)) +
+  geom_bar(stat="identity", position="dodge") +
+  facet_wrap(~action) +
+  scale_fill_few() +
+  scale_colour_few()
+ggsave("basic.explanations.png", width=10, height=6)
+```
+
 So this is one simple example that seems to have the kind of behavior I expect. Let's increase the complexity. There are many choices of where to go from here. I'll list a few:
 
 * modify the options
@@ -211,6 +234,34 @@ explanationPosteriors3d %>%
   theme(axis.text.x = element_text(angle = -45, hjust = 0))
 ```
 
+```{r}
+pretty = c(flowers=1, cupcakes=1, brownies=0, letter=0, wine=0, necklace=1, chocolates=1)
+yummy = c(flowers=0, cupcakes=1, brownies=1, letter=0, wine=1, necklace=0, chocolates=1)
+longLasting = c(flowers=0, cupcakes=0, brownies=0, letter=1, wine=1, necklace=1, chocolates=1)
+explanationPosteriors3d %>%
+  mutate(utility.of.choice=prettiness*pretty[action] + yumminess*yummy[action] + shelfLife*longLasting[action],
+         explain.in.terms.of.feature=ifelse((explanation=="prettiness" & pretty[action]==1) |
+                                              (explanation=="yumminess" & yummy[action]==1) |
+                                              (explanation=="shelfLife" & longLasting[action]==1), "present", "absent"),
+         explain.in.terms.of.utility=ifelse((explanation=="prettiness" & prettiness==1) |
+                                              (explanation=="yumminess" & yumminess==1) |
+                                              (explanation=="shelfLife" & shelfLife==1), "care", "don't care"),
+         utility.of.choice=factor(utility.of.choice),
+         highest.possible.utility = factor(prettiness+yumminess+shelfLife),
+         # action.choice = ifelse(action=="cupcakes", "cupcakes", "brownies/flowers"),
+         utility.function=paste(prettiness, yumminess, shelfLife),
+         highest.possible.utility.of.choice = factor(pretty[action] + yummy[action] + longLasting[action]),
+         group=paste(explain.in.terms.of.utility, utility.function, explanation)) %>%
+  # group_by(explain.in.terms.of, action, highest.possible.utility) %>%
+  # summarise(average.prob = mean(prob)) %>%
+  ggplot(., aes(x=explain.in.terms.of.feature, y=prob, fill=highest.possible.utility, colour=highest.possible.utility, group=group)) +
+  geom_bar(stat="identity", position="dodge") +
+  facet_wrap(~action) +
+  scale_fill_few() +
+  scale_colour_few()
+ggsave("3d.explanations.png", width=10, height=6)
+```
+
 ## 2D with origin
 
 When I originally constructed the basic 2D example, I was motivated to leave the origin empty by some strange effects that I couldn't intuit the mechanism for. At the time, I put this down to the symmetry that the origin produced. Looking at the example now, though, it seems like the effects we saw for the 2D case without the origin are still at play when the origin is added. I might have been thinking of a situation where features can have negative utility.
@@ -303,6 +354,31 @@ explanationPosteriorsOrigin %>%
   scale_colour_few() +
   theme(axis.text.x = element_text(angle = -45, hjust = 0))
 ```
+
+
+```{r}
+pretty = c(flowers=1, cupcakes=1, brownies=0, letter=0)
+yummy = c(flowers=0, cupcakes=1, brownies=1, letter=0)
+explanationPosteriorsOrigin %>%
+  mutate(utility.of.choice=prettiness*pretty[action] + yumminess*yummy[action],
+         explain.in.terms.of.feature=ifelse((explanation=="prettiness" & pretty[action]==1) | (explanation=="yumminess" & yummy[action]==1), "present", "absent"),
+         explain.in.terms.of.utility=ifelse((explanation=="prettiness" & prettiness==1) | (explanation=="yumminess" & yumminess==1), "care", "don't care"),
+         utility.of.choice=factor(utility.of.choice),
+         highest.possible.utility = factor(prettiness+yumminess),
+         action.choice = ifelse(action=="cupcakes", "cupcakes", ifelse(action=="letter", "letter", "brownies/flowers")),
+         utility.function=paste(prettiness, yumminess),
+         highest.possible.utility.of.choice = factor(pretty[action] + yummy[action]),
+         group=paste(explain.in.terms.of.utility, utility.function, explanation)) %>%
+  # group_by(explain.in.terms.of, action, highest.possible.utility) %>%
+  # summarise(average.prob = mean(prob)) %>%
+  ggplot(., aes(x=explain.in.terms.of.feature, y=prob, fill=highest.possible.utility, colour=highest.possible.utility, group=group)) +
+  geom_bar(stat="identity", position="dodge") +
+  facet_wrap(~action) +
+  scale_fill_few() +
+  scale_colour_few()
+ggsave("origin.explanations.png", width=10, height=6)
+```
+
 
 ## Doubled-up items in feature-space
 

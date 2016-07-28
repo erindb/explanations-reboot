@@ -8,14 +8,15 @@ var infer = function(fn) {return Infer({method: 'enumerate'}, fn); };
 var latentsModel = function() {
 	return {
 		model: uniformDraw(["A->B", "A,B"]),
-		A: flip(),
-		Bbackground: flip(0.9)
+		A: flip()//,
+		// Bbackground: flip(0.9)
 	};
 };
 
 var statesModel = function(latents) {
 	var A = latents.A;
-	var B = (latents.model=="A->B") ? (A || latents.Bbackground ? true : false) : (latents.Bbackground ? true : false);
+	var B = (latents.model=="A->B") ? A : false;
+	// var B = (A && latents.model=="A->B") ? true : (latents.Bbackground ? true : false);
 	var connected = latents.model=="A->B";
 	return { A: A, B: B, connected: connected };
 };
@@ -50,11 +51,13 @@ var counterfactually = function(args) {
 };
 
 var utterancePrior = function() {
-	return uniformDraw([
-		['B', 'because', 'A'],
-		[''],
-		['A', 'because', 'B']
-	]);
+	return categorical(
+		[ Math.exp(0), Math.exp(-3) ],
+		[
+			[''],
+			['B', 'because', 'A']
+		]
+	);
 };
 
 var literal = function(utterance) {
@@ -87,18 +90,22 @@ var speaker = function(states, qud) {
 	});
 };
 
-var listener = function(utterance, qud) {
+var listener = function(utterance, qud, commonGround) {
 	return infer(function() {
 		var latents = latentsModel();
 		var states = statesModel(latents);
 
+		// if (commonGround.A) { condition(commonGround.A == states.A); };
+		// if (commonGround.B) { condition(commonGround.B == states.B); };
+		// if (commonGround.connected) { condition(commonGround.connected == states.connected); };
+
 		factor(speaker(states, qud).score(utterance));
 		
-		return states[qud];
+		return states;
 	});
 };
 
-display(listener(['B', 'because', 'A'], 'connected'));
+display(listener(['B', 'because', 'A'], 'connected', {A: true, B: true}));
 
 // display(speaker({A: true, B: true, connected: true}, "connected"))
 

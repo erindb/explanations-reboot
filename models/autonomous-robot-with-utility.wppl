@@ -1,45 +1,7 @@
 var examples = {
   "cupcakes, flowers, and brownies": {
-    latents: function() {
-      // care or don't care about dimensions with equal probability
-      return {
-        // actionRandomness: sample(UniformDrift({a: 0, b: 1, r: 0.1})),
-        actionRandomness: discreteUniform(),
-        prettinessCoef: uniformDraw([0, 1]),
-        yumminessCoef: uniformDraw([0, 1]),
-        rationality: 1000 // could change this to something lower later
-      };
-    },
-    states: function(latents) {
-      var actionRandomness = latents.actionRandomness;
-      var prettinessCoef = latents.prettinessCoef;
-      var yumminessCoef = latents.yumminessCoef;
-      var rationality = latents.rationality;
-
-      var coefs = {prettiness: prettinessCoef, yumminess: yumminessCoef};
-
-      var features = {
-        cupcakes: {prettiness: 1, yumminess: 1},
-        flowers: {prettiness: 1, yumminess: 0},
-        brownies: {prettiness: 0, yumminess: 1}
-      };
-
-      var actionPosterior = infer(function() {
-        var actionChoice = uniformDraw(["cupcakes", "flowers", "brownies"]);
-        var utility = features[actionChoice].prettiness*prettinessCoef + 
-          features[actionChoice].yumminess*yumminessCoef;
-        factor(utility*rationality);
-        return actionChoice;
-      });
-
-      var action = sampleWithUniformRV(actionPosterior, actionRandomness);
-
-      return {
-        prettiness: prettinessCoef,
-        yumminess: yumminessCoef,
-        action: action
-      }
-    }
+    latents: ,
+    states: 
   },
   "3 dimensions": {
     latents: function() {
@@ -181,31 +143,35 @@ var why = function() {
   var explanation = uniformDraw(possibleExplanations);
   // get counterfactual probability of proposition to explain
   // being false given that explanation is false.
-  var ifNotExplanationThenNotExplanandum = infer(function() {
-    // infer latents from actual states
-    var latents = latentsModel();
-    var states = statesModel(latents);
-    condition(_.isEqual(states, actualStates));
+  var ifNotExplanationThenNotExplanandum = Infer(
+    {method: "MCMC", samples: 1},
+    function() {
+      // infer latents from actual states
+      var latents = latentsModel();
+      var states = statesModel(latents);
+      condition(_.isEqual(states, actualStates));
 
-    // sample a counterfactual world
-    var cfLatents = counterfactualizeLatents(latentsModel, latents);
-    var cfStates = statesModel(cfLatents);
+      // sample a counterfactual world
+      var cfLatents = counterfactualizeLatents(latentsModel, latents);
+      var cfStates = statesModel(cfLatents);
 
-    // condition on explanation being false
-    var explanationFn = propositions[explanation];
-    condition(!explanationFn(cfStates));
+      // condition on explanation being false
+      var explanationFn = propositions[explanation];
+      condition(!explanationFn(cfStates));
 
-    if (alternativeProposition) {
-      // return whether the thing i expected is true
-      var alternativeFn = propositions[alternativeProposition];
-      return alternativeFn(cfStates);
-    } else {
-      // return whether explanandum is false
-      var explanadumFn = propositions[propositionToExplain];
-      return !explanadumFn(cfStates);
+      if (alternativeProposition) {
+        // return whether the thing i expected is true
+        var alternativeFn = propositions[alternativeProposition];
+        return alternativeFn(cfStates);
+      } else {
+        // return whether explanandum is false
+        var explanadumFn = propositions[propositionToExplain];
+        return !explanadumFn(cfStates);
+      }
     }
-  });
+  );
   // factor based on that.
+  // try to cache this:
   factor(ifNotExplanationThenNotExplanandum.score(true));
 
   return {

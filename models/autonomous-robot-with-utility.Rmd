@@ -72,7 +72,7 @@ explanations.list = lapply(1:nrow(actualStates), function(i) {
   dataToWebPPL = actualStates[i,]
   return(webppl(
     program_file = "autonomous-robot-with-utility.wppl",
-    inference_opts = list(method="enumerate"),
+    inference_opts = list(method="MCMC", samples=1),
     model_var = "why",
     data = dataToWebPPL,
     data_var = "statesFromR", 
