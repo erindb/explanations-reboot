@@ -51,6 +51,27 @@ var resampler = function(args) {
 	};
 };
 
+var maxOverlapResampler = function(args) {
+	return function() {
+		var actualProbs = distributions[args.actualDist];
+		var cfProbs = distributions[args.cfDist];
+		var actualSample = args.actualSample;
+
+		var u = unif();
+		var actualERP = Categorical({
+			ps: (actualProbs.probs).split(" "),
+			vs: (actualProbs.vals).split(" ")
+		});
+		var cfERP = Categorical({
+			ps: (cfProbs.probs).split(" "),
+			vs: (cfProbs.vals).split(" ")
+		});
+		var sample = explanations.inverseCDF(actualERP, u);
+		if (actualSample) { condition(sample==actualSample); }
+		return explanations.inverseCDFMaxOverlap(cfERP, u, actualERP);
+	};
+};
+
 var resampleDist1ToDist2 = resampler({
 	actualDist: "dist1",
 	cfDist: "dist2"
@@ -75,6 +96,17 @@ var independentConditionals = function() {
 var conditionals = function() {
 	var actualStates = uniformDraw(dataFromR);
 	var cfSample = sample(enumerate(resampler(actualStates)))
+	return {
+		cfSample: cfSample,
+		actualDist: actualStates.actualDist,
+		cfDist: actualStates.cfDist,
+		actualSample: actualStates.actualSample
+	};
+};
+
+var maxOverlapConditionals = function() {
+	var actualStates = uniformDraw(dataFromR);
+	var cfSample = sample(enumerate(maxOverlapResampler(actualStates)))
 	return {
 		cfSample: cfSample,
 		actualDist: actualStates.actualDist,
