@@ -1,5 +1,3 @@
-
-
 var utility = function(item, items, utilityCoefs) {
 	var dimensions = _.keys(utilityCoefs);
 	return sum(map(function(dim) {
@@ -46,7 +44,3 @@ var agent = function() {
 	var times = [0,1,2,3,4];
 	return map(timestep, times);
 };
-
-display(agent());
-
-"finished"

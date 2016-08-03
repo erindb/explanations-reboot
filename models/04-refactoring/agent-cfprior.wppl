@@ -1,0 +1,27 @@
+var domainParameters = {
+	dims: ["prettiness", "yumminess"]
+};
+
+var items = function(domainParameters) {
+
+	var itemPrior = function(dims) {
+		return _.object(map(function(d) {
+			return [d, uniformDraw([0,1])];
+		}, domainParameters.dims));
+	};
+
+	var names = ["money", "brownies", "flowers", "cupcakes"];
+	return _.object(map(function(n) {
+		return [n, itemPrior(domainParameters.dims)];
+	}, names));
+};
+
+var utilityCoefs = function(domainParameters) {
+	return _.object(map(function() {
+		return [d, uniformDraw([0,1])];
+	}, domainParameters.dims));
+};
+
+var rationality = function(domainParameters) {
+	return uniformDraw([1,2,4]);
+};
