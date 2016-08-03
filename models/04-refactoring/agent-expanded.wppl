@@ -36,8 +36,22 @@ var agent = function() {
 		return Infer({method: "enumerate"}, fn);
 	};
 
-	return decision(items, utilityCoefs, rationality, infer);
+	var action = decision(items, utilityCoefs, rationality, infer);
 
+	return {
+		'items["cupcakes"]["prettiness"]': items["cupcakes"]["prettiness"],
+		'items["cupcakes"]["yumminess"]': items["cupcakes"]["yumminess"],
+		'items["flowers"]["prettiness"]': items["flowers"]["prettiness"],
+		'items["flowers"]["yumminess"]': items["flowers"]["yumminess"],
+		'items["brownies"]["prettiness"]': items["brownies"]["prettiness"],
+		'items["brownies"]["yumminess"]': items["brownies"]["yumminess"],
+		'items["money"]["prettiness"]': items["money"]["prettiness"],
+		'items["money"]["yumminess"]': items["money"]["yumminess"],
+		'utilityCoefs["prettiness"]': utilityCoefs["prettiness"],
+		'utilityCoefs["yumminess"]': utilityCoefs["yumminess"],
+		'rationality': rationality,
+		'action': action
+	};
 };
 
 agent();

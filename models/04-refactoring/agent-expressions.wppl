@@ -1,0 +1,36 @@
+var expressions = function(domainParameters) {	
+	var itemFeaturesExpressions = reduce(function(item, acc) {
+		acc.concat(map(function(dim) {
+			return "items[\"" + item + "\"][\"" + dim + "\"]";
+		}, domainParameters.dims));
+	}, [], domainParameters.names);
+	var utilityCoefExpressions = map(function(dim) {
+		return "utilityCoefs[\"" + dim + "\"]";
+	}, domainParameters.dims);
+	var baseExpressions = itemFeaturesExpressions.concat(
+		utilityCoefExpressions.concat(["rationality", "action"])
+	);
+	return baseExpressions;
+};
+
+var domainParameters = {
+	dims: ["prettiness", "yumminess"],
+	names: ["money", "brownies", "flowers", "cupcakes"]
+};
+
+"{\n" + map(function(expr) {
+	return "  '" + expr + "': " + expr;
+}, expressions(domainParameters)).join(",\n") + "\n}";
+
+// map(function() {}, expressions(parameters));
+
+// display(_.object(map(function(expr) {
+// 	[expr, expr];
+// }, expressions(items, utilityCoefs, rationality))));
+
+// return {
+// 	action: action,
+// 	rationality: rationality,
+// 	utilityCoefs: utilityCoefs,
+// 	items: items
+// }
