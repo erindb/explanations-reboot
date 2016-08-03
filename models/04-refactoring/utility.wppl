@@ -1,0 +1,52 @@
+
+
+var utility = function(item, items, utilityCoefs) {
+	var dimensions = _.keys(utilityCoefs);
+	return sum(map(function(dim) {
+		return utilityCoefs[dim] * items[item][dim];
+	}, dimensions));
+};
+
+var actionPosterior = function(items, utilityCoefs, rationality, infer) {
+	return infer(function() {
+		var item = uniformDraw(_.keys(items));
+		factor(rationality * utility(item, items, utilityCoefs));
+		return item;
+	});
+};
+
+var decision = function(items, utilityCoefs, rationality, infer) {
+	return sample(actionPosterior(items, utilityCoefs, rationality, infer));
+};
+
+var timestep = function(t) {
+	// t is a time marker for if things change over time
+	// currently, they don't
+
+	var items = {
+		money: {prettiness: 0, yumminess: 0},
+		brownies: {prettiness: 0, yumminess: 1},
+		flowers: {prettiness: 1, yumminess: 0},
+		cupcakes: {prettiness: 1, yumminess: 1},
+	};
+
+	var utilityCoefs = {prettiness: 1, yumminess: 1};
+
+	var rationality = 1;
+
+	var infer = function(fn) {
+		return Infer({method: "enumerate"}, fn);
+	};
+
+	decision(items, utilityCoefs, rationality, infer);
+
+};
+
+var agent = function() {
+	var times = [0,1,2,3,4];
+	return map(timestep, times);
+};
+
+display(agent());
+
+"finished"
