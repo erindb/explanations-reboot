@@ -1,3 +1,68 @@
+// -------- CF prior ---------
+
+var items = function(domainParameters) {
+	var itemPrior = function(dims) {
+		return _.object(map(function(d) {
+			return [d, uniformDraw([0,1])];
+		}, dims));
+	};
+
+	return _.object(map(function(n) {
+		return [n, itemPrior(domainParameters.dims)];
+	}, domainParameters.names));
+};
+
+var utilityCoefs = function(domainParameters) {
+	return _.object(map(function(d) {
+		return [d, uniformDraw([0,1])];
+	}, domainParameters.dims));
+};
+
+var rationality = function(domainParameters) {
+	return uniformDraw([1,2,4]);
+};
+
+var samplingParameters = function(domainParameters) {
+	return _.object(map(function(s) {
+		return [s, uniform(0,1)];
+	}, domainParameters.samples));
+};
+
+var latentsModel = function() {
+
+	var domainParameters = {
+		dims: ["prettiness", "yumminess"],
+		names: ["money", "brownies", "flowers", "cupcakes"],
+		samples: ["action"]
+	};
+
+	return {
+		items: items(domainParameters),
+		utilityCoefs: utilityCoefs(domainParameters),
+		rationality: rationality(domainParameters),
+		samplingParameters: samplingParameters(domainParameters)
+	};
+};
+
+// -------- Sticky Sample ----
+
+// eventually log ERPs to global variable or something
+// basically, when a given set of non-sampling latent
+// variables are used as "actual" do the CDF and log
+// the structure of it. then later, when those latents
+// are the "actual", reference that CDF in making the CF
+// structure.
+// I *think* this works for discrete non-embedded sampling
+var stickySample = function(args) {
+	var erp = args.erp;
+	var latents = args.latents;
+	var actualLatents = args.actualLatents;
+	var erpLabel = args.erpLabel;
+	return sample(erp);
+};
+
+// -------- Expanded ---------
+
 var utility = function(item, items, utilityCoefs) {
 	var dimensions = _.keys(utilityCoefs);
 	return sum(map(function(dim) {
@@ -5,7 +70,7 @@ var utility = function(item, items, utilityCoefs) {
 	}, dimensions));
 };
 
-var actionPosterior = function(items, utilityCoefs, rationality, infer) {
+var getActionPosterior = function(items, utilityCoefs, rationality, infer) {
 	return infer(function() {
 		var item = uniformDraw(_.keys(items));
 		factor(rationality * utility(item, items, utilityCoefs));
@@ -13,45 +78,60 @@ var actionPosterior = function(items, utilityCoefs, rationality, infer) {
 	});
 };
 
-var decision = function(items, utilityCoefs, rationality, infer) {
-	return sample(actionPosterior(items, utilityCoefs, rationality, infer));
-};
+var agent = function(latents, actualLatents) {
 
-var agent = function() {
-	// t is a time marker for if things change over time
-	// currently, they don't
+	var items = latents.items;
 
-	var items = {
-		money: {prettiness: 0, yumminess: 0},
-		brownies: {prettiness: 0, yumminess: 1},
-		flowers: {prettiness: 1, yumminess: 0},
-		cupcakes: {prettiness: 1, yumminess: 1},
-	};
+	var utilityCoefs = latents.utilityCoefs;
 
-	var utilityCoefs = {prettiness: 1, yumminess: 1};
-
-	var rationality = 1;
+	var rationality = latents.rationality;
 
 	var infer = function(fn) {
 		return Infer({method: "enumerate"}, fn);
 	};
 
-	var action = decision(items, utilityCoefs, rationality, infer);
+	var actionPosterior = getActionPosterior(items, utilityCoefs, rationality, infer);
 
-	return {
-		'items["cupcakes"]["prettiness"]': items["cupcakes"]["prettiness"],
-		'items["cupcakes"]["yumminess"]': items["cupcakes"]["yumminess"],
-		'items["flowers"]["prettiness"]': items["flowers"]["prettiness"],
-		'items["flowers"]["yumminess"]': items["flowers"]["yumminess"],
-		'items["brownies"]["prettiness"]': items["brownies"]["prettiness"],
-		'items["brownies"]["yumminess"]': items["brownies"]["yumminess"],
-		'items["money"]["prettiness"]': items["money"]["prettiness"],
-		'items["money"]["yumminess"]': items["money"]["yumminess"],
-		'utilityCoefs["prettiness"]': utilityCoefs["prettiness"],
-		'utilityCoefs["yumminess"]': utilityCoefs["yumminess"],
-		'rationality': rationality,
-		'action': action
-	};
+	var action = stickySample({
+		erp: actionPosterior,
+		erpLabel: "action",
+		currentLatents: latents,
+		originalLatents: actualLatents
+	});
+
+	return _.extend(_.clone(latents), {action: action});
+
 };
 
-agent();
+var explainableAgent = function() {
+	var infer = function(fn) {
+		return Infer({method: "MCMC"}, fn);
+	};
+
+	return infer(function() {
+		var latents = latentsModel();
+		var states = agent(latents);
+
+		var actualObservations = {
+			items: {
+				money: {prettiness: 0, yumminess: 0},
+				brownies: {prettiness: 0, yumminess: 1},
+				flowers: {prettiness: 1, yumminess: 0},
+				cupcakes: {prettiness: 1, yumminess: 1},
+			},
+			utilityCoefs: {prettiness: 1, yumminess: 1},
+			rationality: 1,
+			action: "cupcakes"
+		};
+		
+		var overlappingStates = _.object(map(function(k) {
+			return [k, states[k]];
+		}, _.keys(actualObservations)));
+
+		condition(_.isEqual(overlappingStates, actualObservations));
+
+		return states;
+	});
+};
+
+explainableAgent();

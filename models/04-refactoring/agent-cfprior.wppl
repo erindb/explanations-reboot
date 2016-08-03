@@ -1,9 +1,8 @@
 var items = function(domainParameters) {
-
 	var itemPrior = function(dims) {
 		return _.object(map(function(d) {
 			return [d, uniformDraw([0,1])];
-		}, domainParameters.dims));
+		}, dims));
 	};
 
 	return _.object(map(function(n) {
@@ -12,7 +11,7 @@ var items = function(domainParameters) {
 };
 
 var utilityCoefs = function(domainParameters) {
-	return _.object(map(function() {
+	return _.object(map(function(d) {
 		return [d, uniformDraw([0,1])];
 	}, domainParameters.dims));
 };
@@ -21,9 +20,26 @@ var rationality = function(domainParameters) {
 	return uniformDraw([1,2,4]);
 };
 
-var domainParameters = {
-	dims: ["prettiness", "yumminess"],
-	names: ["money", "brownies", "flowers", "cupcakes"]
+var samplingParameters = function(domainParameters) {
+	return _.object(map(function(s) {
+		return [s, uniform(0,1)];
+	}, domainParameters.samples));
 };
 
-items(domainParameters);
+var latentsModel = function() {
+
+	var domainParameters = {
+		dims: ["prettiness", "yumminess"],
+		names: ["money", "brownies", "flowers", "cupcakes"],
+		samples: ["action"]
+	};
+
+	return {
+		items: items(domainParameters),
+		utilityCoefs: utilityCoefs(domainParameters),
+		rationality: rationality(domainParameters),
+		samplingParameters: samplingParameters(domainParameters)
+	};
+};
+
+latentsModel();

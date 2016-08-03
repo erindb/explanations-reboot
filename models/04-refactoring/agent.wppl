@@ -5,7 +5,7 @@ var utility = function(item, items, utilityCoefs) {
 	}, dimensions));
 };
 
-var actionPosterior = function(items, utilityCoefs, rationality, infer) {
+var getActionPosterior = function(items, utilityCoefs, rationality, infer) {
 	return infer(function() {
 		var item = uniformDraw(_.keys(items));
 		factor(rationality * utility(item, items, utilityCoefs));
@@ -13,13 +13,7 @@ var actionPosterior = function(items, utilityCoefs, rationality, infer) {
 	});
 };
 
-var decision = function(items, utilityCoefs, rationality, infer) {
-	return sample(actionPosterior(items, utilityCoefs, rationality, infer));
-};
-
 var agent = function() {
-	// t is a time marker for if things change over time
-	// currently, they don't
 
 	var items = {
 		money: {prettiness: 0, yumminess: 0},
@@ -36,7 +30,11 @@ var agent = function() {
 		return Infer({method: "enumerate"}, fn);
 	};
 
-	return decision(items, utilityCoefs, rationality, infer);
+	var actionPosterior = getActionPosterior(items, utilityCoefs, rationality, infer);
+
+	var action = sample(actionPosterior);
+
+	return action;
 
 };
 
