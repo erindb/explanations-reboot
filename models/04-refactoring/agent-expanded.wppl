@@ -55,10 +55,18 @@ var latentsModel = function() {
 // I *think* this works for discrete non-embedded sampling
 var stickySample = function(args) {
 	var erp = args.erp;
-	var latents = args.latents;
-	var actualLatents = args.actualLatents;
+	var currentLatents = args.currentLatents;
+	var originalLatents = args.originalLatents;
 	var erpLabel = args.erpLabel;
-	return sample(erp);
+
+	var probability = (currentLatents.samplingParameters)[erpLabel];
+
+	// TODO: make this sensibly sticky
+	if (originalLatents) {
+		return jsUtils.inverseCDFMaxOverlapWithLookup(erp, probability, currentLatents, originalLatents);
+	} else {
+		return jsUtils.inverseCDFWithLog(erp, probability, currentLatents);
+	}
 };
 
 // -------- Expanded ---------
@@ -104,14 +112,20 @@ var agent = function(latents, actualLatents) {
 };
 
 var explainableAgent = function() {
+	// infer CFable latents
+
 	var infer = function(fn) {
-		return Infer({method: "MCMC"}, fn);
+		return Infer(
+			{method: "MCMC", samples:1},
+			fn
+		);
 	};
 
 	return infer(function() {
 		var latents = latentsModel();
 		var states = agent(latents);
 
+		// say we want this to be in common ground
 		var actualObservations = {
 			items: {
 				money: {prettiness: 0, yumminess: 0},
@@ -123,15 +137,27 @@ var explainableAgent = function() {
 			rationality: 1,
 			action: "cupcakes"
 		};
-		
+
 		var overlappingStates = _.object(map(function(k) {
 			return [k, states[k]];
 		}, _.keys(actualObservations)));
 
 		condition(_.isEqual(overlappingStates, actualObservations));
 
-		return states;
+		var cfLatents = counterfactualizeLatents(latentsModel, latents);
+		var cfStates = agent(cfLatents, latents);
+
+		return {states: states, cfStates: cfStates};
 	});
+};
+
+var counterfactualizeLatents = function(model, actual) {
+	var s = 0.53; //stickiness
+	var totallyDifferent = model();
+
+	return mapObject(function(key, value) {
+		return flip(s) ? actual[key] : totallyDifferent[key];
+	}, actual);
 };
 
 explainableAgent();
