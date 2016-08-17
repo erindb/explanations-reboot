@@ -69,6 +69,65 @@ var stickySample = function(args) {
 	}
 };
 
+// -------- Explain ---------
+
+var counterfactualizeLatents = function(model, actual) {
+	var s = 0.53; //stickiness
+	var totallyDifferent = model();
+
+	return mapObject(function(key, value) {
+		return flip(s) ? actual[key] : totallyDifferent[key];
+	}, actual);
+};
+
+var explain = function() {
+
+	// say we want this to be in common ground
+	var actualObservations = {
+		items: {
+			money: {prettiness: 0, yumminess: 0},
+			brownies: {prettiness: 0, yumminess: 1},
+			flowers: {prettiness: 1, yumminess: 0},
+			cupcakes: {prettiness: 1, yumminess: 1},
+		},
+		utilityCoefs: {prettiness: 1, yumminess: 1},
+		rationality: 1,
+		action: "cupcakes"
+	};
+
+	// could compose these at some point
+	var expressions = [
+		'items["cupcakes"]["prettiness"]',
+		'items["cupcakes"]["yumminess"]',
+		'items["flowers"]["prettiness"]',
+		'items["flowers"]["yumminess"]',
+		'items["brownies"]["prettiness"]',
+		'items["brownies"]["yumminess"]',
+		'items["money"]["prettiness"]',
+		'items["money"]["yumminess"]',
+		'utilityCoefs["prettiness"]',
+		'utilityCoefs["yumminess"]',
+		'rationality'
+	];
+
+	var infer = function(fn) {
+		return Infer(
+			{method: "MCMC", samples:100},
+			fn
+		);
+	};
+
+	var variableToExplain = "action";
+
+	infer(function() {
+		var explanation = uniformDraw(expressions);
+		var scoreExplanation = explainableAgent(actualObservations, explanation, variableToExplain).score(true);
+		factor(scoreExplanation);
+		return explanation;
+	});
+
+};
+
 // -------- Expanded ---------
 
 var utility = function(item, items, utilityCoefs) {
@@ -107,57 +166,54 @@ var agent = function(latents, actualLatents) {
 		originalLatents: actualLatents
 	});
 
-	return _.extend(_.clone(latents), {action: action});
+	var expressions = {
+	  'items["cupcakes"]["prettiness"]': items["cupcakes"]["prettiness"],
+	  'items["cupcakes"]["yumminess"]': items["cupcakes"]["yumminess"],
+	  'items["flowers"]["prettiness"]': items["flowers"]["prettiness"],
+	  'items["flowers"]["yumminess"]': items["flowers"]["yumminess"],
+	  'items["brownies"]["prettiness"]': items["brownies"]["prettiness"],
+	  'items["brownies"]["yumminess"]': items["brownies"]["yumminess"],
+	  'items["money"]["prettiness"]': items["money"]["prettiness"],
+	  'items["money"]["yumminess"]': items["money"]["yumminess"],
+	  'utilityCoefs["prettiness"]': utilityCoefs["prettiness"],
+	  'utilityCoefs["yumminess"]': utilityCoefs["yumminess"],
+	  'rationality': rationality,
+	  'action': action
+	};
+
+	return _.extend( _.clone(latents), expressions );
 
 };
 
-var explainableAgent = function() {
+var explainableAgent = function(actualObservations, explanationExpression, variableToExplain) {
 	// infer CFable latents
 
 	var infer = function(fn) {
 		return Infer(
-			{method: "MCMC", samples:1},
+			{method: "MCMC", samples:100},
 			fn
 		);
 	};
 
 	return infer(function() {
 		var latents = latentsModel();
-		var states = agent(latents);
-
-		// say we want this to be in common ground
-		var actualObservations = {
-			items: {
-				money: {prettiness: 0, yumminess: 0},
-				brownies: {prettiness: 0, yumminess: 1},
-				flowers: {prettiness: 1, yumminess: 0},
-				cupcakes: {prettiness: 1, yumminess: 1},
-			},
-			utilityCoefs: {prettiness: 1, yumminess: 1},
-			rationality: 1,
-			action: "cupcakes"
-		};
+		var world = agent(latents);
 
 		var overlappingStates = _.object(map(function(k) {
-			return [k, states[k]];
+			return [k, world[k]];
 		}, _.keys(actualObservations)));
 
 		condition(_.isEqual(overlappingStates, actualObservations));
 
 		var cfLatents = counterfactualizeLatents(latentsModel, latents);
-		var cfStates = agent(cfLatents, latents);
+		var cfWorld = agent(cfLatents, latents);
 
-		return {states: states, cfStates: cfStates};
+		// if not explanation as it was in actual world
+		condition( cfWorld[explanationExpression] != world[explanationExpression] );
+
+		// then not variable to explain as it was in actual world
+		return cfWorld[variableToExplain] != world[variableToExplain];
 	});
 };
 
-var counterfactualizeLatents = function(model, actual) {
-	var s = 0.53; //stickiness
-	var totallyDifferent = model();
-
-	return mapObject(function(key, value) {
-		return flip(s) ? actual[key] : totallyDifferent[key];
-	}, actual);
-};
-
-explainableAgent();
+explain();

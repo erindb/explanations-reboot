@@ -18,6 +18,8 @@ var domainParameters = {
 	names: ["money", "brownies", "flowers", "cupcakes"]
 };
 
+console.log(expressions(domainParameters));
+
 "{\n" + map(function(expr) {
 	return "  '" + expr + "': " + expr;
 }, expressions(domainParameters)).join(",\n") + "\n}";
