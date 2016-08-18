@@ -1,0 +1,138 @@
+
+
+// -------- base program sub-functions --------
+var utility = function(item, items, utilityCoefs) {
+	var dimensions = _.keys(utilityCoefs);
+	return sum(map(function(dim) {
+		return utilityCoefs[dim] * items[item][dim];
+	}, dimensions));
+};
+
+var getActionPosterior = function(items, utilityCoefs, rationality, infer) {
+	return infer(function() {
+		var item = uniformDraw(_.keys(items));
+		factor(rationality * utility(item, items, utilityCoefs));
+		return item;
+	});
+};
+
+// -------- base program counterfactualizable transformation --------
+
+var makeProgram = function(structureParams) {
+	return function (input, sampleParams) {
+		var items = input.items;
+		var utilityCoefs = structureParams.utilityCoefs;
+		var rationality = structureParams.rationality;
+		var infer = function(fn) {
+			return Infer({method: "enumerate"}, fn);
+		};
+		var actionPosterior = getActionPosterior(
+			items, utilityCoefs, rationality, infer
+		);
+		var action = sample(actionPosterior);
+		return action;
+	};
+};
+
+// -------- CF priors --------
+
+var items = function(domainParams) {
+	var itemPrior = function(dims) {
+		return _.object(map(function(d) {
+			return [d, uniformDraw([0,1])];
+		}, dims));
+	};
+
+	return _.object(map(function(n) {
+		return [n, itemPrior(domainParams.dims)];
+	}, domainParams.names));
+};
+
+var utilityCoefs = function(domainParams) {
+	return _.object(map(function(d) {
+		return [d, uniformDraw([0,1])];
+	}, domainParams.dims));
+};
+
+var rationality = function(domainParams) {
+	return uniformDraw([1,2,4]);
+};
+
+var sampleParams = function(domainParams) {
+	return _.object(map(function(s) {
+		return [s, uniform(0,1)];
+	}, domainParams.samples));
+};
+
+var cfPrior = function() {
+
+	var domainParams = {
+		dims: ["prettiness", "yumminess"],
+		names: ["money", "brownies", "flowers", "cupcakes"],
+		samples: ["action"]
+	};
+
+	return {
+		input: {
+			items: items(domainParams)
+		},
+		structureParams: {
+			utilityCoefs: utilityCoefs(domainParams),
+			rationality: rationality(domainParams)
+		},
+		sampleParams: sampleParams(domainParams)
+	};
+};
+
+// -------- actual base program data --------
+
+var observations = {
+	structureParams: {
+		utilityCoefs: {prettiness: 1, yumminess: 1},
+		rationality: 1
+	},
+	input: {
+		items: {
+			money: {prettiness: 0, yumminess: 0},
+			brownies: {prettiness: 0, yumminess: 1},
+			flowers: {prettiness: 1, yumminess: 0},
+			cupcakes: {prettiness: 1, yumminess: 1},
+		}
+	},
+	output: "cupcakes"
+};
+
+// -------- explanation logic ----
+
+var match = function(inferred, observed) {
+	var overlappingKeys = _.object(map(function(k) {
+		return [k, inferred[k]];
+	}, _.keys(observed)));
+
+	return _.isEqual(overlappingKeys, observed);
+};
+
+var model = function() {
+	var latents = cfPrior();
+
+	// observed
+	var structureParams = latents.structureParams;
+	condition(match(structureParams, observations.structureParams));
+
+	// observed
+	var input = latents.input;
+	condition(match(input, observations.input));
+
+	// unobserved
+	var sampleParams = latents.sampleParams;
+
+	var program = makeProgram(structureParams);
+
+	// observed
+	var output = program(input, sampleParams);
+	condition(output == observations.output);
+
+	return _.extend(latents, {output: output});
+};
+
+Infer({method: "MCMC", samples: 10}, model);
