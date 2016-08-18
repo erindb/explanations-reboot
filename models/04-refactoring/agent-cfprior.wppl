@@ -1,3 +1,5 @@
+// ------- human makes this ------
+
 var items = function(domainParameters) {
 	var itemPrior = function(dims) {
 		return _.object(map(function(d) {
@@ -19,6 +21,8 @@ var utilityCoefs = function(domainParameters) {
 var rationality = function(domainParameters) {
 	return uniformDraw([1,2,4]);
 };
+
+// ------- computer makes these ------
 
 var samplingParameters = function(domainParameters) {
 	return _.object(map(function(s) {

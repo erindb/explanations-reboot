@@ -13,14 +13,9 @@ var getActionPosterior = function(items, utilityCoefs, rationality, infer) {
 	});
 };
 
-var agent = function() {
+var agent = function(input) {
 
-	var items = {
-		money: {prettiness: 0, yumminess: 0},
-		brownies: {prettiness: 0, yumminess: 1},
-		flowers: {prettiness: 1, yumminess: 0},
-		cupcakes: {prettiness: 1, yumminess: 1},
-	};
+	var items = input.items;
 
 	var utilityCoefs = {prettiness: 1, yumminess: 1};
 
@@ -38,4 +33,13 @@ var agent = function() {
 
 };
 
-agent();
+var input = {
+	items: {
+		money: {prettiness: 0, yumminess: 0},
+		brownies: {prettiness: 0, yumminess: 1},
+		flowers: {prettiness: 1, yumminess: 0},
+		cupcakes: {prettiness: 1, yumminess: 1},
+	}
+};
+
+agent(input);
