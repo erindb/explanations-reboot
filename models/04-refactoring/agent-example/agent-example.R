@@ -40,7 +40,7 @@ rs %>% gather("world", "action",
 
 expl.rs = webppl(
   program_file = "agent-expanded-take2.wppl",
-  inference_opts = list(method="MCMC", samples=5000),
+  inference_opts = list(method="MCMC", samples=1000),
   model_var = "explanationModel",
   output_format = "samples",
   packages = c("./node_modules/jsUtils")
@@ -56,5 +56,47 @@ expl.rs %>%
   scale_colour_few() +
   scale_fill_few() +
   theme(axis.text.x = element_text(angle = -20, hjust = 0)) +
-  ggtitle("'best' explanation") +
-  ggsave("best.explanation.png", width=5, height=3)
+  ggtitle("cupcakes explanation") +
+  ggsave("best.explanation.111.cupcakes.png", width=5, height=3)
+
+expl.rs.brownies = webppl(
+  program_file = "agent-expanded-take2-actual-is-brownies.wppl",
+  inference_opts = list(method="MCMC", samples=1000),
+  model_var = "explanationModel",
+  output_format = "samples",
+  packages = c("./node_modules/jsUtils")
+)
+
+expl.rs.brownies %>%
+  mutate(explanation=factor(
+    support,
+    levels=c("rationality", "utilityCoefs[\"prettiness\"]", "utilityCoefs[\"yumminess\"]"),
+    labels=c("rationality=1", "should be pretty", "should be yummy"))) %>%
+  ggplot(., aes(x=explanation, colour=explanation, fill=explanation)) +
+  geom_bar(stat="count") +
+  scale_colour_few() +
+  scale_fill_few() +
+  theme(axis.text.x = element_text(angle = -20, hjust = 0)) +
+  ggtitle("brownies explanation") +
+  ggsave("best.explanation.111.brownies.png", width=5, height=3)
+
+expl.rs.flowers = webppl(
+  program_file = "agent-expanded-take2-actual-is-flowers.wppl",
+  inference_opts = list(method="MCMC", samples=1000),
+  model_var = "explanationModel",
+  output_format = "samples",
+  packages = c("./node_modules/jsUtils")
+)
+
+expl.rs.flowers %>%
+  mutate(explanation=factor(
+    support,
+    levels=c("rationality", "utilityCoefs[\"prettiness\"]", "utilityCoefs[\"yumminess\"]"),
+    labels=c("rationality=1", "should be pretty", "should be yummy"))) %>%
+  ggplot(., aes(x=explanation, colour=explanation, fill=explanation)) +
+  geom_bar(stat="count") +
+  scale_colour_few() +
+  scale_fill_few() +
+  theme(axis.text.x = element_text(angle = -20, hjust = 0)) +
+  ggtitle("flowers explanation") +
+  ggsave("best.explanation.111.flowers.png", width=5, height=3)

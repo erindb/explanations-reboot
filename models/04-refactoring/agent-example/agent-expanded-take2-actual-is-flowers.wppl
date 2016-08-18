@@ -128,7 +128,7 @@ var observations = {
 			cupcakes: {prettiness: 1, yumminess: 1},
 		}
 	},
-	output: "cupcakes"
+	output: "flowers"
 };
 
 // -------- explanation logic ----
