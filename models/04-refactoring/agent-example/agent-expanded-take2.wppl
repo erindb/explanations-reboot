@@ -239,6 +239,13 @@ var imagineCounterfactuals = function(explainingExpression) {
 
 var imagineCounterfactualNoConditioning = imagineCounterfactuals();
 
+var counterfactualPosterior = cache(function(explainingExpression) {
+	return Infer(
+		{method: "MCMC", samples: 5000},
+		imagineCounterfactuals(explainingExpression)
+	);
+});
+
 var explanationModel = function() {
 
 	var explainingExpression = uniformDraw([
@@ -255,10 +262,7 @@ var explanationModel = function() {
 		'rationality'
 	]);
 
-	var cfReturns = Infer(
-		{method: "MCMC", samples: 5000},
-		imagineCounterfactuals(explainingExpression)
-	);
+	var cfReturns = counterfactualPosterior(explainingExpression);
 
 	var outputChangeMarginal = marginalize(cfReturns, "outputChange");
 

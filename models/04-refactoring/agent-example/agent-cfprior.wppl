@@ -1,6 +1,6 @@
 // ------- human makes this ------
 
-var items = function(domainParameters) {
+var items = function(domainParams) {
 	var itemPrior = function(dims) {
 		return _.object(map(function(d) {
 			return [d, uniformDraw([0,1])];
@@ -8,42 +8,46 @@ var items = function(domainParameters) {
 	};
 
 	return _.object(map(function(n) {
-		return [n, itemPrior(domainParameters.dims)];
-	}, domainParameters.names));
+		return [n, itemPrior(domainParams.dims)];
+	}, domainParams.names));
 };
 
-var utilityCoefs = function(domainParameters) {
+var utilityCoefs = function(domainParams) {
 	return _.object(map(function(d) {
 		return [d, uniformDraw([0,1])];
-	}, domainParameters.dims));
+	}, domainParams.dims));
 };
 
-var rationality = function(domainParameters) {
+var rationality = function(domainParams) {
 	return uniformDraw([1,2,4]);
 };
 
 // ------- computer makes these ------
 
-var samplingParameters = function(domainParameters) {
+var sampleParams = function(domainParams) {
 	return _.object(map(function(s) {
 		return [s, uniform(0,1)];
-	}, domainParameters.samples));
+	}, domainParams.samples));
 };
 
-var latentsModel = function() {
+var cfPrior = function() {
 
-	var domainParameters = {
+	var domainParams = {
 		dims: ["prettiness", "yumminess"],
 		names: ["money", "brownies", "flowers", "cupcakes"],
 		samples: ["action"]
 	};
 
 	return {
-		items: items(domainParameters),
-		utilityCoefs: utilityCoefs(domainParameters),
-		rationality: rationality(domainParameters),
-		samplingParameters: samplingParameters(domainParameters)
+		input: {
+			items: items(domainParams)
+		},
+		structureParams: {
+			utilityCoefs: utilityCoefs(domainParams),
+			rationality: rationality(domainParams)
+		},
+		sampleParams: sampleParams(domainParams)
 	};
 };
 
-latentsModel();
+cfPrior();

@@ -1,9 +1,10 @@
 var expressions = function(domainParameters) {	
-	var itemFeaturesExpressions = reduce(function(item, acc) {
-		acc.concat(map(function(dim) {
-			return "items[\"" + item + "\"][\"" + dim + "\"]";
-		}, domainParameters.dims));
-	}, [], domainParameters.names);
+	var itemFeaturesExpressions = [];
+	// var itemFeaturesExpressions = reduce(function(item, acc) {
+	// 	acc.concat(map(function(dim) {
+	// 		return "items[\"" + item + "\"][\"" + dim + "\"]";
+	// 	}, domainParameters.dims));
+	// }, [], domainParameters.names);
 	var utilityCoefExpressions = map(function(dim) {
 		return "utilityCoefs[\"" + dim + "\"]";
 	}, domainParameters.dims);
