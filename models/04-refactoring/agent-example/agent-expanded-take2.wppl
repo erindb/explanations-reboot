@@ -18,8 +18,8 @@ var getActionPosterior = function(items, utilityCoefs, rationality, infer) {
 
 // -------- base program counterfactualizable transformation --------
 
-var makeProgram = function(structureParams) {
-	return function (input, sampleParams) {
+var makeProgram = function(structureParams, origStructureParams) {
+	return function (input, sampleParams, origInput, origSampleParams) {
 		var items = input.items;
 		var utilityCoefs = structureParams.utilityCoefs;
 		var rationality = structureParams.rationality;
@@ -29,8 +29,37 @@ var makeProgram = function(structureParams) {
 		var actionPosterior = getActionPosterior(
 			items, utilityCoefs, rationality, infer
 		);
-		var action = sample(actionPosterior);
-		return action;
+		var action = stickySample({
+			erp: actionPosterior,
+			erpLabel: "action",
+			currentLatents: {
+				input: input,
+				structureParams: structureParams,
+				sampleParams: sampleParams
+			},
+			origLatents: {
+				input: origInput,
+				structureParams: origStructureParams,
+				sampleParams: origSampleParams
+			}
+		});
+
+		// explaining expression values
+		var expressions = {
+			// 'items["cupcakes"]["prettiness"]': items["cupcakes"]["prettiness"],
+			// 'items["cupcakes"]["yumminess"]': items["cupcakes"]["yumminess"],
+			// 'items["flowers"]["prettiness"]': items["flowers"]["prettiness"],
+			// 'items["flowers"]["yumminess"]': items["flowers"]["yumminess"],
+			// 'items["brownies"]["prettiness"]': items["brownies"]["prettiness"],
+			// 'items["brownies"]["yumminess"]': items["brownies"]["yumminess"],
+			// 'items["money"]["prettiness"]': items["money"]["prettiness"],
+			// 'items["money"]["yumminess"]': items["money"]["yumminess"],
+			'utilityCoefs["prettiness"]': utilityCoefs["prettiness"],
+			'utilityCoefs["yumminess"]': utilityCoefs["yumminess"],
+			'rationality': rationality
+		};
+
+		return {expressionValues: expressions, output: action};
 	};
 };
 
@@ -104,6 +133,53 @@ var observations = {
 
 // -------- explanation logic ----
 
+var stickySample = function(args) {
+	var erp = args.erp;
+	var currentLatents = args.currentLatents;
+	var originalLatents = args.originalLatents;
+	var erpLabel = args.erpLabel;
+
+	var probability = (currentLatents.sampleParams)[erpLabel];
+
+	// TODO: make this sensibly sticky (????)
+	if (originalLatents) {
+		return jsUtils.inverseCDFMaxOverlapWithLookup(erp, probability, currentLatents, originalLatents);
+	} else {
+		return jsUtils.inverseCDFWithLog(erp, probability, currentLatents);
+	}
+};
+
+var combineObjList = function(objLst) {
+	if (objLst.length==1) {
+		return objLst[0];
+	} else {
+		return _.extend(
+			_.clone(objLst[0]),
+			combineObjList(
+				objLst.slice(1, objLst.length)
+			)
+		);
+	}
+};
+
+var counterfactualizeLatents = function(model, actual) {
+	var s = 0.53; //stickiness
+	var totallyDifferent = model();
+
+	return mapObject(function(key, value) {
+		return flip(s) ? actual[key] : totallyDifferent[key];
+	}, actual);
+};
+
+var marginalize = function(erp, value) {
+	return Infer(
+		{method: "enumerate"},
+		function() {
+			return sample(erp)[value]
+		}
+	);
+};
+
 var match = function(inferred, observed) {
 	var overlappingKeys = _.object(map(function(k) {
 		return [k, inferred[k]];
@@ -112,27 +188,83 @@ var match = function(inferred, observed) {
 	return _.isEqual(overlappingKeys, observed);
 };
 
-var model = function() {
-	var latents = cfPrior();
+var imagineCounterfactuals = function(explainingExpression) {
+	return function() {
+		var latents = cfPrior();
 
-	// observed
-	var structureParams = latents.structureParams;
-	condition(match(structureParams, observations.structureParams));
+		// observed
+		var structureParams = latents.structureParams;
+		condition(match(structureParams, observations.structureParams));
 
-	// observed
-	var input = latents.input;
-	condition(match(input, observations.input));
+		// observed
+		var input = latents.input;
+		condition(match(input, observations.input));
 
-	// unobserved
-	var sampleParams = latents.sampleParams;
+		// unobserved
+		var sampleParams = latents.sampleParams;
 
-	var program = makeProgram(structureParams);
+		var program = makeProgram(structureParams);
 
-	// observed
-	var output = program(input, sampleParams);
-	condition(output == observations.output);
+		// observed
+		var programReturns = program(input, sampleParams);
+		var output = programReturns.output;
+		condition(output == observations.output);
 
-	return _.extend(latents, {output: output});
+		// counterfactuals!!
+		var cfLatents = counterfactualizeLatents(cfPrior, latents);
+		var cfInput = cfLatents.input;
+		var cfStructureParams = cfLatents.structureParams;
+		var cfSampleParams = cfLatents.sampleParams;
+		var cfProgram = makeProgram(cfStructureParams, structureParams);
+		var cfProgramReturns = cfProgram(cfInput, cfSampleParams, input, sampleParams);
+		var cfOutput = cfProgramReturns.output;
+
+		if (explainingExpression) {
+			// condition on explaining expression value changing
+			var explainingExpressionValue = programReturns.expressionValues[explainingExpression];
+			var cfExplainingExpressionValue = cfProgramReturns.expressionValues[explainingExpression];
+			condition(explainingExpressionValue!=cfExplainingExpressionValue);
+		};
+
+		// does output change?
+		var outputChange = output != cfOutput;
+
+		return {
+			actual: {latents: latents, output: output},
+			cf: {latents: cfLatents, output: cfOutput},
+			outputChange: outputChange
+		}
+	};
 };
 
-Infer({method: "MCMC", samples: 10}, model);
+var imagineCounterfactualNoConditioning = imagineCounterfactuals();
+
+var explanationModel = function() {
+
+	var explainingExpression = uniformDraw([
+		// 'items["cupcakes"]["prettiness"]',
+		// 'items["cupcakes"]["yumminess"]',
+		// 'items["flowers"]["prettiness"]',
+		// 'items["flowers"]["yumminess"]',
+		// 'items["brownies"]["prettiness"]',
+		// 'items["brownies"]["yumminess"]',
+		// 'items["money"]["prettiness"]',
+		// 'items["money"]["yumminess"]',
+		'utilityCoefs["prettiness"]',
+		'utilityCoefs["yumminess"]',
+		'rationality'
+	]);
+
+	var cfReturns = Infer(
+		{method: "MCMC", samples: 5000},
+		imagineCounterfactuals(explainingExpression)
+	);
+
+	var outputChangeMarginal = marginalize(cfReturns, "outputChange");
+
+	factor(outputChangeMarginal.score(true));
+
+	return explainingExpression;
+};
+
+"finished";
