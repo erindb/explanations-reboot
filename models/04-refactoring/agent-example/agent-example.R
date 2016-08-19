@@ -40,9 +40,8 @@ rs %>% gather("world", "action",
 
 expl.rs = webppl(
   program_file = "agent-expanded-take2.wppl",
-  inference_opts = list(method="MCMC", samples=1000),
+  inference_opts = list(method="enumerate"),
   model_var = "explanationModel",
-  output_format = "samples",
   packages = c("./node_modules/jsUtils")
 )
 
@@ -51,13 +50,14 @@ expl.rs %>%
     support,
     levels=c("rationality", "utilityCoefs[\"prettiness\"]", "utilityCoefs[\"yumminess\"]"),
     labels=c("rationality=1", "should be pretty", "should be yummy"))) %>%
-  ggplot(., aes(x=explanation, colour=explanation, fill=explanation)) +
-  geom_bar(stat="count") +
+  ggplot(., aes(x=explanation, colour=explanation, fill=explanation, y=prob)) +
+  geom_bar(stat="identity") +
   scale_colour_few() +
   scale_fill_few() +
-  theme(axis.text.x = element_text(angle = -20, hjust = 0)) +
+  theme(axis.text.x = element_text(angle = -20, hjust = 0),
+        legend.position="none") +
   ggtitle("cupcakes explanation") +
-  ggsave("best.explanation.111.cupcakes.png", width=5, height=3)
+  ggsave("best.explanation.111.cupcakes.png", width=5, height=4)
 
 expl.rs.brownies = webppl(
   program_file = "agent-expanded-take2-actual-is-brownies.wppl",
@@ -76,9 +76,10 @@ expl.rs.brownies %>%
   geom_bar(stat="count") +
   scale_colour_few() +
   scale_fill_few() +
-  theme(axis.text.x = element_text(angle = -20, hjust = 0)) +
+  theme(axis.text.x = element_text(angle = -20, hjust = 0),
+        legend.position="none") +
   ggtitle("brownies explanation") +
-  ggsave("best.explanation.111.brownies.png", width=5, height=3)
+  ggsave("best.explanation.111.brownies.png", width=5, height=4)
 
 expl.rs.flowers = webppl(
   program_file = "agent-expanded-take2-actual-is-flowers.wppl",
@@ -97,6 +98,7 @@ expl.rs.flowers %>%
   geom_bar(stat="count") +
   scale_colour_few() +
   scale_fill_few() +
-  theme(axis.text.x = element_text(angle = -20, hjust = 0)) +
+  theme(axis.text.x = element_text(angle = -20, hjust = 0),
+        legend.position="none") +
   ggtitle("flowers explanation") +
-  ggsave("best.explanation.111.flowers.png", width=5, height=3)
+  ggsave("best.explanation.111.flowers.png", width=5, height=4)

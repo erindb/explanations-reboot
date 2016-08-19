@@ -13,7 +13,7 @@ var getActionPosterior = function(items, utilityCoefs, rationality, infer) {
 	});
 };
 
-var agent = function(input) {
+var program = function(input) {
 
 	var items = input.items;
 
@@ -42,4 +42,4 @@ var input = {
 	}
 };
 
-agent(input);
+program(input);

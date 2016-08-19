@@ -1,25 +1,28 @@
 // ------- human makes this ------
 
-var items = function(domainParams) {
-	var itemPrior = function(dims) {
+var inputPrior = {
+	items: function(domainParams) {
+		var itemPrior = function(dims) {
+			return _.object(map(function(d) {
+				return [d, uniformDraw([0,1])];
+			}, dims));
+		};
+
+		return _.object(map(function(n) {
+			return [n, itemPrior(domainParams.dims)];
+		}, domainParams.names));
+	}
+};
+
+var structureParamsPriors = {
+	utilityCoefs: function(domainParams) {
 		return _.object(map(function(d) {
 			return [d, uniformDraw([0,1])];
-		}, dims));
-	};
-
-	return _.object(map(function(n) {
-		return [n, itemPrior(domainParams.dims)];
-	}, domainParams.names));
-};
-
-var utilityCoefs = function(domainParams) {
-	return _.object(map(function(d) {
-		return [d, uniformDraw([0,1])];
-	}, domainParams.dims));
-};
-
-var rationality = function(domainParams) {
-	return uniformDraw([1,2,4]);
+		}, domainParams.dims));
+	},
+	rationality: function(domainParams) {
+		return uniformDraw([1,2,4]);
+	}
 };
 
 // ------- computer makes these ------
@@ -40,11 +43,11 @@ var cfPrior = function() {
 
 	return {
 		input: {
-			items: items(domainParams)
+			items: inputPrior.items(domainParams)
 		},
 		structureParams: {
-			utilityCoefs: utilityCoefs(domainParams),
-			rationality: rationality(domainParams)
+			utilityCoefs: structureParamsPriors.utilityCoefs(domainParams),
+			rationality: structureParamsPriors.rationality(domainParams)
 		},
 		sampleParams: sampleParams(domainParams)
 	};
