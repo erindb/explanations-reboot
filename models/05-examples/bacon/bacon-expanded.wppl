@@ -1,0 +1,276 @@
+// ------------ explanation-related utils ----------
+
+var stickySample = function(args) {
+	var erp = args.erp;
+	var currentLatents = args.currentLatents;
+	var originalLatents = args.originalLatents;
+	var erpLabel = args.erpLabel;
+
+	var probability = (currentLatents.sampleParams)[erpLabel];
+
+	// TODO: make this sensibly sticky (????)
+	if (originalLatents) {
+		return jsUtils.inverseCDFMaxOverlapWithLookup(erp, probability, currentLatents, originalLatents);
+	} else {
+		return jsUtils.inverseCDFWithLog(erp, probability, currentLatents);
+	}
+};
+
+// ------------ general-purpose utils ----------
+
+var discreteUniformERP = Infer(
+	{method: "enumerate"},
+	function() {
+		return uniformDraw(
+			_.range(0, 1, 0.01)
+		);
+	}
+);
+
+// var myUniformSampler = function() {return sample(discreteUniformERP);};
+var myUniformSampler = function() { return uniform(0,1); };
+
+// ------------ CF prior -------------------
+
+var inputPrior = function() {
+	return {
+		bacon: flip(0.9)
+	};
+};
+
+var sampleParamsPrior = function() {
+	return {
+		smokeAlarm: myUniformSampler(),
+		neighborsAngry: myUniformSampler()
+	}
+};
+
+var cfPrior = function() {
+	return {
+		input: inputPrior(),
+		sampleParams: sampleParamsPrior()
+	};
+};
+
+// ------------ make program -------------------
+
+var program = function (input, sampleParams, origInput, origSampleParams) {
+	var currentLatents = {
+		input: input,
+		sampleParams: sampleParams
+	};
+	var origLatents = {
+		input: origInput,
+		sampleParams: origSampleParams
+	};
+
+	// var bacon = input.bacon;
+	var bacon = input.bacon;
+
+	// var smokeAlarm = flip(bacon ? 0.9 : 0);
+	var smokeAlarmERP = Bernoulli({
+		p: bacon ? 0.9 : 0
+	});
+	var smokeAlarm = stickySample({
+		erp: smokeAlarmERP,
+		erpLabel: "smokeAlarm",
+		currentLatents: currentLatents,
+		origLatents: origLatents
+	});
+
+	// var neighborsAngry = flip(smokeAlarm ? 1 : 0.1);
+	var neighborsAngryERP = Bernoulli({
+		p: smokeAlarm ? 1 : 0.1
+	});
+	var neighborsAngry = stickySample({
+		erp: neighborsAngryERP,
+		erpLabel: "neighborsAngry",
+		currentLatents: currentLatents,
+		origLatents: origLatents
+	});
+
+	// return {
+	// 	bacon: bacon,
+	// 	smokeAlarm: smokeAlarm,
+	// 	neighborsAngry: neighborsAngry
+	// };
+	var expressions = {
+		"bacon": bacon,
+		"smokeAlarm": smokeAlarm,
+		"neighborsAngry": neighborsAngry
+	};
+	return {
+		expressionValues: expressions,
+		output: {
+			bacon: bacon,
+			smokeAlarm: smokeAlarm,
+			neighborsAngry: neighborsAngry
+		}
+	};
+};
+
+// -------- actual base program data --------
+
+var observations = {
+	input: {
+		bacon: true
+	},
+	output: {
+		bacon: true,
+		smokeAlarm: true,
+		neighborsAngry: true
+	}
+};
+
+// -------- explanation logic ----
+
+var combineObjList = function(objLst) {
+	if (objLst.length==1) {
+		return objLst[0];
+	} else {
+		return _.extend(
+			_.clone(objLst[0]),
+			combineObjList(
+				objLst.slice(1, objLst.length)
+			)
+		);
+	}
+};
+
+var counterfactualizeLatents = function(model, actual) {
+	var s = 0.5; // 0.53; //stickiness
+	var totallyDifferent = model();
+
+	return mapObject(function(key, value) {
+		return flip(s) ? actual[key] : totallyDifferent[key];
+	}, actual);
+};
+
+var marginalize = function(erp, value) {
+	return Infer(
+		{method: "enumerate"},
+		function() {
+			return sample(erp)[value]
+		}
+	);
+};
+
+var match = function(inferred, observed) {
+	var overlappingKeys = _.object(map(function(k) {
+		return [k, inferred[k]];
+	}, _.keys(observed)));
+
+	return _.isEqual(overlappingKeys, observed);
+};
+
+var imagineCounterfactuals = function(explanation) {
+	return function() {
+		// var latents = cfPrior();
+		var latents = {
+			input: observations.input,
+			sampleParams: sampleParamsPrior()
+		};
+
+		// observed
+		// ONLY for this example, we don't need to infer this
+		// var input = observations.input;
+		var input = latents.input;
+		// condition(match(input, observations.input));
+
+		// unobserved
+		// var sampleParams = {action: discreteUniform(0,1)};
+		var sampleParams = latents.sampleParams;
+		// console.log(sampleParams);
+
+		// observed
+		var programReturns = program(input, sampleParams);
+		var output = programReturns.output;
+		condition(match(output, observations.output));
+
+		// counterfactuals!!
+
+		// run simulations to see if an extra layer of interence around the CF world is necessary
+
+		// first sample a counterfactual
+		var cfLatents = counterfactualizeLatents(cfPrior, latents);
+		var cfInput = cfLatents.input;
+		var cfSampleParams = cfLatents.sampleParams;
+
+		var cfProgramReturns = program(cfInput, cfSampleParams, input, sampleParams);
+		var cfOutput = cfProgramReturns.output;
+
+		// condition on explaining expression value changing
+		if (explanation) {
+			var explanans = explanation.explanans;
+			var explanansValue = programReturns.expressionValues[explanans];
+			var cfExplanansValue = cfProgramReturns.expressionValues[explanans];
+			condition(explanansValue!=cfExplanansValue);
+		};
+
+		// does explanandum change?
+		if (explanation) {
+			var explanandum = explanation.explanandum;
+			var explanandumValue = programReturns.expressionValues[explanandum];
+			var cfExplanandumValue = cfProgramReturns.expressionValues[explanandum];
+			return {
+				actual: {latents: latents, output: output},
+				cf: {latents: cfLatents, output: cfOutput},
+				explanandumChange: explanandumValue!=cfExplanandumValue
+			}
+		} else {
+			return {
+				actual: {latents: latents, output: output},
+				cf: {latents: cfLatents, output: cfOutput}
+			};
+		}
+	};
+};
+
+var imagineCounterfactualNoConditioning = imagineCounterfactuals();
+
+var probBaconGivenNoSmokeAlarm = function() {
+	// var world = sample(imaginedCFs);
+	var world = imagineCounterfactualNoConditioning();
+	var cfWorldOutput = (world.cf).output;
+	condition(cfWorldOutput.smokeAlarm==false);
+	return cfWorldOutput.bacon;
+};
+
+// check if this is caching!!!!!!
+// or... whether i'm ever using the cache
+var counterfactualPosterior = cache(function(explainingExpression) {
+	return Infer(
+		{method: "enumerate"},
+		// {method: "MCMC", samples: 100, verbose: true},
+		imagineCounterfactuals(explainingExpression)
+	);
+});
+
+// enumerate this
+var explanationModel = function() {
+
+	// why are the neighbors angry?
+	var explanandum = 'neighborsAngry';
+
+	// run simulations to see if this layer of inference is even necessary
+
+	var explainingExpression = uniformDraw([
+		'bacon',
+		'smokeAlarm',
+		'neighborsAngry'
+	]);
+	console.log(explainingExpression);
+
+	var cfReturns = counterfactualPosterior({
+		explanans: explainingExpression,
+		explanandum: explanandum
+	});
+
+	var outputChangeMarginal = marginalize(cfReturns, "explanandumChange");
+
+	factor(3*outputChangeMarginal.score(true));
+
+	return explainingExpression;
+};
+
+"finished";

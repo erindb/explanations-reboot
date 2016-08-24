@@ -1,0 +1,28 @@
+var structureParamsPrior = function() {
+	// no CF-able structural params
+	// in this program
+	return {};
+};
+
+var inputPrior = function() {
+	return {
+		bacon: flip(0.9)
+	};
+};
+
+var sampleParamsPrior = function() {
+	return {
+		smokeAlarm: myUniformSampler(),
+		neighborsAngry: myUniformSampler()
+	}
+};
+
+var cfPrior = function() {
+	return {
+		input: inputPrior(),
+		structureParams: structureParamsPrior(),
+		sampleParams: sampleParamsPrior()
+	};
+};
+
+cfPrior();
