@@ -69,7 +69,7 @@ var program = function (input, sampleParams, origInput, origSampleParams) {
 
 	// var smokeAlarm = flip(bacon ? 0.9 : 0);
 	var smokeAlarmERP = Bernoulli({
-		p: bacon ? 0.9 : 0
+		p: bacon ? 0.3 : 0.01
 	});
 	var smokeAlarm = stickySample({
 		erp: smokeAlarmERP,
@@ -80,7 +80,7 @@ var program = function (input, sampleParams, origInput, origSampleParams) {
 
 	// var neighborsAngry = flip(smokeAlarm ? 1 : 0.1);
 	var neighborsAngryERP = Bernoulli({
-		p: smokeAlarm ? 1 : 0.1
+		p: smokeAlarm ? 0.9 : 0.1
 	});
 	var neighborsAngry = stickySample({
 		erp: neighborsAngryERP,

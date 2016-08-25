@@ -46,7 +46,8 @@ scale_fill_black = function() {
 bacon = webppl(
   program_file = "bacon-expanded.wppl",
   # inference_opts = list(method="enumerate"),
-  inference_opts = list(method="MCMC", samples=1000, lag=10, burn=100, verbose=T),
+  inference_opts = list(method="MCMC", samples=10000, lag=20, #burn=100, 
+                        verbose=T),
   model_var = "probBaconGivenNoSmokeAlarm",
   # output_format = "samples",
   packages = c("./node_modules/jsUtils")
@@ -119,78 +120,86 @@ cfs %>%
     theme(legend.position="right")
   ggsave("neighborsAngrySampling.png", width=8, height=6)
 
-rs %>% gather("world", "action",
-              c(actual.output, cf.output)) %>%
-  mutate(world=factor(world, labels=c("actual", "CF"))) %>%
-  ggplot(aes(x=action, colour=world, fill=world)) +
-  geom_bar() +
-  facet_wrap(~ world) +
-  scale_colour_black() +
-  scale_fill_black() +
-  theme(axis.text.x = element_text(angle = -20, hjust = 0)) +
-  ggtitle("sticky output") +
-  ggsave("sticky.output.png", width=5, height=3)
-
 expl.rs = webppl(
-  program_file = "agent-expanded-take2.wppl",
+  program_file = "bacon-expanded.wppl",
   inference_opts = list(method="enumerate"),
+  # inference_opts = list(method="MCMC", samples=10000, lag=100, burn=1000, verbose=T),
+  # inference_opts = list(method="MCMC", samples=100, verbose=T),
   model_var = "explanationModel",
   packages = c("./node_modules/jsUtils")
 )
 
 expl.rs %>%
-  mutate(explanation=factor(
-    support,
-    levels=c("rationality", "utilityCoefs[\"prettiness\"]", "utilityCoefs[\"yumminess\"]"),
-    labels=c("rationality=1", "should be pretty", "should be yummy"))) %>%
-  ggplot(., aes(x=explanation, colour=explanation, fill=explanation, y=prob)) +
+  ggplot(., aes(x=support, y=prob)) +
   geom_bar(stat="identity") +
-  theme(axis.text.x = element_text(angle = -20, hjust = 0),
-        legend.position="none") +
-  ggtitle("cupcakes explanation") +
-  scale_colour_black() +
-  scale_fill_black()
-  ggsave("best.explanation.111.cupcakes.png", width=5, height=4)
+  ggtitle("neighborsAngry b/c...")
+ggsave("whyNeighborsAngry.png", width=5, height=3)
 
-expl.rs.brownies = webppl(
-  program_file = "agent-expanded-take2-actual-is-brownies.wppl",
+expl.rs.smokeAlarm = webppl(
+  program_file = "bacon-expanded.wppl",
   inference_opts = list(method="enumerate"),
-  model_var = "explanationModel",
+  model_var = "explanationModelSmokeAlarm",
   packages = c("./node_modules/jsUtils")
 )
 
-expl.rs.brownies %>%
-  mutate(explanation=factor(
-    support,
-    levels=c("rationality", "utilityCoefs[\"prettiness\"]", "utilityCoefs[\"yumminess\"]"),
-    labels=c("rationality=1", "should be pretty", "should be yummy"))) %>%
-  ggplot(., aes(x=explanation, colour=explanation, fill=explanation, y=prob)) +
+expl.rs.smokeAlarm %>%
+  ggplot(., aes(x=support, y=prob)) +
   geom_bar(stat="identity") +
-  scale_colour_black() +
-  scale_fill_black() +
-  theme(axis.text.x = element_text(angle = -20, hjust = 0),
-        legend.position="none") +
-  ggtitle("cupcakes explanation")
-  ggsave("best.explanation.111.brownies.png", width=5, height=4)
+  ggtitle("smokeAlarm b/c...")
+ggsave("whySmokeAlarm.png", width=5, height=3)
 
-expl.rs.flowers = webppl(
-  program_file = "agent-expanded-take2-actual-is-flowers.wppl",
-  inference_opts = list(method="MCMC", samples=1000),
+
+expl.rs.neighbors.aternative = webppl(
+  program_file = "bacon-alternative.wppl",
+  inference_opts = list(method="enumerate"),
+  # inference_opts = list(method="MCMC", samples=10000, lag=100, burn=1000, verbose=T),
+  # inference_opts = list(method="MCMC", samples=100, verbose=T),
   model_var = "explanationModel",
-  output_format = "samples",
   packages = c("./node_modules/jsUtils")
 )
 
-expl.rs.flowers %>%
-  mutate(explanation=factor(
-    support,
-    levels=c("rationality", "utilityCoefs[\"prettiness\"]", "utilityCoefs[\"yumminess\"]"),
-    labels=c("rationality=1", "should be pretty", "should be yummy"))) %>%
-  ggplot(., aes(x=explanation, colour=explanation, fill=explanation)) +
-  geom_bar(stat="count") +
-  scale_colour_few() +
-  scale_fill_few() +
-  theme(axis.text.x = element_text(angle = -20, hjust = 0),
-        legend.position="none") +
-  ggtitle("flowers explanation") +
-  ggsave("best.explanation.111.flowers.png", width=5, height=4)
+expl.rs.neighbors.aternative %>%
+  ggplot(., aes(x=support, y=prob)) +
+  geom_bar(stat="identity") +
+  ggtitle("neighborsAngry b/c...")
+ggsave("whyNeighborsAngry.alternative.png", width=5, height=3)
+
+expl.rs.smokeAlarm.alternative = webppl(
+  program_file = "bacon-alternative.wppl",
+  inference_opts = list(method="enumerate"),
+  model_var = "explanationModelSmokeAlarm",
+  packages = c("./node_modules/jsUtils")
+)
+
+expl.rs.smokeAlarm.alternative %>%
+  ggplot(., aes(x=support, y=prob)) +
+  geom_bar(stat="identity") +
+  ggtitle("smokeAlarm b/c...")
+ggsave("whySmokeAlarm.alternative.png", width=5, height=3)
+
+expl.rs.bacon.alternative = webppl(
+  program_file = "bacon-alternative.wppl",
+  inference_opts = list(method="enumerate"),
+  model_var = "explanationModelBacon",
+  packages = c("./node_modules/jsUtils")
+)
+
+expl.rs.bacon.alternative %>%
+  ggplot(., aes(x=support, y=prob)) +
+  geom_bar(stat="identity") +
+  ggtitle("bacon b/c...")
+ggsave("whyBacon.alternative.png", width=5, height=3)
+
+
+expl.rs.bacon.orig = webppl(
+  program_file = "bacon-expanded.wppl",
+  inference_opts = list(method="enumerate"),
+  model_var = "explanationModelBacon",
+  packages = c("./node_modules/jsUtils")
+)
+
+expl.rs.bacon.orig %>%
+  ggplot(., aes(x=support, y=prob)) +
+  geom_bar(stat="identity") +
+  ggtitle("bacon b/c...")
+ggsave("whyBaconOrig.png", width=5, height=3)
