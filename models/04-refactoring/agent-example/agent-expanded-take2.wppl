@@ -16,16 +16,17 @@ var getActionPosterior = cache(function(items, utilityCoefs, rationality, infer)
 	});
 });
 
-var range = jsUtils.range;
+var discreteUniformERP = Infer(
+	{method: "enumerate"},
+	function() {
+		return uniformDraw(
+			_.range(0, 1, 0.1)
+		);
+	}
+);
 
-var discreteUniform = function(stepSize) {
-	return uniformDraw(
-		range(0, 1, (stepSize ? stepSize : 0.1))
-	);
-};
-
-var myUniform = function() {return uniform(0, 1)};
-// var myUniform = discreteUniform(0, 1, 0.1);
+// var myUniform = function() {return uniform(0, 1)};
+var myUniform = function() {return sample(discreteUniformERP);};
 
 // -------- base program counterfactualizable transformation --------
 
@@ -37,6 +38,7 @@ var makeProgram = function(structureParams, origStructureParams) {
 		var rationality = structureParams.rationality;
 		var infer = function(fn) {
 			return Infer({method: "enumerate"}, fn);
+			// return Infer({method: "MCMC", samples: 10}, fn);
 		};
 		var actionPosterior = getActionPosterior(
 			items, utilityCoefs, rationality, infer
@@ -281,8 +283,8 @@ var imagineCounterfactualNoConditioning = imagineCounterfactuals();
 // or... whether i'm ever using the cache
 var counterfactualPosterior = cache(function(explainingExpression) {
 	return Infer(
-		// {method: "enumerate"},
-		{method: "MCMC", samples: 30000, verbose: true},
+		{method: "enumerate"},
+		// {method: "MCMC", samples: 100, verbose: true},
 		imagineCounterfactuals(explainingExpression)
 	);
 });

@@ -8,16 +8,29 @@ var utility = function(item, items, utilityCoefs) {
 	}, dimensions));
 };
 
-var getActionPosterior = function(items, utilityCoefs, rationality, infer) {
+var getActionPosterior = cache(function(items, utilityCoefs, rationality, infer) {
 	return infer(function() {
 		var item = uniformDraw(_.keys(items));
 		factor(rationality * utility(item, items, utilityCoefs));
 		return item;
 	});
-};
+});
+
+var discreteUniformERP = Infer(
+	{method: "enumerate"},
+	function() {
+		return uniformDraw(
+			_.range(0, 1, 0.1)
+		);
+	}
+);
+
+// var myUniform = function() {return uniform(0, 1)};
+var myUniform = function() {return sample(discreteUniformERP);};
 
 // -------- base program counterfactualizable transformation --------
 
+// to do: rewrite this in a way that we can cache
 var makeProgram = function(structureParams, origStructureParams) {
 	return function (input, sampleParams, origInput, origSampleParams) {
 		var items = input.items;
@@ -25,6 +38,7 @@ var makeProgram = function(structureParams, origStructureParams) {
 		var rationality = structureParams.rationality;
 		var infer = function(fn) {
 			return Infer({method: "enumerate"}, fn);
+			// return Infer({method: "MCMC", samples: 10}, fn);
 		};
 		var actionPosterior = getActionPosterior(
 			items, utilityCoefs, rationality, infer
@@ -77,19 +91,19 @@ var items = function(domainParams) {
 	}, domainParams.names));
 };
 
-var utilityCoefs = function(domainParams) {
+var utilityCoefsPrior = function(domainParams) {
 	return _.object(map(function(d) {
 		return [d, uniformDraw([0,1])];
 	}, domainParams.dims));
 };
 
-var rationality = function(domainParams) {
+var rationalityPrior = function(domainParams) {
 	return uniformDraw([1,2,4]);
 };
 
-var sampleParams = function(domainParams) {
+var sampleParamsPrior = function(domainParams) {
 	return _.object(map(function(s) {
-		return [s, uniform(0,1)];
+		return [s, myUniform()];
 	}, domainParams.samples));
 };
 
@@ -103,13 +117,21 @@ var cfPrior = function() {
 
 	return {
 		input: {
-			items: items(domainParams)
+			items: {
+				money: {prettiness: 0, yumminess: 0},
+				brownies: {prettiness: 0, yumminess: 1},
+				flowers: {prettiness: 1, yumminess: 0},
+				cupcakes: {prettiness: 1, yumminess: 1},
+			}
 		},
+		// input: {
+		// 	items: items(domainParams)
+		// },
 		structureParams: {
-			utilityCoefs: utilityCoefs(domainParams),
-			rationality: rationality(domainParams)
+			utilityCoefs: utilityCoefsPrior(domainParams),
+			rationality: rationalityPrior(domainParams)
 		},
-		sampleParams: sampleParams(domainParams)
+		sampleParams: sampleParamsPrior(domainParams)
 	};
 };
 
@@ -190,18 +212,29 @@ var match = function(inferred, observed) {
 
 var imagineCounterfactuals = function(explainingExpression) {
 	return function() {
-		var latents = cfPrior();
+		// var latents = cfPrior();
+		var latents = {
+			structureParams: observations.structureParams,
+			input: observations.input,
+			sampleParams: {action: myUniform()}
+		};
 
 		// observed
+		// ONLY for this example, we don't need to infer this
+		// var structureParams = observations.structureParams;
 		var structureParams = latents.structureParams;
-		condition(match(structureParams, observations.structureParams));
+		// condition(match(structureParams, observations.structureParams));
 
 		// observed
+		// ONLY for this example, we don't need to infer this
+		// var input = observations.input;
 		var input = latents.input;
-		condition(match(input, observations.input));
+		// condition(match(input, observations.input));
 
 		// unobserved
+		// var sampleParams = {action: discreteUniform(0,1)};
 		var sampleParams = latents.sampleParams;
+		// console.log(sampleParams);
 
 		var program = makeProgram(structureParams);
 
@@ -211,7 +244,14 @@ var imagineCounterfactuals = function(explainingExpression) {
 		condition(output == observations.output);
 
 		// counterfactuals!!
+
+		// run simulations to see if an extra layer of interence around the CF world is necessary
+
+		// first sample a counterfactual
 		var cfLatents = counterfactualizeLatents(cfPrior, latents);
+		// console.log(cfLatents);
+
+		// then figure out the consequences of that counterfactual sample
 		var cfInput = cfLatents.input;
 		var cfStructureParams = cfLatents.structureParams;
 		var cfSampleParams = cfLatents.sampleParams;
@@ -219,8 +259,8 @@ var imagineCounterfactuals = function(explainingExpression) {
 		var cfProgramReturns = cfProgram(cfInput, cfSampleParams, input, sampleParams);
 		var cfOutput = cfProgramReturns.output;
 
+		// condition on explaining expression value changing
 		if (explainingExpression) {
-			// condition on explaining expression value changing
 			var explainingExpressionValue = programReturns.expressionValues[explainingExpression];
 			var cfExplainingExpressionValue = cfProgramReturns.expressionValues[explainingExpression];
 			condition(explainingExpressionValue!=cfExplainingExpressionValue);
@@ -239,14 +279,20 @@ var imagineCounterfactuals = function(explainingExpression) {
 
 var imagineCounterfactualNoConditioning = imagineCounterfactuals();
 
+// check if this is caching!!!!!!
+// or... whether i'm ever using the cache
 var counterfactualPosterior = cache(function(explainingExpression) {
 	return Infer(
-		{method: "MCMC", samples: 5000},
+		{method: "enumerate"},
+		// {method: "MCMC", samples: 100, verbose: true},
 		imagineCounterfactuals(explainingExpression)
 	);
 });
 
+// enumerate this
 var explanationModel = function() {
+
+	// run simulations to see if this layer of inference is even necessary
 
 	var explainingExpression = uniformDraw([
 		// 'items["cupcakes"]["prettiness"]',
@@ -261,12 +307,13 @@ var explanationModel = function() {
 		'utilityCoefs["yumminess"]',
 		'rationality'
 	]);
+	console.log(explainingExpression);
 
 	var cfReturns = counterfactualPosterior(explainingExpression);
 
 	var outputChangeMarginal = marginalize(cfReturns, "outputChange");
 
-	factor(10*outputChangeMarginal.score(true));
+	factor(3*outputChangeMarginal.score(true));
 
 	return explainingExpression;
 };
