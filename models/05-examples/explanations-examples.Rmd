@@ -257,7 +257,7 @@ When sampling `sampleParams` as uniform random variables, this trainformation ma
 
 ```{r bacon_program_explanded_joint, fig.width=4}
 bacon_program_expanded = webppl(
-  program_file = "bacon/bacon_program_expanded.wppl",
+  program_file = "bacon/bacon-autoexpanded.wppl",
   inference_opts = list(method = "MCMC", samples = 10000),
   model_var = "forwardSample",
   packages = c("./bacon/node_modules/jsUtils"))
@@ -341,7 +341,7 @@ In this example, B, S, and N are all true in the actual world. @lucas2015improve
 ```{r}
 bacon_if_no_smokeAlarm = function() {
   return((webppl(
-    program_file = "bacon/bacon_program_expanded.wppl",
+    program_file = "bacon/bacon-autoexpanded.wppl",
     inference_opts = list(method = "MCMC", samples = iterations, lag=lag, burn=burn, verbose=T),
     model_var = "function() {return counterfactual(0.5, {smokeAlarm: false})}",
     packages = c("./bacon/node_modules/jsUtils")) %>%

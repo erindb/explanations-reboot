@@ -1,0 +1,13 @@
+// ------------ observations -------------------
+
+var observations = {
+	structureParams: {},
+	input: {bacon: true},
+	output: {
+		bacon: true,
+		smokeAlarm: true,
+		neighborsAngry: true,
+	}
+};
+
+observations
