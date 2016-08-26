@@ -1,0 +1,16 @@
+var program = function() {
+
+	var bacon = flip(0.9);
+
+	var smokeAlarm = flip(bacon ? 0.9 : 0);
+
+	var neighborsAngry = flip(smokeAlarm ? 1 : 0.1);
+
+	return {
+		bacon: bacon,
+		smokeAlarm: smokeAlarm,
+		neighborsAngry: neighborsAngry
+	}
+};
+
+program();

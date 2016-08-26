@@ -1,0 +1,168 @@
+// ------------ explanation-related utils ----------
+
+var stickySample = function(args) {
+	var erp = args.erp;
+	var currentLatents = args.currentLatents;
+	var originalLatents = args.originalLatents;
+	var erpLabel = args.erpLabel;
+
+	var probability = (currentLatents.sampleParams)[erpLabel];
+
+	// TODO: make this sensibly sticky (????)
+	if (originalLatents) {
+		return jsUtils.inverseCDFMaxOverlapWithLookup(erp, probability, currentLatents, originalLatents);
+	} else {
+		return jsUtils.inverseCDFWithLog(erp, probability, currentLatents);
+	}
+};
+
+// ------------ CF prior -------------------
+
+var inputPrior = function() {
+	return {
+		bacon: flip(0.9)
+	};
+};
+
+var sampleParamsPrior = function() {
+	return {
+		smokeAlarm: uniform(0, 1),
+		neighborsAngry: uniform(0, 1)
+	}
+};
+
+// ------------ transformed program -------------------
+
+var program = function (input, sampleParams, origInput, origSampleParams) {
+	var currentLatents = {
+		input: input,
+		sampleParams: sampleParams
+	};
+	var origLatents = {
+		input: origInput,
+		sampleParams: origSampleParams
+	};
+
+	// var bacon = input.bacon;
+	var bacon = input.bacon;
+
+	// var smokeAlarm = flip(bacon ? 0.9 : 0);
+	var smokeAlarmERP = Bernoulli({
+		p: bacon ? 0.9 : 0
+	});
+	var smokeAlarm = stickySample({
+		erp: smokeAlarmERP,
+		erpLabel: "smokeAlarm",
+		currentLatents: currentLatents,
+		origLatents: origLatents
+	});
+
+	// var neighborsAngry = flip(smokeAlarm ? 1 : 0.1);
+	var neighborsAngryERP = Bernoulli({
+		p: smokeAlarm ? 1 : 0.1
+	});
+	var neighborsAngry = stickySample({
+		erp: neighborsAngryERP,
+		erpLabel: "neighborsAngry",
+		currentLatents: currentLatents,
+		origLatents: origLatents
+	});
+
+	// return {
+	// 	bacon: bacon,
+	// 	smokeAlarm: smokeAlarm,
+	// 	neighborsAngry: neighborsAngry
+	// };
+	var expressions = {
+		"bacon": bacon,
+		"smokeAlarm": smokeAlarm,
+		"neighborsAngry": neighborsAngry
+	};
+	return {
+		expressionValues: expressions,
+		output: {
+			bacon: bacon,
+			smokeAlarm: smokeAlarm,
+			neighborsAngry: neighborsAngry
+		}
+	};
+};
+
+// ------------ forward samples -------------------
+
+var forwardSample = function() {
+	var sampleParams = sampleParamsPrior();
+	var input = {
+		bacon: true
+	};
+	var returnValues = program(input, sampleParams);
+	var output = returnValues.output;
+	return output;
+};
+
+// ------------ actual observations -------------------
+
+var observations = {
+	input: {
+		bacon: true
+	},
+	output: {
+		bacon: true,
+		smokeAlarm: true,
+		neighborsAngry: true
+	}
+};
+
+// ------------ counterfactual samples -------------------
+
+var counterfactualizeLatents = function(model, actual, stickiness) {
+	var s = stickiness ? stickiness : 0.53;
+	var totallyDifferent = model();
+
+	return mapObject(function(key, value) {
+		return flip(s) ? actual[key] : totallyDifferent[key];
+	}, actual);
+};
+
+var match = function(inferred, observed) {
+	var overlappingKeys = _.object(map(function(k) {
+		return [k, inferred[k]];
+	}, _.keys(observed)));
+
+	return _.isEqual(overlappingKeys, observed);
+};
+
+var counterfactual = function(stickiness, cfPremise) {
+
+	// first infer actualSampleParams from actualOutput
+	var actualSampleParams = sampleParamsPrior();
+	var actualInput = observations.input;
+	var actualReturnValues = program(actualInput, actualSampleParams);
+	var actualOutput = actualReturnValues.output;
+	condition(match(actualOutput, observations.output));
+
+	// then sticky sample cfSampleParams
+	var cfSampleParams = counterfactualizeLatents(
+		sampleParamsPrior,
+		actualSampleParams,
+		stickiness
+	);
+	var cfInput = counterfactualizeLatents(
+		inputPrior,
+		actualInput,
+		stickiness
+	);
+	// and calculate corresponding output
+	var cfReturnValues = program(cfInput, cfSampleParams);
+	var cfOutput = cfReturnValues.output;
+
+	// condition on cfPremise if applicable
+	if (cfPremise) {
+		condition(match(cfOutput, cfPremise));
+	}
+
+	// return cfOutput
+	return cfOutput;
+};
+
+"finished"

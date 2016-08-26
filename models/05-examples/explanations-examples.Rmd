@@ -1,0 +1,386 @@
+---
+title: "Examples of explainable programs"
+author: "Erin Bennett"
+output: 
+  html_document:
+      toc: true
+bibliography: "../../explanations.bib"
+---
+
+```{r global_options, include=FALSE}
+rm(list=ls())
+knitr::opts_chunk$set(echo=F, warning=F, cache=T, message=F, sanitiz =T, fig.width = 5, fig.height = 3)
+```
+
+```{r load_settings}
+source("~/cocolab/settings/startup.R")
+library(diagram)
+```
+
+# Introduction
+
+We implement a model of explanation for a probabilistic program. This model takes as input:
+
+* an explanandum,
+* a description of the actual program and its execution,
+* a set of beliefs (represented as a probability distribution) about how counterfactual situations might have been generated,
+* and a set of candidate explanans.
+
+This model then scores the candidate explanans on their counterfactual difference-making to the explanandum. That is,
+
+> How likely is it that the explanandum would have been different if, counterfactually, the explanans had been different?
+
+One important feature of this system is that an explanandum and the explanans can be *any proposition*, that is, any expression that evaluates to a boolean value in the context of the program. This includes any function of any combination of variables in the program.
+
+In this file, I describe several programs that could be explained using this system and discuss the model's distributions over explanans given different counterfactual priors and candidate explanans.
+
+# Model description
+
+## Counterfactual sampling
+
+Our system for explanation uses counterfactual sampling. Our implementation of counterfactual sampling is based on the Extended Structural Model (ESM) introduced by @lucas2015improved.
+
+They illustrate their model using the following example.
+
+### Illustrative example
+
+In this example, Anna cooks bacon, the smoke alarm goes off, and her neighbors are angry. There is a causal chain connecting these events, such that:
+
+* the smoke alarm goes off 90% of the time when bacon is cooked and never goes off for any other reason,
+* and the neighbors are angry whenever the smoke alarm goes off, though they might be angry anyway for some other reason (10% of the time).
+
+In this model, Anna cooks bacon about 90% of the time.
+
+```{r bacon_graph, fig.width=3, fig.height=5}
+M <- matrix(nrow = 8, ncol = 8, byrow = TRUE, data = NA)
+M[3,2] =""
+M[5,3] = "0.9"
+M[7,5] = "1.0"
+M[7,6] = ""
+pp <- plotmat(M, pos = c(2, 2, 2, 2),
+              name = c("", "0.9", "B", "", "S", "0.1", "N", ""),
+              curve = 0,
+              dtext = c(0.1,2), arr.pos = 0.9,
+              lwd = 1, box.lwd = 2, cex.txt = 1,
+              box.size = 0.1,
+              shadow.size = 0,
+              box.lcol = c("white", "white", "black", "white",
+                           "black", "white", "black", "white"),
+              box.type = "circle",
+              main = "Bacon Example",
+              box.prop = 0.5)
+```
+
+We can write this model as a probabilistic program.
+
+```{r bacon_orig_factorization, engline="js", eval=F, echo=T}
+var program = function() {
+
+	var bacon = flip(0.9);
+
+	var smokeAlarm = flip(bacon ? 0.9 : 0);
+
+	var neighborsAngry = flip(smokeAlarm ? 1 : 0.1);
+
+	return {
+		bacon: bacon,
+		smokeAlarm: smokeAlarm,
+		neighborsAngry: neighborsAngry
+	}
+};
+
+program();
+```
+
+This program gives the following marginal probabilities for the three variables.
+
+```{r bacon_orig_factorization_marginal}
+bacon_orig_factorization = webppl(program_file = "bacon/bacon_orig_factorization.wppl",
+       inference_opts = list(method = "enumerate"),
+       model_var = "program")
+
+bacon_orig_factorization %>%
+  gather("variable", "value", c(bacon, smokeAlarm, neighborsAngry)) %>%
+  filter(value==T) %>%
+  ggplot(., aes(x=variable, y=prob)) +
+  geom_bar(stat="identity") +
+  ylim(0, 1)
+```
+
+And the following joint distribution.
+
+```{r bacon_orig_factorization_joint}
+bacon_orig_factorization %>%
+  rbind(., data.frame(
+    bacon=c(T, F, F),
+    smokeAlarm=c(T, T, T),
+    neighborsAngry=c(F, T, F),
+    prob=c(0, 0, 0)
+  )) %>%
+  mutate(bacon = paste("bacon =", bacon)) %>%
+  ggplot(., aes(x=smokeAlarm, y=neighborsAngry, fill=prob)) +
+  geom_tile() +
+  theme(legend.position="right") +
+  facet_grid(~bacon) +
+  scale_fill_gradient(low="gray25", 
+                      high="white", 
+                      breaks=seq(0, 1, by=30))
+```
+
+For slightly more efficient code and for generalizing this system to other examples later, we modify the program a bit so that `bacon` is an *input* to the program. We will later add back in the prior of 0.9, but for the moment, we will assume `bacon` was simply set to `true` when the program was run.
+
+```{r bacon_program, engline="js", eval=F, echo=T}
+var program = function(input) {
+
+	var bacon = input.bacon;
+
+	var smokeAlarm = flip(bacon ? 0.9 : 0);
+
+	var neighborsAngry = flip(smokeAlarm ? 1 : 0.1);
+
+	return {
+		bacon: bacon,
+		smokeAlarm: smokeAlarm,
+		neighborsAngry: neighborsAngry
+	}
+};
+
+var input = {
+	bacon: true
+};
+
+program(input);
+```
+
+The conditional joint distribution among the remaining two variables remains the same.
+
+```{r bacon_program_joint, fig.width=4}
+bacon_program = webppl(program_file = "bacon/bacon_program.wppl",
+       inference_opts = list(method = "enumerate"),
+       model_var = "function() {return program(input); }")
+
+bacon_program %>%
+  rbind(., data.frame(
+    bacon=T,
+    smokeAlarm=T,
+    neighborsAngry=F,
+    prob=0
+  )) %>%
+  mutate(bacon = paste("bacon =", bacon)) %>%
+  ggplot(., aes(x=smokeAlarm, y=neighborsAngry, fill=prob)) +
+  geom_tile() +
+  theme(legend.position="right") +
+  scale_fill_gradient(low="gray25", 
+                      high="white", 
+                      breaks=seq(0, 1, by=30))
+```
+
+Following @lucas2015improved, for each sample from a distribution, we create a new `sampleParam`. This variable captures the randomness in the causal link and allows the value sampled to be a deterministic function of the `sampleParam` and the states of upstream variables. This process exogenizes the random choices into a set of independent random variables, which allows for principled counterfactual sampling. (See @lucas2015improved for further discussion.)
+
+@lucas2015improved used Bernoulli random variables in combination with an appropriate logical operator for the latent, exogenous random variables. In order to easily generalize to any sampling distribution, we instead use uniform random variables for all `sampleParams` and use the inverse CDF transform to get the sampled value.
+
+```{r bacon_exogenized_graph, fig.width=3, fig.height=5}
+ncol = 4
+names=c("B",
+        "s",
+        "S",
+        "n",
+        "N")
+
+M = matrix(nrow = length(names), ncol = length(names), byrow=T, data=NA)
+arrow = function(a, b, M) {
+  M[which(names==b), which(names==a)] = ""
+  return(M)
+}
+M = arrow("B", "S", M)
+M = arrow("S", "N", M)
+M = arrow("s", "S", M)
+M = arrow("n", "N", M)
+
+pos = matrix(nrow=length(names), ncol=2, byrow=T,
+             data=c(0.4, 0.95,
+                    0.6,  0.7,
+                    0.4, 0.5,
+                    0.6, 0.25,
+                    0.4, 0.05))
+
+plotmat(M, pos=pos, name=names, 
+        lwd=1, box.lwd=2, cex.txt=1, box.size=0.1, shadow.size=0,
+        box.lcol = ifelse(names=="", "white", "black"),
+        box.type="circle",
+        main="ESM", curve=0,
+        box.prop = 0.5)
+```
+
+We extend the sampling method to improve the counterfactual sampling behavior for discrete distributions with more than two possible outcomes. The resulting `stickySample` takes the distribution to sample from and `sampleParams` as arguments as well as identifiers for the original distributions in the actual world (defined whenever sampling counterfactually).
+<!-- todo: discuss this? -->
+
+```{r bacon_program_exogenized, engline="js", eval=F, echo=T}
+var sampleParamsPrior = function() {
+	return {
+		smokeAlarm: uniform(0, 1),
+		neighborsAngry: uniform(0, 1)
+	}
+};
+
+var program = function (input, sampleParams, ...) {
+
+	var bacon = input.bacon;
+
+	var smokeAlarmERP = Bernoulli({
+		p: bacon ? 0.9 : 0
+	});
+	var smokeAlarm = stickySample(
+	  smokeAlarmERP,
+	  sampleParams.smokeAlarm,
+	  ...
+	);
+
+	var neighborsAngryERP = Bernoulli({
+		p: smokeAlarm ? 1 : 0.1
+	});
+	var neighborsAngry = stickySample(
+	  neighborsAngryERP,
+	  sampleParams.neighborsAngry,
+	  ...
+	);
+
+	return {
+		bacon: bacon,
+		smokeAlarm: smokeAlarm,
+		neighborsAngry: neighborsAngry
+	};
+};
+```
+
+When sampling `sampleParams` as uniform random variables, this trainformation maintains the marginal probabilities of all observable variables. (Though note that we now use MCMC for inference rather than enumeration, our `sampleParams` are uniform.)
+
+```{r bacon_program_explanded_joint, fig.width=4}
+bacon_program_expanded = webppl(
+  program_file = "bacon/bacon_program_expanded.wppl",
+  inference_opts = list(method = "MCMC", samples = 10000),
+  model_var = "forwardSample",
+  packages = c("./bacon/node_modules/jsUtils"))
+
+bacon_program_expanded %>%
+  rbind(., data.frame(
+    bacon=T,
+    smokeAlarm=T,
+    neighborsAngry=F,
+    prob=0
+  )) %>%
+  mutate(bacon = paste("bacon =", bacon)) %>%
+  ggplot(., aes(x=smokeAlarm, y=neighborsAngry, fill=prob)) +
+  geom_tile() +
+  theme(legend.position="right") +
+  scale_fill_gradient(low="gray25", 
+                      high="white", 
+                      breaks=seq(0, 1, by=30))
+```
+
+When we sample counterfactually, we maintain the values each independent latent variable (including input variables) most of the time, but occasionally resample one of those variables from the prior.
+
+```{r bacon_counterfactual_graph, fig.width=3, fig.height=5}
+ncol = 4
+names=c("B", "B'",
+        "s", "s'", 
+        "S", "S'",
+        "n", "n'",
+        "N", "N'")
+
+M = matrix(nrow = length(names), ncol = length(names), byrow=T, data=NA)
+arrow = function(a, b, M) {
+  M[which(names==b), which(names==a)] = ""
+  return(M)
+}
+M = arrow("B", "B'", M)
+M = arrow("S", "S'", M)
+M = arrow("N", "N'", M)
+M = arrow("s", "s'", M)
+M = arrow("n", "n'", M)
+M = arrow("B", "S", M)
+M = arrow("B'", "S'", M)
+M = arrow("S", "N", M)
+M = arrow("S'", "N'", M)
+M = arrow("s", "S", M)
+M = arrow("n", "N", M)
+M = arrow("s'", "S'", M)
+M = arrow("n'", "N'", M)
+
+pos = matrix(nrow=length(names), ncol=2, byrow=T,
+             data=c(0.15, 0.95,
+                    0.85, 0.95,
+                    0.3,  0.7,
+                    0.7, 0.7,
+                    0.15, 0.5,
+                    0.85, 0.5,
+                    0.3, 0.25,
+                    0.7, 0.25,
+                    0.15, 0.05,
+                    0.85, 0.05))
+
+plotmat(M, pos=pos, name=names, 
+        lwd=1,
+        box.lwd=c(1, 1, 1, 1, 4, 4, 1, 1, 4, 4),
+        cex.txt=1, box.size=0.1, shadow.size=0,
+        box.lcol = ifelse(names=="", "white", "black"),
+        box.type="circle",
+        main="ESM", curve=0,
+        box.prop = 0.5)
+```
+
+```{r}
+iterations = 10000
+lag = 9
+burn = 1000
+chains = 10
+```
+
+In this example, B, S, and N are all true in the actual world. @lucas2015improved cacluate the probability of B, counterfactually S had been false: 0.487. We use Metropolis Hastings (for `r iterations` iterations, keeping every `r lag+1`th iteration, with `r burn` additional iterations as burn-in) on our system and find the following distribution of counterfactual probabilities for bacon over `r chains` inference chains.
+
+```{r}
+bacon_if_no_smokeAlarm = function() {
+  return((webppl(
+    program_file = "bacon/bacon_program_expanded.wppl",
+    inference_opts = list(method = "MCMC", samples = iterations, lag=lag, burn=burn, verbose=T),
+    model_var = "function() {return counterfactual(0.5, {smokeAlarm: false})}",
+    packages = c("./bacon/node_modules/jsUtils")) %>%
+      group_by(bacon) %>% summarise(prob=sum(prob)) %>%
+      filter(bacon==T))$prob)
+}
+chains = replicate(chains, bacon_if_no_smokeAlarm())
+ggplot(NULL, aes(x=chains)) +
+  geom_density() +
+  theme_gray() +
+  geom_vline(xintercept = 0.487, colour="gray30") +
+  annotate("text", y=14, x=0.487, hjust=0, label="0.487", colour="gray30") +
+  xlim(0,1)
+```
+  
+<!-- 
+
+### Model reproduction
+
+### Experimental reproduction
+
+## Comparing explanans
+
+# Examples
+
+## Causal chain
+
+### Original parameters
+
+### Varying parameters
+
+## Decision-making agent
+
+## Prediction with a logistic classifier
+
+## Logistic regression
+
+# Experiments
+
+## L&K extension -->
+
+# References
