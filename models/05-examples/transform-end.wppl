@@ -1,0 +1,73 @@
+
+// ------------ forward samples -------------------
+
+var forwardSample = function() {
+	var sampleParams = sampleParamsPrior();
+	var input = observations.input;
+	var structureParams = observations.structureParams;
+	var program = makeProgram(structureParams);
+	var returnValues = program(input, sampleParams);
+	var output = returnValues.output;
+	return output;
+};
+
+// -------- explanation logic ----
+
+var counterfactualizeLatents = function(model, actual, stickiness) {
+	var s = stickiness ? stickiness : 0.53;
+	var totallyDifferent = model();
+
+	return mapObject(function(key, value) {
+		return flip(s) ? actual[key] : totallyDifferent[key];
+	}, actual);
+};
+
+var match = function(inferred, observed) {
+	var overlappingKeys = _.object(map(function(k) {
+		return [k, inferred[k]];
+	}, _.keys(observed)));
+
+	return _.isEqual(overlappingKeys, observed);
+};
+
+var counterfactual = function(stickiness, cfPremise) {
+
+	// first infer actualSampleParams from actualOutput
+	var actualSampleParams = sampleParamsPrior();
+	var actualInput = observations.input;
+	var actualStructureParams = observations.structureParams;
+	var actualProgram = makeProgram(structureParams);
+	var actualReturnValues = actualProgram(actualInput, actualSampleParams);
+	var actualOutput = actualReturnValues.output;
+	condition(match(actualOutput, observations.output));
+
+	// then sticky sample cfSampleParams
+	var cfSampleParams = counterfactualizeLatents(
+		sampleParamsPrior,
+		actualSampleParams,
+		stickiness
+	);
+	var cfInput = counterfactualizeLatents(
+		inputPrior,
+		actualInput,
+		stickiness
+	);
+	var cfStructureParams = counterfactualizeLatents(
+		structureParamsPrior,
+		actualStructureParams,
+		stickiness
+	);
+	// and calculate corresponding output
+	var cfReturnValues = program(cfInput, cfSampleParams);
+	var cfOutput = cfReturnValues.output;
+
+	// condition on cfPremise if applicable
+	if (cfPremise) {
+		condition(match(cfOutput, cfPremise));
+	}
+
+	// return cfOutput
+	return cfOutput;
+};
+
+"finished";

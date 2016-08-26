@@ -10,19 +10,4 @@ var inputPrior = function() {
 	};
 };
 
-var sampleParamsPrior = function() {
-	return {
-		smokeAlarm: myUniformSampler(),
-		neighborsAngry: myUniformSampler()
-	}
-};
-
-var cfPrior = function() {
-	return {
-		input: inputPrior(),
-		structureParams: structureParamsPrior(),
-		sampleParams: sampleParamsPrior()
-	};
-};
-
-cfPrior();
+"cfprior"

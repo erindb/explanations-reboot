@@ -1,0 +1,17 @@
+// ------------ explanation-related utils ----------
+
+var stickySample = function(args) {
+	var erp = args.erp;
+	var currentLatents = args.currentLatents;
+	var originalLatents = args.originalLatents;
+	var erpLabel = args.erpLabel;
+
+	var probability = (currentLatents.sampleParams)[erpLabel];
+
+	// TODO: make this sensibly sticky (????)
+	if (originalLatents) {
+		return jsUtils.inverseCDFMaxOverlapWithLookup(erp, probability, currentLatents, originalLatents);
+	} else {
+		return jsUtils.inverseCDFWithLog(erp, probability, currentLatents);
+	}
+};
