@@ -1,0 +1,39 @@
+---
+title: "Latent Structure and Exogenization"
+author: "Erin Bennett"
+output: 
+  html_document:
+      toc: true
+bibliography: "../../explanations.bib"
+---
+
+```{r global_options, include=FALSE}
+rm(list=ls())
+knitr::opts_chunk$set(echo=F, warning=F, cache=T, message=F, sanitiz =T, fig.width = 5, fig.height = 3)
+```
+
+```{r load_settings}
+source("~/cocolab/settings/startup.R")
+```
+
+# Introduction
+
+```{r}
+forward = function(tag, title) {
+  forwardDist = webppl(program_file = paste(tag, "/autoexpanded.wppl", sep=""),
+                   inference_opts = list(method = "enumerate"),
+                   model_var = "highOrderForwardSample",
+                   packages = "./node_modules/jsUtils")
+  p = forwardDist %>% ggplot(., aes(x=A, y=B, fill=prob, label=prob)) +
+    geom_tile() +
+    geom_text() +
+    scale_fill_gradient(low="gray25", 
+                        high="white", 
+                        breaks=seq(0, 1, by=30)) +
+    ggtitle(title)
+  print(p)
+}
+forward("a2b", "A -> B coocurrence matrix")
+forward("b2a", "B -> A coocurrence matrix")
+forward("m2ab", "M -> (A,B) coocurrence matrix")
+```

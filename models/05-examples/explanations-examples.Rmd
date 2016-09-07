@@ -15,6 +15,10 @@ knitr::opts_chunk$set(echo=F, warning=F, cache=T, message=F, sanitiz =T, fig.wid
 ```{r load_settings}
 source("~/cocolab/settings/startup.R")
 library(diagram)
+arrow = function(a, b, M, label="") {
+  M[which(names==b), which(names==a)] = label
+  return(M)
+}
 ```
 
 # Introduction
@@ -155,7 +159,7 @@ program(input);
 The conditional joint distribution among the remaining two variables remains the same.
 
 ```{r bacon_program_joint, fig.width=4}
-bacon_program = webppl(program_file = "bacon/bacon_program.wppl",
+bacon_program = webppl(pdgram_file = "bacon/bacon_program.wppl",
        inference_opts = list(method = "enumerate"),
        model_var = "function() {return program(input); }")
 
@@ -289,10 +293,6 @@ names=c("B", "B'",
         "N", "N'")
 
 M = matrix(nrow = length(names), ncol = length(names), byrow=T, data=NA)
-arrow = function(a, b, M) {
-  M[which(names==b), which(names==a)] = ""
-  return(M)
-}
 M = arrow("B", "B'", M)
 M = arrow("S", "S'", M)
 M = arrow("N", "N'", M)
@@ -356,10 +356,158 @@ ggplot(NULL, aes(x=chains)) +
   annotate("text", y=14, x=0.487, hjust=0, label="0.487", colour="gray30") +
   xlim(0,1)
 ```
-  
-<!-- 
 
 ### Model reproduction
+
+```{r}
+on = "lightgreen"
+off = "pink"
+```
+
+@lucas2015improved ran experiments where they gave participants the causal structures and actual values (on: `r on`, off: `r off`) shown in the graphs below and counterfactual premises shown in the table. They then asked whether the other components were on couunterfactually.
+
+```{r lk_exp1_graph, fig.width=4, fig.height=5}
+arrow = function(a, b, M, label="") {
+  M[which(names==b), which(names==a)] = label
+  return(M)
+}
+
+par(mar = c(1, 1, 1, 1), mfrow = c(2, 3))
+
+names=c("0.1", "0.1", "A", "B")
+M = matrix(nrow = length(names), ncol = length(names), byrow=T, data=NA)
+M[3,1] = M[4,2] = ""
+plotmat(M, pos=c(2,2), name=names, 
+        lwd=1,
+        box.lwd=1,
+        cex.txt=1, box.size=0.1, shadow.size=0,
+        box.col = ifelse(names=="0.1", "white", on),
+        box.lcol = ifelse(names=="0.1", "white", "black"),
+        box.type="circle",
+        main="Experiment 1", curve=0,
+        box.prop = 0.5)
+
+names=c("0.1", "A", "B", "C")
+M = matrix(nrow = length(names), ncol = length(names), byrow=T, data=NA)
+M[2,1] = ""
+M[3,2] = M[4,3] = "0.75"
+plotmat(M, pos=c(1,1,1,1), name=names, 
+        lwd=1,
+        box.lwd=1, dtext=c(1,0),
+        cex.txt=1, box.size=0.1, shadow.size=0,
+        box.col = ifelse(names=="0.1", "white", on),
+        box.lcol = ifelse(names=="0.1", "white", "black"),
+        box.type="circle",
+        main="Experiment 2", curve=0,
+        box.prop = 0.5)
+
+names=c("0.25", "0.1", "A", "B", "C")
+M = matrix(nrow = length(names), ncol = length(names), byrow=T, data=NA)
+M = arrow("0.25", "A", M)
+M = arrow("0.1", "B", M)
+M = arrow("A", "C", M, "xor")
+M = arrow("B", "C", M)
+plotmat(M, pos=c(2,2,1), name=names, 
+        lwd=1,
+        box.lwd=1, dtext=c(1,0),
+        cex.txt=1, box.size=0.1, shadow.size=0,
+        box.col = c("white", "white", on, on, off),
+        box.lcol = ifelse(names%in%c("0.1", "0.25"), "white", "black"),
+        box.type="circle",
+        main="Experiment 3", curve=0,
+        box.prop = 0.5)
+
+names=c("0.9", "0.9", "A", "B", "C", "D")
+M = matrix(nrow = length(names), ncol = length(names), byrow=T, data=NA)
+M[3,1] = M[4,2] = ""
+M = arrow("A", "C", M, "or")
+M = arrow("B", "C", M)
+M = arrow("C", "D", M, "1.0")
+plotmat(M, pos=c(2,2,1,1), name=names, 
+        lwd=1,
+        box.lwd=1, dtext=c(1,0),
+        cex.txt=1, box.size=0.1, shadow.size=0,
+        box.col = ifelse(names=="0.9", "white", off),
+        box.lcol = ifelse(names=="0.9", "white", "black"),
+        box.type="circle",
+        main="Experiment 4", curve=0,
+        box.prop = 0.5)
+
+
+names=c("0.75", "0.75", "A", "B", "C", "D")
+M = matrix(nrow = length(names), ncol = length(names), byrow=T, data=NA)
+M[3,1] = M[4,2] = ""
+M = arrow("A", "C", M, "1.0")
+M = arrow("B", "C", M, "0.9")
+M = arrow("C", "D", M, "1.0")
+plotmat(M, pos=c(2,2,1,1), name=names, 
+        lwd=1,
+        box.lwd=1,
+        cex.txt=1, box.size=0.1, shadow.size=0,
+        box.col = ifelse(names=="0.75", "white", on),
+        box.lcol = ifelse(names=="0.75", "white", "black"),
+        box.type="circle",
+        main="Experiment 5", curve=0,
+        box.prop = 0.5)
+
+names=c("0.25", "", "A", "0.1", "B", "0.1", "C", "")
+M = matrix(nrow = length(names), ncol = length(names), byrow=T, data=NA)
+M = arrow("0.25", "A", M)
+M[5,4] = M[7,6] = ""
+M = arrow("A", "B", M, "0.9")
+M = arrow("B", "C", M, "0.9")
+plotmat(M, pos=c(2,2,2,2), name=names, 
+        lwd=1,
+        box.lwd=1, dtext=c(1,0),
+        cex.txt=1, box.size=0.1, shadow.size=0,
+        box.col = c("white", "white", off, "white", off, "white", on),
+        box.lcol = ifelse(names%in%c("0.25", "0.1", ""), "white", "black"),
+        box.type="circle",
+        main="Experiment 6", curve=0,
+        box.prop = 0.5)
+
+par(mfrow = c(1, 1))
+```
+
+ experiment    counterfactual premise
+------------  ------------------------
+    1             A=F
+    2             B=F
+    3             A=F
+    4             C=T
+    5             C=F
+    6             B=T
+    
+```{r}
+cf.premises = c(
+  "{A: false}",
+  "{B: false}",
+  "{A: false}",
+  "{C: true}",
+  "{C: false}",
+  "{B: true}",
+  "{B: true}"
+)
+lk = function(num) {
+  rs = webppl(
+    program_file=paste("lk", num, "/lk", num, "-autoexpanded.wppl", sep=""),
+    inference_opts = list(method="enumerate"),
+    model_var = paste("function() {return counterfactual(0.53, ", cf.premises[num], "); }", sep=""),
+    packages = "./node_modules/jsUtils")
+  marginals = rs %>%
+    gather("variable", "value", -prob) %>%
+    group_by(variable) %>%
+    summarise(prob = sum(prob[value==T]))
+  p = ggplot(marginals, aes(x=variable, y=prob, group=1)) +
+    geom_point() +
+    geom_line() +
+    ylim(0,1.001)
+  return(p)
+}
+multiplot(lk(1), lk(2), lk(3), lk(4), lk(5), lk(6), cols=3)
+```
+  
+<!-- 
 
 ### Experimental reproduction
 

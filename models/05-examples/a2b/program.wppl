@@ -1,0 +1,14 @@
+var program = function(input) {
+
+	var A = input.A;
+	var B = flip(A ? 0.8 : 0.2);
+
+	return {
+		A: A,
+		B: B
+	}
+};
+
+var input = {A: true};
+
+program(input);

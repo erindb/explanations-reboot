@@ -1,3 +1,89 @@
+// ------------ explanation-related utils ----------
+
+var stickySampler = cache(function(args) {
+	var erp = args.erp;
+	var origERP = args.origERP ? args.origERP : null;
+	var erpLabel = args.erpLabel;
+
+	return jsUtils.makeStickySamplingFunction(erp, origERP, erpLabel);
+});
+
+var discreteUniformERP = Infer(
+	{method: "enumerate"},
+	function() {
+		return uniformDraw(
+			_.range(0, 1, 0.05)
+		);
+	}
+);
+
+// var myUniform = function() {return uniform(0, 1)};
+var myUniform = function() {return sample(discreteUniformERP);};
+
+// ------------ CF prior -------------------
+
+var structureParamsPrior = function() {
+	// no CF-able structural params
+	// in this program
+	return {};
+};
+
+var inputPrior = function() {
+	return {B: flip(0.5)};
+};
+
+var sampleParamsPrior = function() {
+	return {
+		A: myUniform()
+	};
+};
+
+// ------------ make program -------------------
+
+var makeProgram = function(structureParams, origERPs) {
+	return function (input, sampleParams) {
+	
+		var B = input.B;
+		
+		var AERP = Bernoulli({p: (B ? 0.8 : 0.2)});
+		var ASampler = stickySampler({
+			erp: serializeDist(AERP),
+			erpLabel: "A",
+			origERP: origERPs ? serializeDist(origERPs["A"]) : null
+		});
+		var A = ASampler(sampleParams["A"]);
+	
+		return {
+			ERPs: {
+				A: AERP
+			},
+			expressions: {
+				"A": A,
+				"B": B
+			},
+			output: {
+			A: A,
+			B: B
+		}
+		};
+	};
+	
+};
+
+
+
+// ------------ observations -------------------
+
+var observations = {
+	structureParams: {},
+	input: {},
+	output: {
+		A: true,
+		B: true
+	}
+};
+
+
 
 // ------------ forward samples -------------------
 

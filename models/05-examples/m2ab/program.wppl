@@ -1,0 +1,18 @@
+var program = function(input) {
+
+	var A = input.A;
+	var M = input.M;
+	var B = M ? A : !A;
+
+	return {
+		A: A,
+		B: B
+	}
+};
+
+var input = {
+	A: true,
+	M: true
+};
+
+program(input);

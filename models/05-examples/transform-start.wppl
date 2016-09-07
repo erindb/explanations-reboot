@@ -1,17 +1,21 @@
 // ------------ explanation-related utils ----------
 
-var stickySample = function(args) {
+var stickySampler = cache(function(args) {
 	var erp = args.erp;
-	var currentLatents = args.currentLatents;
-	var originalLatents = args.originalLatents;
+	var origERP = args.origERP ? args.origERP : null;
 	var erpLabel = args.erpLabel;
 
-	var probability = (currentLatents.sampleParams)[erpLabel];
+	return jsUtils.makeStickySamplingFunction(erp, origERP, erpLabel);
+});
 
-	// TODO: make this sensibly sticky (????)
-	if (originalLatents) {
-		return jsUtils.inverseCDFMaxOverlapWithLookup(erp, probability, currentLatents, originalLatents);
-	} else {
-		return jsUtils.inverseCDFWithLog(erp, probability, currentLatents);
+var discreteUniformERP = Infer(
+	{method: "enumerate"},
+	function() {
+		return uniformDraw(
+			_.range(0, 1, 0.05)
+		);
 	}
-};
+);
+
+// var myUniform = function() {return uniform(0, 1)};
+var myUniform = function() {return sample(discreteUniformERP);};

@@ -16,11 +16,11 @@ def get_tag():
 tag = get_tag()
 
 directory = tag + "/"
-cfprior_file = directory + tag + "-cfprior.wppl"
-prog_file = directory + tag + "-program.wppl"
-expressions_file = directory + tag + "-expressions.json"
-obs_file = directory + tag + "-observations.wppl"
-expanded_file = directory + tag + "-autoexpanded.wppl"
+cfprior_file = directory + "cfprior.wppl"
+prog_file = directory + "program.wppl"
+expressions_file = directory + "expressions.json"
+obs_file = directory + "observations.wppl"
+expanded_file = directory + "autoexpanded.wppl"
 
 def transform_program(prog_file, cfprior_file, expressions_file):
 	# for each structure VARNAME with a cfprior,
@@ -32,29 +32,23 @@ def transform_program(prog_file, cfprior_file, expressions_file):
 	orig_prog_lines_adjusted = map(lambda line: "\t" + line, orig_prog_lines)
 	orig_prog = "\n".join(orig_prog_lines_adjusted)
 
-	prog_maker_start = """var makeProgram = function(structureParams, origStructureParams) {
-	return function (input, sampleParams, origInput, origSampleParams) {
-
-		var currentLatents = {
-			input: input,
-			structureParams: structureParams,
-			sampleParams: sampleParams
-		};
-		var origLatents = {
-			input: origInput,
-			structureParams: origStructureParams,
-			sampleParams: origSampleParams
-		};"""
+	prog_maker_start = """var makeProgram = function(structureParams, origERPs) {
+	return function (input, sampleParams) {"""
 
 	prog_maker = prog_maker_start + "\n" + orig_prog + "\n};\n"
 
-	exogenized_prog = re.sub(r"var ([a-zA-Z0-9]+) ?= ?flip\((.*)\)", r"""var \1ERP = Bernoulli({p: (\2)});
-		var \1 = stickySample({
-			erp: \1ERP,
+	exogenized_prog = re.sub(r"var ([a-zA-Z0-9]+) ?= ?flip\((.*)\);?", r"""
+		var \1ERP = Bernoulli({p: (\2)});
+		var \1Sampler = stickySampler({
+			erp: serializeDist(\1ERP),
 			erpLabel: "\1",
-			currentLatents: currentLatents,
-			origLatents: origLatents
-		})""", prog_maker)
+			origERP: origERPs ? serializeDist(origERPs["\1"]) : null
+		});
+		var \1 = \1Sampler(sampleParams["\1"]);""", prog_maker)
+	warnings.warn("ERP samples other than flip not implemented", Warning)
+
+	sampledVars = re.findall(r"var ([a-zA-Z0-9]+) ?= ?flip\(.*\);", orig_prog);
+	erps = ",\n".join(map(lambda x: x + ": " + x + "ERP", sampledVars));
 	warnings.warn("ERP samples other than flip not implemented", Warning)
 
 	expressions_json = json.loads(open(expressions_file).read())
@@ -63,6 +57,9 @@ def transform_program(prog_file, cfprior_file, expressions_file):
 
 	new_prog = re.sub(r"\n\t\treturn ({(?:.*\n)*\t\t})", r"""
 		return {
+			ERPs: {
+				""" + erps + """
+			},
 			expressions: {\n\t\t\t\t""" + expressions + r"""
 			},
 			output: \1
@@ -79,7 +76,7 @@ def write_cfpriors(prog_file, cfprior_file):
 	sampled_values = re.findall(r"var ([a-zA-Z0-9]+) ?= ?flip\(.*\)", open(prog_file).read())
 	cfprior_end = """var sampleParamsPrior = function() {
 	return {
-	""" + "\t" + ",\n\t\t".join(map(lambda variable: variable + ": uniform(0,1)", sampled_values)) + """
+	""" + "\t" + ",\n\t\t".join(map(lambda variable: variable + ": myUniform()", sampled_values)) + """
 	};""" + "\n};" + "\n"
 	warnings.warn("ERP samples other than flip not implemented", Warning)
 	return cfpriors + cfprior_end

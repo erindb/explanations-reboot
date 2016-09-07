@@ -1,3 +1,86 @@
+// ------------ explanation-related utils ----------
+
+var stickySampler = cache(function(args) {
+	var erp = args.erp;
+	var origERP = args.origERP ? args.origERP : null;
+	var erpLabel = args.erpLabel;
+
+	return jsUtils.makeStickySamplingFunction(erp, origERP, erpLabel);
+});
+
+var discreteUniformERP = Infer(
+	{method: "enumerate"},
+	function() {
+		return uniformDraw(
+			_.range(0, 1, 0.05)
+		);
+	}
+);
+
+// var myUniform = function() {return uniform(0, 1)};
+var myUniform = function() {return sample(discreteUniformERP);};
+
+// ------------ CF prior -------------------
+
+var structureParamsPrior = function() {
+	// no CF-able structural params
+	// in this program
+	return {};
+};
+
+var inputPrior = function() {
+	return {
+		A: flip(0.5),
+		M: flip(0.8)
+	};
+};
+
+var sampleParamsPrior = function() {
+	return {
+		
+	};
+};
+
+// ------------ make program -------------------
+
+var makeProgram = function(structureParams, origERPs) {
+	return function (input, sampleParams) {
+	
+		var A = input.A;
+		var M = input.M;
+		var B = M ? A : !A;
+	
+		return {
+			ERPs: {
+				
+			},
+			expressions: {
+				"A": A,
+				"B": B
+			},
+			output: {
+			A: A,
+			B: B
+		}
+		};
+	};
+	
+};
+
+
+
+// ------------ observations -------------------
+
+var observations = {
+	structureParams: {},
+	input: {},
+	output: {
+		A: true,
+		B: true
+	}
+};
+
+
 
 // ------------ forward samples -------------------
 
