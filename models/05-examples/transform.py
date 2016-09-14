@@ -86,7 +86,7 @@ def write_observations(obs_file):
 	if os.path.isfile(obs_file):
 		return "".join(open(obs_file).readlines()[:-1])
 	else:
-		return ""
+		return "var observations = false;"
 
 def expand_program(prog_file, cfprior_file, expressions_file, obs_file):
 	start_prog = open("transform-start.wppl").read()

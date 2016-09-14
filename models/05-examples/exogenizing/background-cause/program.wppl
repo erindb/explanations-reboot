@@ -1,0 +1,18 @@
+var program = function(input) {
+
+	var A = input.A;
+	var A2B = flip(0.75);
+	var backgroundB = flip(0.2);
+	var B = (A && A2B) || backgroundB;
+
+	return {
+		A: A,
+		B: B
+	}
+};
+
+var input = {
+	A: true
+};
+
+program(input);

@@ -6,7 +6,9 @@ var structureParamsPrior = function() {
 
 var inputPrior = function() {
 	return {
-		A: flip(0.25)
+		A: flip(0.25),
+		Mab: flip(0.9),
+		Mbc: flip(0.9)
 	};
 };
 

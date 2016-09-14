@@ -3,7 +3,9 @@
 var observations = {
 	structureParams: {},
 	input: {
-		A: false
+		A: false,
+		Mab: true,
+		Mbc: false
 	},
 	output: {
 		A: false,

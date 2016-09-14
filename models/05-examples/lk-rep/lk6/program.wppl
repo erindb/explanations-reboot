@@ -1,9 +1,11 @@
 var program = function(input) {
 
 	var A = input.A;
+	var Mab = input.Mab;
+	var Mbc = input.Mbc;
 	
-	var B = flip(A ? 0.9 : 0.1);
-	var C = flip(B ? 0.9 : 0.1);
+	var B = Mab ? A : !A;
+	var C = Mbc ? B : !B;
 
 	return {
 		A: A,
@@ -13,7 +15,9 @@ var program = function(input) {
 };
 
 var input = {
-	A: false
+	A: false,
+	Mab: true,
+	Mbc: false
 };
 
 program(input);
