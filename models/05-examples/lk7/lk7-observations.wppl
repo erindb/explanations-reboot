@@ -1,0 +1,15 @@
+// ------------ observations -------------------
+
+var observations = {
+	structureParams: {},
+	input: {
+		A: false
+	},
+	output: {
+		A: false,
+		B: false,
+		C: true
+	}
+};
+
+observations

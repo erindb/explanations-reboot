@@ -2,10 +2,13 @@
 
 var observations = {
 	structureParams: {},
-	input: {},
+	input: {
+		A: false
+	},
 	output: {
-		A: true,
-		B: true
+		A: false,
+		B: false,
+		C: true
 	}
 };
 

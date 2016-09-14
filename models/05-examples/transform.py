@@ -2,6 +2,7 @@ import sys
 import warnings
 import re
 import json
+import os.path
 
 def get_tag():
 	if len(sys.argv) > 1:
@@ -82,7 +83,10 @@ def write_cfpriors(prog_file, cfprior_file):
 	return cfpriors + cfprior_end
 
 def write_observations(obs_file):
-	return "".join(open(obs_file).readlines()[:-1])
+	if os.path.isfile(obs_file):
+		return "".join(open(obs_file).readlines()[:-1])
+	else:
+		return ""
 
 def expand_program(prog_file, cfprior_file, expressions_file, obs_file):
 	start_prog = open("transform-start.wppl").read()

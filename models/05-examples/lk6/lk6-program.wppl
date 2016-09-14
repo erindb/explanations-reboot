@@ -1,0 +1,26 @@
+var program = function(input) {
+
+	var xor = function(a,b) {
+	  return (a || b) && !(a && b);
+	};
+
+	var A = input.A;
+	var uAB = flip(0.1);
+	var B = xor(A, uAB);
+	var uBC = flip(0.1);
+	var C = xor(B, uBC);
+
+	return {
+		A: A,
+		// uAB: uAB,
+		B: B,
+		// uBC: uBC,
+		C: C
+	}
+};
+
+var input = {
+	A: false
+};
+
+program(input);

@@ -18,11 +18,11 @@ source("~/cocolab/settings/startup.R")
 
 # Introduction
 
-```{r}
+```{r, fig.width=3, fig.height=2}
 forward = function(tag, title) {
   forwardDist = webppl(program_file = paste(tag, "/autoexpanded.wppl", sep=""),
                    inference_opts = list(method = "enumerate"),
-                   model_var = "highOrderForwardSample",
+                   model_var = "function() {return highOrderForwardSample({structureParams: {}})}",
                    packages = "./node_modules/jsUtils")
   p = forwardDist %>% ggplot(., aes(x=A, y=B, fill=prob, label=prob)) +
     geom_tile() +
@@ -37,3 +37,155 @@ forward("a2b", "A -> B coocurrence matrix")
 forward("b2a", "B -> A coocurrence matrix")
 forward("m2ab", "M -> (A,B) coocurrence matrix")
 ```
+
+```{r}
+cf = function(label, A, B) {
+  if (label=="a2b") {
+    input = paste("input: {A:", ifelse(A, "true", "false"),"}")
+  } else if (label=="b2a") {
+    input = paste("input: {B:", ifelse(B, "true", "false"),"}")
+  } else {
+    input = paste("input: {A:", ifelse(A, "true", "false"),
+                  ", M:", ifelse(A==B, "true", "false"),
+                  "}")
+  }
+  print(input)
+  premise = "{}"
+  observations = paste("{structureParams: {}, ",
+                       input,
+                       ", output: {A:",
+                       ifelse(A, "true", "false"),
+                       ", B:",
+                       ifelse(B, "true", "false"),
+                       "}}", sep="")
+  dist = webppl(program_file = paste(label, "/autoexpanded.wppl", sep=""),
+                   inference_opts = list(method = "enumerate"),
+                   model_var = paste("function() {return counterfactual(0.53, ",
+                                     premise, ",", observations, ") }", sep=""),
+                   packages = "./node_modules/jsUtils")
+  dist$label = label
+  dist$actualA = A
+  dist$actualB = B
+  return(dist)
+}
+# 
+# cfset = function(label, title) {
+#   cfdf = rbind(cf(label, A=T, B=T),
+#                cf(label, A=T, B=F),
+#                cf(label, A=F, B=T),
+#                cf(label, A=F, B=F))
+#   p = cfdf %>%
+#     mutate(
+#       actualA = factor(actualA, levels=c(FALSE, TRUE),
+#                        labels=c("A: FALSE", "A: TRUE")),
+#       actualB = factor(actualB, levels=c(TRUE, FALSE),
+#                        labels=c("B: TRUE", "B: FALSE"))) %>%
+#     ggplot(., aes(x=A, y=B, fill=prob, label=round(prob, digits=2))) +
+#     geom_tile() +
+#     geom_text() +
+#     scale_fill_gradient(low="gray25", 
+#                         high="white", 
+#                         breaks=seq(0, 1, by=30)) +
+#     facet_grid(actualB ~ actualA) +
+#     ggtitle(title) + theme_black
+#   print(p)
+#   ggsave(paste(label, ".png", sep=""), width=8, height=6)
+# }
+# 
+# cfset("a2b", "A -> B counterfactuals")
+# # cfset("b2a", "B -> A counterfactuals")
+# cfset("m2ab", "M -> (A,B) counterfactuals")
+```
+
+Our uniform-RV sticky sampler tries to keep the sampled values as similar as possible across counterfactual worlds.
+
+If a variable representing "matching" (or "cause enabled") exists and is sampled, then that variable will be maintained by the program across counterfactual worlds.
+
+Otherwise, the downstream variable (B) will be stuck to its actual value.
+
+```{r}
+cfdf = rbind(cf("a2b", A=T, B=T),
+             cf("a2b", A=T, B=F),
+             cf("a2b", A=F, B=T),
+             cf("a2b", A=F, B=F),
+             cf("m2ab", A=T, B=T),
+             cf("m2ab", A=T, B=F),
+             cf("m2ab", A=F, B=T),
+             cf("m2ab", A=F, B=F))
+```
+
+```{r}
+cfdf %>%
+  mutate(
+    observations = paste(actualA, actualB),
+    Bsticks = B==actualB,
+    Asticks = A==actualA) %>%
+  group_by(label, observations) %>%
+  summarise(Bsticks = sum(prob*(B==actualB)),
+            Asticks = sum(prob*(A==actualB))) %>%
+  ggplot(., aes(x=label, y=Bsticks)) +
+  geom_bar(stat="identity") +
+  facet_wrap(~observations) +
+  ylab("B counterfactually unchanged")
+
+cfdf %>%
+  mutate(
+    matching = B==A,
+    observations = paste(actualA, actualB),
+    Bsticks = B==actualB,
+    Asticks = A==actualA) %>%
+  group_by(label, observations) %>%
+  summarise(Bsticks = sum(prob*(B==actualB)),
+            Asticks = sum(prob*(A==actualB)),
+            matching = sum(prob*matching)) %>%
+  ggplot(., aes(x=label, y=matching)) +
+  geom_bar(stat="identity") +
+  facet_wrap(~observations) +
+  ylab("A and B counterfactually matching")
+
+cfdf %>%
+  mutate(
+    matching = B==A,
+    actualMatching = ifelse(actualA==actualB,
+                            "actually match",
+                            "actually different")) %>%
+  group_by(label, actualMatching) %>%
+  summarise(matching = sum(prob*(matching))/2) %>%
+  ggplot(., aes(x=label, y=matching)) +
+  geom_bar(stat="identity") +
+  facet_wrap(~actualMatching) +
+  ylab("A and B counterfactually matching") +
+  theme_black
+ggsave(paste("A.matches.B.png", sep=""), width=6, height=5.5)
+
+cfdf %>%
+  mutate(
+    Bsticks = B==actualB,
+    actualMatching = ifelse(actualA==actualB,
+                            "actually match",
+                            "actually different")) %>%
+  group_by(label, actualMatching) %>%
+  summarise(Bsticks = sum(prob*(B==actualB))/2) %>%
+  ggplot(., aes(x=label, y=Bsticks)) +
+  geom_bar(stat="identity") +
+  facet_wrap(~actualMatching) +
+  ylab("B counterfactually unchanged") +
+  theme_black
+ggsave(paste("B.unchanged.png", sep=""), width=6, height=5.5)
+
+cfdf %>%
+  mutate(
+    Asticks = A==actualA,
+    actualMatching = ifelse(actualA==actualB,
+                            "actually match",
+                            "actually different")) %>%
+  group_by(label, actualMatching) %>%
+  summarise(Asticks = sum(prob*(A==actualA))/2) %>%
+  ggplot(., aes(x=label, y=Asticks)) +
+  geom_bar(stat="identity") +
+  facet_wrap(~actualMatching) +
+  ylab("A counterfactually unchanged") +
+  theme_black
+ggsave(paste("A.unchanged.png", sep=""), width=6, height=5.5)
+```
+

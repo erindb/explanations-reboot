@@ -1,0 +1,19 @@
+var program = function(input) {
+
+	var A = input.A;
+	
+	var B = flip(A ? 0.9 : 0.1);
+	var C = flip(B ? 0.9 : 0.1);
+
+	return {
+		A: A,
+		B: B,
+		C: C
+	}
+};
+
+var input = {
+	A: false
+};
+
+program(input);

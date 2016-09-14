@@ -1,7 +1,7 @@
 
 // ------------ forward samples -------------------
 
-var forwardSample = function() {
+var forwardSample = function(observations) {
 	var sampleParams = sampleParamsPrior();
 	var input = observations.input;
 	var structureParams = observations.structureParams;
@@ -11,7 +11,7 @@ var forwardSample = function() {
 	return output;
 };
 
-var highOrderForwardSample = function() {
+var highOrderForwardSample = function(observations) {
 	var sampleParams = sampleParamsPrior();
 	var input = inputPrior();
 	var structureParams = observations.structureParams;
@@ -40,7 +40,7 @@ var match = function(inferred, observed) {
 	return _.isEqual(overlappingKeys, observed);
 };
 
-var counterfactual = function(stickiness, cfPremise) {
+var counterfactual = function(stickiness, cfPremise, observations) {
 	
 	// first infer actualSampleParams from actualOutput
 	var actualSampleParams = sampleParamsPrior();
@@ -71,8 +71,8 @@ var counterfactual = function(stickiness, cfPremise) {
 		stickiness
 	);
 	// and calculate corresponding output
-	var cfProgram = makeProgram(cfStructureParams, actualStructureParams);
-	var cfReturnValues = cfProgram(cfInput, cfSampleParams, actualInput, actualSampleParams);
+	var cfProgram = makeProgram(cfStructureParams, actualERPs);
+	var cfReturnValues = cfProgram(cfInput, cfSampleParams);
 	var cfOutput = cfReturnValues.output;
 
 	// condition on cfPremise if applicable
