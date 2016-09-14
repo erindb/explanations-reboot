@@ -159,7 +159,7 @@ program(input);
 The conditional joint distribution among the remaining two variables remains the same.
 
 ```{r bacon_program_joint, fig.width=4}
-bacon_program = webppl(pdgram_file = "bacon/bacon_program.wppl",
+bacon_program = webppl(program_file = "bacon/bacon_program.wppl",
        inference_opts = list(method = "enumerate"),
        model_var = "function() {return program(input); }")
 
