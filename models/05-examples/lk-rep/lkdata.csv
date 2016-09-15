@@ -1,0 +1,22 @@
+source,experiment,premise,variable,humanPixel,modelPixel,pixel0,pixel1,sub.expt
+lk,lk1,"{A: false}",A,449,449,449,112,NA
+lk,lk1,"{A: false}",B,270,254,449,112,NA
+lk,lk2,"{B: false}",A,306,364,410,74,NA
+lk,lk2,"{B: false}",B,401,410,410,74,NA
+lk,lk2,"{B: false}",C,347,410,410,74,NA
+lk,lk3,"{A: false}",A,426,435,435,99,a
+lk,lk3,"{A: false}",C,236,240,435,99,a
+lk,lk3,"{A: false}",A,420,435,435,99,b
+lk,lk3,"{A: false}",B,296,240,435,99,b
+lk,lk3,"{A: false}",C,207,240,435,99,b
+lk,lk4,"{C: true}",A,213,228,441,105,NA
+lk,lk4,"{C: true}",B,207,228,441,105,NA
+lk,lk4,"{C: true}",C,114,105,441,105,NA
+lk,lk4,"{C: true}",D,116,105,441,105,NA
+lk,lk5,"{C: false}",A,372,450,450,114,NA
+lk,lk5,"{C: false}",B,305,305,450,114,NA
+lk,lk5,"{C: false}",C,440,450,450,114,NA
+lk,lk5,"{C: false}",D,373,450,450,114,NA
+lk,lk6,"{B: true}",A,206,206,450,114,NA
+lk,lk6,"{B: true}",B,124,114,450,114,NA
+lk,lk6,"{B: true}",C,278,309,450,114,NA

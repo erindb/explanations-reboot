@@ -99,9 +99,10 @@ program();
 This program gives the following marginal probabilities for the three variables.
 
 ```{r bacon_orig_factorization_marginal}
-bacon_orig_factorization = webppl(program_file = "bacon/bacon_orig_factorization.wppl",
-       inference_opts = list(method = "enumerate"),
-       model_var = "program")
+bacon_orig_factorization = webppl(
+  program_file = "lk-rep/bacon/bacon-orig-factorization.wppl",
+  inference_opts = list(method = "enumerate"),
+  model_var = "program")
 
 bacon_orig_factorization %>%
   gather("variable", "value", c(bacon, smokeAlarm, neighborsAngry)) %>%
@@ -159,7 +160,7 @@ program(input);
 The conditional joint distribution among the remaining two variables remains the same.
 
 ```{r bacon_program_joint, fig.width=4}
-bacon_program = webppl(program_file = "bacon/bacon_program.wppl",
+bacon_program = webppl(program_file = "lk-rep/bacon/program.wppl",
        inference_opts = list(method = "enumerate"),
        model_var = "function() {return program(input); }")
 
@@ -261,10 +262,10 @@ When sampling `sampleParams` as uniform random variables, this trainformation ma
 
 ```{r bacon_program_explanded_joint, fig.width=4}
 bacon_program_expanded = webppl(
-  program_file = "bacon/bacon-autoexpanded.wppl",
+  program_file = "lk-rep/bacon/autoexpanded.wppl",
   inference_opts = list(method = "MCMC", samples = 10000),
   model_var = "forwardSample",
-  packages = c("./bacon/node_modules/jsUtils"))
+  packages = c("./node_modules/jsUtils"))
 
 bacon_program_expanded %>%
   rbind(., data.frame(
@@ -341,10 +342,10 @@ In this example, B, S, and N are all true in the actual world. @lucas2015improve
 ```{r}
 bacon_if_no_smokeAlarm = function() {
   return((webppl(
-    program_file = "bacon/bacon-autoexpanded.wppl",
+    program_file = "lk-rep/bacon/autoexpanded.wppl",
     inference_opts = list(method = "MCMC", samples = iterations, lag=lag, burn=burn, verbose=T),
     model_var = "function() {return counterfactual(0.5, {smokeAlarm: false})}",
-    packages = c("./bacon/node_modules/jsUtils")) %>%
+    packages = c("./node_modules/jsUtils")) %>%
       group_by(bacon) %>% summarise(prob=sum(prob)) %>%
       filter(bacon==T))$prob)
 }
@@ -357,7 +358,7 @@ ggplot(NULL, aes(x=chains)) +
   xlim(0,1)
 ```
 
-### Model reproduction
+### Model replication
 
 ```{r}
 on = "lightgreen"
@@ -450,18 +451,18 @@ plotmat(M, pos=c(2,2,1,1), name=names,
         main="Experiment 5", curve=0,
         box.prop = 0.5)
 
-names=c("0.25", "", "A", "0.1", "B", "0.1", "C", "")
+names=c("0.25", "", "A", "Mab (0.9)", "B", "Mbc (0.9)", "C", "")
 M = matrix(nrow = length(names), ncol = length(names), byrow=T, data=NA)
 M = arrow("0.25", "A", M)
 M[5,4] = M[7,6] = ""
-M = arrow("A", "B", M, "0.9")
-M = arrow("B", "C", M, "0.9")
+M = arrow("A", "B", M, "xnor")
+M = arrow("B", "C", M, "xnor")
 plotmat(M, pos=c(2,2,2,2), name=names, 
         lwd=1,
         box.lwd=1, dtext=c(1,0),
         cex.txt=1, box.size=0.1, shadow.size=0,
         box.col = c("white", "white", off, "white", off, "white", on),
-        box.lcol = ifelse(names%in%c("0.25", "0.1", ""), "white", "black"),
+        box.lcol = ifelse(names%in%c("0.25", "0.1", "", "Mab (0.9)", "Mbc (0.9)"), "white", "black"),
         box.type="circle",
         main="Experiment 6", curve=0,
         box.prop = 0.5)
@@ -478,6 +479,8 @@ par(mfrow = c(1, 1))
     5             C=F
     6             B=T
     
+We fully reproduce their model's counterfactual probabilities.
+    
 ```{r}
 cf.premises = c(
   "{A: false}",
@@ -488,28 +491,57 @@ cf.premises = c(
   "{B: true}",
   "{B: true}"
 )
-lk = function(num) {
+lk.model.rep = do.call(rbind, lapply(1:6, function(num) {
   rs = webppl(
-    program_file=paste("lk", num, "/lk", num, "-autoexpanded.wppl", sep=""),
+    program_file=paste("lk-rep/lk", num, "/autoexpanded.wppl", sep=""),
     inference_opts = list(method="enumerate"),
-    model_var = paste("function() {return counterfactual(0.53, ", cf.premises[num], "); }", sep=""),
+    model_var = paste("function() {return counterfactual(0.53, ",
+                      cf.premises[num], "); }", sep=""),
     packages = "./node_modules/jsUtils")
   marginals = rs %>%
     gather("variable", "value", -prob) %>%
     group_by(variable) %>%
     summarise(prob = sum(prob[value==T]))
-  p = ggplot(marginals, aes(x=variable, y=prob, group=1)) +
+  marginals$experiment = paste("lk", num, sep="")
+  marginals$source = "replication"
+  marginals$premise = cf.premises[num]
+  marginals$sub.expt = NA
+  marginals$human = NA
+  return(marginals %>% rename(model = prob) %>% as.data.frame)
+}))
+frompixel = function(response.pixels, pixel0, pixel1) {
+  return(round((response.pixels - pixel0)/(pixel1 - pixel0), 2))
+}
+lk.orig.data = read.csv("lk-rep/lkdata.csv") %>%
+  mutate(human = mapply(frompixel, humanPixel, pixel0, pixel1),
+         model = mapply(frompixel, modelPixel, pixel0, pixel1)) %>%
+  select(-humanPixel, -modelPixel, -pixel0, -pixel1)
+
+lk.plot = function(num) {
+  expt.num = paste("lk", num, sep="")
+  p = rbind(lk.model.rep %>% filter(experiment == expt.num),
+        lk.orig.data %>% filter(experiment == expt.num)) %>%
+    ggplot(., aes(x=variable, y=model, colour=source, group=1)) +
     geom_point() +
     geom_line() +
-    ylim(0,1.001)
+    ylim(0,1.001) +
+    theme(legend.position="none")
   return(p)
 }
-multiplot(lk(1), lk(2), lk(3), lk(4), lk(5), lk(6), cols=3)
+multiplot(lk.plot(1), lk.plot(2), lk.plot(3),
+          lk.plot(4), lk.plot(5), lk.plot(6), cols=3)
+
+rbind(lk.model.rep, lk.orig.data) %>%
+  filter(sub.expt %in% c("b", NA)) %>%
+  select(-sub.expt, -human, -premise) %>%
+  spread("source", "model") %>%
+  ggplot(., aes(x=lk, y=replication)) +
+  geom_point()
 ```
   
 <!-- 
 
-### Experimental reproduction
+### Experimental replication
 
 ## Comparing explanans
 
