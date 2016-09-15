@@ -18,6 +18,10 @@ source("~/cocolab/settings/startup.R")
 
 # Introduction
 
+See the slides [here](https://docs.google.com/presentation/d/17_CIsbcL6zQS9O0-W75tmbGosvrgVWBTYNYQ9docUBs/edit?usp=sharing).
+
+# Check that co-occurrence matrices are as expected.
+
 ```{r, fig.width=3, fig.height=2}
 forward = function(tag, title) {
   forwardDist = webppl(program_file = paste(tag, "/autoexpanded.wppl", sep=""),
@@ -33,17 +37,105 @@ forward = function(tag, title) {
     ggtitle(title)
   print(p)
 }
-forward("a2b", "A -> B coocurrence matrix")
-forward("b2a", "B -> A coocurrence matrix")
-forward("m2ab", "M -> (A,B) coocurrence matrix")
+forward("exogenizing/dist-changes", "Dist change coocurrence matrix")
+forward("exogenizing/polarity", "Polarity coocurrence matrix")
+forward("exogenizing/background-cause/", "Background cause coocurrence matrix")
 ```
+
+Then look at the counterfactual distributions for these various structures with various actual values.
 
 ```{r}
 cf = function(label, A, B) {
-  if (label=="a2b") {
+  print(paste(label, A, B))
+  if (label=="exogenizing/polarity") {
+    input = paste("{A:", ifelse(A, "true", "false"),
+                  ", M:", ifelse(A==B, "true", "false"),
+                  "}")
+  } else {
+    input = paste("{A:", ifelse(A, "true", "false"),"}")
+  }
+  premise = "{}"
+  observations = paste("{structureParams: {}, input: ",
+                       input,
+                       ", output: {A:",
+                       ifelse(A, "true", "false"),
+                       ", B:",
+                       ifelse(B, "true", "false"),
+                       "}}", sep="")
+  model_var = paste("function() {return counterfactual(0.53, ",
+                    premise, ",", observations, ") }", sep="")
+  dist = webppl(program_file = paste(label, "/autoexpanded.wppl", sep=""),
+                   inference_opts = list(method = "enumerate"),
+                   model_var = model_var,
+                   packages = "./node_modules/jsUtils")
+  dist$label = label
+  dist$actualA = A
+  dist$actualB = B
+  return(dist)
+}
+
+cfdf = rbind(cf("exogenizing/dist-changes", T, T),
+             cf("exogenizing/dist-changes", T, F),
+             cf("exogenizing/dist-changes", F, T),
+             cf("exogenizing/dist-changes", F, F),
+             cf("exogenizing/polarity", T, T),
+             cf("exogenizing/polarity", T, F),
+             cf("exogenizing/polarity", F, T),
+             cf("exogenizing/polarity", F, F),
+             cf("exogenizing/background-cause", T, T),
+             cf("exogenizing/background-cause", T, F),
+             cf("exogenizing/background-cause", F, T),
+             cf("exogenizing/background-cause", F, F))
+
+plot.cf = function(structure) {
+  p = cfdf %>% filter(label==paste("exogenizing/", structure, sep="")) %>%
+    mutate(actualA = factor(actualA, levels=c(FALSE, TRUE),
+                            labels=c("A: FALSE", "A: TRUE")),
+           actualB = factor(actualB, levels=c(TRUE, FALSE),
+                            labels=c("B: TRUE", "B: FALSE"))) %>%
+    ggplot(., aes(x=A, y=B, fill=prob, label=round(prob, digits=2))) +
+    geom_tile() +
+    geom_text() +
+    scale_fill_gradient(low="gray25",
+                        high="white",
+                        breaks=seq(0, 1, by=30)) +
+    facet_grid(actualB ~ actualA) +
+    ggtitle(structure) + theme_black
+  print(p)
+  ggsave(paste(structure, ".png", sep=""), width=6, height=4)
+}
+plot.cf("polarity")
+plot.cf("dist-changes")
+plot.cf("background-cause")
+```
+
+```{r}
+cfdf %>%
+  filter(label != "exogenizing/background-cause/") %>%
+  mutate(
+    matching = B==A,
+    observations = paste(actualA, actualB),
+    label = ifelse(label=="exogenizing/dist-changes", "dist-changes", "polarity"),
+    actualMatching = ifelse(actualA==actualB,
+                            "actually match",
+                            "actually different")) %>%
+  group_by(label, actualMatching) %>%
+  summarise(matching = sum(prob*(matching))/sum(prob*1)) %>%
+  ggplot(., aes(x=label, y=matching)) +
+  geom_bar(stat="identity") +
+  facet_wrap(~actualMatching) +
+  ylab("CF prob that A==B") +
+  theme_black +
+  theme(axis.text.x = element_text(angle = -25, hjust = 0))
+ggsave(paste("A.matches.B.png", sep=""), width=4, height=3)
+```
+
+<!--
+
+```{r}
+cf = function(label, A, B) {
+  if (label=="background-cause") {
     input = paste("input: {A:", ifelse(A, "true", "false"),"}")
-  } else if (label=="b2a") {
-    input = paste("input: {B:", ifelse(B, "true", "false"),"}")
   } else {
     input = paste("input: {A:", ifelse(A, "true", "false"),
                   ", M:", ifelse(A==B, "true", "false"),
@@ -104,14 +196,34 @@ If a variable representing "matching" (or "cause enabled") exists and is sampled
 Otherwise, the downstream variable (B) will be stuck to its actual value.
 
 ```{r}
-cfdf = rbind(cf("a2b", A=T, B=T),
-             cf("a2b", A=T, B=F),
-             cf("a2b", A=F, B=T),
-             cf("a2b", A=F, B=F),
-             cf("m2ab", A=T, B=T),
-             cf("m2ab", A=T, B=F),
-             cf("m2ab", A=F, B=T),
-             cf("m2ab", A=F, B=F))
+cfdf = rbind(cf("background-cause", A=T, B=T),
+             cf("background-cause", A=T, B=F),
+             cf("background-cause", A=F, B=T),
+             cf("background-cause", A=F, B=F),
+             cf("polarity", A=T, B=T),
+             cf("polarity", A=T, B=F),
+             cf("polarity", A=F, B=T),
+             cf("polarity", A=F, B=F))
+```
+
+```{r}
+p = cfdf %>%
+  filter(label == "polarity") %>%
+  mutate(
+    actualA = factor(actualA, levels=c(FALSE, TRUE),
+                     labels=c("A: FALSE", "A: TRUE")),
+    actualB = factor(actualB, levels=c(TRUE, FALSE),
+                     labels=c("B: TRUE", "B: FALSE"))) %>%
+  ggplot(., aes(x=A, y=B, fill=prob, label=round(prob, digits=2))) +
+  geom_tile() +
+  geom_text() +
+  scale_fill_gradient(low="gray25",
+                      high="white",
+                      breaks=seq(0, 1, by=30)) +
+  facet_grid(actualB ~ actualA) +
+  ggtitle(title) + theme_black
+print(p)
+# ggsave(paste(label, ".png", sep=""), width=8, height=6)
 ```
 
 ```{r}
@@ -189,3 +301,4 @@ cfdf %>%
 ggsave(paste("A.unchanged.png", sep=""), width=6, height=5.5)
 ```
 
+-->

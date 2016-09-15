@@ -29,15 +29,12 @@ var structureParamsPrior = function() {
 };
 
 var inputPrior = function() {
-	return {
-		A: flip(0.5),
-		M: flip(0.8)
-	};
+	return {A: flip(0.5)};
 };
 
 var sampleParamsPrior = function() {
 	return {
-		
+		B: myUniform()
 	};
 };
 
@@ -47,12 +44,18 @@ var makeProgram = function(structureParams, origERPs) {
 	return function (input, sampleParams) {
 	
 		var A = input.A;
-		var M = input.M;
-		var B = M ? A : !A;
+		
+		var BERP = Bernoulli({p: (A ? 0.8 : 0.2)});
+		var BSampler = stickySampler({
+			erp: serializeDist(BERP),
+			erpLabel: "B",
+			origERP: origERPs ? serializeDist(origERPs["B"]) : null
+		});
+		var B = BSampler(sampleParams["B"]);
 	
 		return {
 			ERPs: {
-				
+				B: BERP
 			},
 			expressions: {
 				"A": A,

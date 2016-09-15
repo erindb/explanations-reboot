@@ -30,14 +30,14 @@ var structureParamsPrior = function() {
 
 var inputPrior = function() {
 	return {
-		A: flip(0.5),
-		M: flip(0.8)
+		A: flip(0.25)
 	};
 };
 
 var sampleParamsPrior = function() {
 	return {
-		
+		Mab: myUniform(),
+		Mbc: myUniform()
 	};
 };
 
@@ -47,20 +47,40 @@ var makeProgram = function(structureParams, origERPs) {
 	return function (input, sampleParams) {
 	
 		var A = input.A;
-		var M = input.M;
-		var B = M ? A : !A;
+		
+		var MabERP = Bernoulli({p: (0.9)});
+		var MabSampler = stickySampler({
+			erp: serializeDist(MabERP),
+			erpLabel: "Mab",
+			origERP: origERPs ? serializeDist(origERPs["Mab"]) : null
+		});
+		var Mab = MabSampler(sampleParams["Mab"]);
+		
+		var MbcERP = Bernoulli({p: (0.9)});
+		var MbcSampler = stickySampler({
+			erp: serializeDist(MbcERP),
+			erpLabel: "Mbc",
+			origERP: origERPs ? serializeDist(origERPs["Mbc"]) : null
+		});
+		var Mbc = MbcSampler(sampleParams["Mbc"]);
+		
+		var B = Mab ? A : !A;
+		var C = Mbc ? B : !B;
 	
 		return {
 			ERPs: {
-				
+				Mab: MabERP,
+Mbc: MbcERP
 			},
 			expressions: {
 				"A": A,
-				"B": B
+				"B": B,
+				"C": C
 			},
 			output: {
 			A: A,
-			B: B
+			B: B,
+			C: C
 		}
 		};
 	};
@@ -69,7 +89,21 @@ var makeProgram = function(structureParams, origERPs) {
 
 
 
-var observations = false;
+// ------------ observations -------------------
+
+var observations = {
+	structureParams: {},
+	input: {
+		A: false
+	},
+	output: {
+		A: false,
+		B: false,
+		C: true
+	}
+};
+
+
 
 // ------------ forward samples -------------------
 

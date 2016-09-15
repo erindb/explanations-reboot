@@ -34,7 +34,8 @@ var inputPrior = function() {
 
 var sampleParamsPrior = function() {
 	return {
-		B: myUniform()
+		A2B: myUniform(),
+		backgroundB: myUniform()
 	};
 };
 
@@ -45,17 +46,27 @@ var makeProgram = function(structureParams, origERPs) {
 	
 		var A = input.A;
 		
-		var BERP = Bernoulli({p: (A ? 0.8 : 0.2)});
-		var BSampler = stickySampler({
-			erp: serializeDist(BERP),
-			erpLabel: "B",
-			origERP: origERPs ? serializeDist(origERPs["B"]) : null
+		var A2BERP = Bernoulli({p: (0.75)});
+		var A2BSampler = stickySampler({
+			erp: serializeDist(A2BERP),
+			erpLabel: "A2B",
+			origERP: origERPs ? serializeDist(origERPs["A2B"]) : null
 		});
-		var B = BSampler(sampleParams["B"]);
+		var A2B = A2BSampler(sampleParams["A2B"]);
+		
+		var backgroundBERP = Bernoulli({p: (0.2)});
+		var backgroundBSampler = stickySampler({
+			erp: serializeDist(backgroundBERP),
+			erpLabel: "backgroundB",
+			origERP: origERPs ? serializeDist(origERPs["backgroundB"]) : null
+		});
+		var backgroundB = backgroundBSampler(sampleParams["backgroundB"]);
+		var B = (A && A2B) || backgroundB;
 	
 		return {
 			ERPs: {
-				B: BERP
+				A2B: A2BERP,
+backgroundB: backgroundBERP
 			},
 			expressions: {
 				"A": A,
@@ -72,24 +83,26 @@ var makeProgram = function(structureParams, origERPs) {
 
 
 
-
+var observations = false;
 
 // ------------ forward samples -------------------
 
-var forwardSample = function(observations) {
+var forwardSample = function(obs) {
+	var obs = observations ? observations : obs;
 	var sampleParams = sampleParamsPrior();
-	var input = observations.input;
-	var structureParams = observations.structureParams;
+	var input = obs.input;
+	var structureParams = obs.structureParams;
 	var program = makeProgram(structureParams);
 	var returnValues = program(input, sampleParams);
 	var output = returnValues.output;
 	return output;
 };
 
-var highOrderForwardSample = function(observations) {
+var highOrderForwardSample = function(obs) {
+	var obs = observations ? observations : obs;
 	var sampleParams = sampleParamsPrior();
 	var input = inputPrior();
-	var structureParams = observations.structureParams;
+	var structureParams = obs.structureParams;
 	var program = makeProgram(structureParams);
 	var returnValues = program(input, sampleParams);
 	var output = returnValues.output;
@@ -115,17 +128,18 @@ var match = function(inferred, observed) {
 	return _.isEqual(overlappingKeys, observed);
 };
 
-var counterfactual = function(stickiness, cfPremise, observations) {
+var counterfactual = function(stickiness, cfPremise, obs) {
+	var obs = observations ? observations : obs;
 	
 	// first infer actualSampleParams from actualOutput
 	var actualSampleParams = sampleParamsPrior();
-	var actualInput = observations.input;
-	var actualStructureParams = observations.structureParams;
+	var actualInput = obs.input;
+	var actualStructureParams = obs.structureParams;
 	var actualProgram = makeProgram(actualStructureParams);
 	var actualReturnValues = actualProgram(actualInput, actualSampleParams);
 	var actualOutput = actualReturnValues.output;
 	var actualERPs = actualReturnValues.ERPs;
-	condition(match(actualOutput, observations.output));
+	condition(match(actualOutput, obs.output));
 
 	// then sticky sample cfSampleParams
 	var cfSampleParams = counterfactualizeLatents(
@@ -159,17 +173,18 @@ var counterfactual = function(stickiness, cfPremise, observations) {
 	return cfOutput;
 };
 
-var inferSampleParams = cache(function(observations) {
+var inferSampleParams = cache(function(obs) {
+	var obs = observations ? observations : obs;
 	return Infer(
 		{method: "MCMC", samples: 10000},
 		function() {
 			var sampleParams = sampleParamsPrior();
-			var input = observations.input;
-			var structureParams = observations.structureParams;
+			var input = obs.input;
+			var structureParams = obs.structureParams;
 			var program = makeProgram(structureParams);
 			var returnValues = program(input, sampleParams);
 			var output = returnValues.output;
-			condition(match(output, observations.output));
+			condition(match(output, obs.output));
 			return sampleParams;
 		});
 });
@@ -177,10 +192,10 @@ var inferSampleParams = cache(function(observations) {
 var counterfactualWithSubinference = function(stickiness, cfPremise) {
 
 	// first infer actualSampleParams from actualOutput
-	var actualSampleParams = sample(inferSampleParams(observations));
-	var actualStructureParams = observations.structureParams;
-	var actualInput = observations.input;
-	var actualOutput = observations.output;
+	var actualSampleParams = sample(inferSampleParams(obs));
+	var actualStructureParams = obs.structureParams;
+	var actualInput = obs.input;
+	var actualOutput = obs.output;
 
 	// then sticky sample cfSampleParams
 	var cfSampleParams = counterfactualizeLatents(

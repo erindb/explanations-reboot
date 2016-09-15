@@ -1,0 +1,21 @@
+var program = function(input) {
+
+	var A = input.A;
+	var Mab = flip(0.9);
+	var Mbc = flip(0.9);
+	
+	var B = Mab ? A : !A;
+	var C = Mbc ? B : !B;
+
+	return {
+		A: A,
+		B: B,
+		C: C
+	}
+};
+
+var input = {
+	A: false
+};
+
+program(input);
