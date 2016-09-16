@@ -515,13 +515,19 @@ frompixel = function(response.pixels, pixel0, pixel1) {
 lk.orig.data = read.csv("lk-rep/lkdata.csv") %>%
   mutate(human = mapply(frompixel, humanPixel, pixel0, pixel1),
          model = mapply(frompixel, modelPixel, pixel0, pixel1)) %>%
-  select(-humanPixel, -modelPixel, -pixel0, -pixel1)
+  select(-humanPixel, -modelPixel, -pixel0, -pixel1) %>%
+  gather("source.type", "prob", c(human, model)) %>%
+  mutate(source = paste(source,source.type)) %>%
+  select(-source.type)
 
 lk.plot = function(num) {
   expt.num = paste("lk", num, sep="")
-  p = rbind(lk.model.rep %>% filter(experiment == expt.num),
-        lk.orig.data %>% filter(experiment == expt.num)) %>%
-    ggplot(., aes(x=variable, y=model, colour=source, group=1)) +
+  p = rbind(lk.model.rep %>%
+              filter(experiment == expt.num) %>%
+              rename(prob = model) %>%
+              select(-human),
+        lk.orig.data %>% filter(sub.expt %in% c(NA, "b"), experiment == expt.num)) %>%
+    ggplot(., aes(x=variable, y=prob, colour=source, group=source)) +
     geom_point() +
     geom_line() +
     ylim(0,1.001) +
@@ -542,6 +548,10 @@ rbind(lk.model.rep, lk.orig.data) %>%
 <!-- 
 
 ### Experimental replication
+
+* reload explanations data and show it to noah
+	- differences from their original data
+	- differences between explanations and counterfactuals
 
 ## Comparing explanans
 
