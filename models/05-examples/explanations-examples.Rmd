@@ -512,7 +512,7 @@ lk.model.rep = do.call(rbind, lapply(1:6, function(num) {
 frompixel = function(response.pixels, pixel0, pixel1) {
   return(round((response.pixels - pixel0)/(pixel1 - pixel0), 2))
 }
-lk.orig.data = read.csv("lk-rep/lkdata.csv") %>%
+lk.orig.data = read.csv("../../data/lkdata.csv") %>%
   mutate(human = mapply(frompixel, humanPixel, pixel0, pixel1),
          model = mapply(frompixel, modelPixel, pixel0, pixel1)) %>%
   select(-humanPixel, -modelPixel, -pixel0, -pixel1) %>%

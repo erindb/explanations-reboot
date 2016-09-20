@@ -6,3 +6,6 @@ archive/*
 experiments/experiment0/stims
 */*/rsconnect/
 models/*/*/*-autoexpanded.wppl
+*_cache
+*_files
+*autoexpanded.wppl
