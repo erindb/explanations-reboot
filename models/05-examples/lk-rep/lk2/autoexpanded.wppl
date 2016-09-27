@@ -102,6 +102,13 @@ var observations = {
 };
 
 
+// ------------ expressions -------------------------
+
+var expressions = [
+	"A",
+	"B",
+	"C"
+];
 
 // ------------ forward samples -------------------
 
@@ -127,7 +134,7 @@ var highOrderForwardSample = function(obs) {
 	return output;
 };
 
-// -------- explanation logic ----
+// -------- counterfactuals logic ----
 
 var counterfactualizeLatents = function(model, actual, stickiness) {
 	var s = stickiness ? stickiness : 0.53;
@@ -247,4 +254,87 @@ var counterfactualWithSubinference = function(stickiness, cfPremise) {
 	return cfOutput;
 };
 
-"finished";
+// -------- explanation logic ----
+
+var counterfactuallyDifferent = function(explanans, explanandum) {
+	return function() {
+		// actual observations
+		var obs = observations ? observations : obs;
+		var stickiness = 0.53;
+		
+		// first infer actualSampleParams from actualOutput
+		var actualSampleParams = sampleParamsPrior();
+		var actualInput = obs.input;
+		var actualStructureParams = obs.structureParams;
+		var actualProgram = makeProgram(actualStructureParams);
+		var actualReturnValues = actualProgram(actualInput, actualSampleParams);
+		var actualOutput = actualReturnValues.output;
+		var actualExpressions = actualReturnValues.expressions;
+		var actualERPs = actualReturnValues.ERPs;
+		condition(match(actualOutput, obs.output));
+
+		// then sticky sample cfSampleParams
+		var cfSampleParams = counterfactualizeLatents(
+			sampleParamsPrior,
+			actualSampleParams,
+			stickiness
+		);
+		// and cfInput
+		var cfInput = counterfactualizeLatents(
+			inputPrior,
+			actualInput,
+			stickiness
+		);
+		// and cfStructureParams
+		var cfStructureParams = counterfactualizeLatents(
+			structureParamsPrior,
+			actualStructureParams,
+			stickiness
+		);
+		// and calculate corresponding output
+		var cfProgram = makeProgram(cfStructureParams, actualERPs);
+		var cfReturnValues = cfProgram(cfInput, cfSampleParams);
+		var cfOutput = cfReturnValues.output;
+		var cfExpressions = cfReturnValues.expressions;
+
+		// condition on explanans *changing*
+		if (explanans) {
+			condition( cfExpressions[explanans] != actualExpressions[explanans] );
+		}
+
+		// return whether or not explanandum changes
+		if (explanandum) {
+			return cfExpressions[explanandum] != actualExpressions[explanandum];
+		} else {
+			return cfOutput;
+		}
+	};
+};
+
+var explain = function(explanandum, alpha) {
+	var alpha = alpha ? alpha : 1;
+	console.log("to explain: ", explanandum);
+	return function() {
+		// of all possible explanations,
+		var explanans = uniformDraw(expressions);
+		console.log("  explaining: ", explanans);
+
+		// which gives the most counterfactual
+		// difference-making to the explanandum?
+		var cfDifferenceMakingDist = Infer(
+			{method: "enumerate"},
+			counterfactuallyDifferent(
+				explanans,
+				explanandum
+			)
+		);
+
+		var cfDifferenceMaking = cfDifferenceMakingDist.score(true);
+		// higher difference-making is more better
+		factor(alpha * cfDifferenceMaking);
+
+		return explanans;
+	};
+};
+
+"finished"

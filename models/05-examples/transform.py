@@ -88,6 +88,12 @@ def write_observations(obs_file):
 	else:
 		return "var observations = false;"
 
+def write_expressions(expressions_file):
+	expressions_json = json.loads(open(expressions_file).read())
+	expressions_lst = expressions_json["expressions"]
+	return "// ------------ expressions -------------------------\n\n" + \
+	"var expressions = [\n\t" + ",\n\t".join(map(lambda x: "\"" + x + "\"", expressions_lst)) + "\n];"
+
 def expand_program(prog_file, cfprior_file, expressions_file, obs_file):
 	start_prog = open("transform-start.wppl").read()
 	end_prog = open("transform-end.wppl").read()
@@ -97,6 +103,7 @@ def expand_program(prog_file, cfprior_file, expressions_file, obs_file):
 	prog_content = transform_program(prog_file, cfprior_file, expressions_file)
 	obs_comment = "\n"
 	obs_content = write_observations(obs_file)
+	expressions = write_expressions(expressions_file)
 	return "\n".join([
 		start_prog,
 		cf_comment,
@@ -105,6 +112,7 @@ def expand_program(prog_file, cfprior_file, expressions_file, obs_file):
 		prog_content,
 		obs_comment,
 		obs_content,
+		expressions,
 		end_prog
 	])
 
