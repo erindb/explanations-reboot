@@ -1,0 +1,457 @@
+
+// ------------ forward samples -------------------
+
+var forwardSample = function(obs) {
+	var obs = observations ? observations : obs;
+	var sampleParams = sampleParamsPrior();
+	var input = obs.input;
+	var structureParams = obs.structureParams;
+	var program = makeProgram(structureParams);
+	var returnValues = program(input, sampleParams);
+	var output = returnValues.output;
+	return output;
+};
+
+var highOrderForwardSample = function(obs) {
+	var obs = observations ? observations : obs;
+	var sampleParams = sampleParamsPrior();
+	var input = inputPrior();
+	var structureParams = obs.structureParams;
+	var program = makeProgram(structureParams);
+	var returnValues = program(input, sampleParams);
+	var output = returnValues.output;
+	return output;
+};
+
+// -------- counterfactuals logic ----
+
+var counterfactualizeLatents = function(model, actual, stickiness) {
+	var s = stickiness ? stickiness : 0.53;
+	var totallyDifferent = model();
+
+	return mapObject(function(key, value) {
+		return flip(s) ? actual[key] : totallyDifferent[key];
+	}, actual);
+};
+
+var match = function(inferred, observed) {
+	var overlappingKeys = _.object(map(function(k) {
+		return [k, inferred[k]];
+	}, _.keys(observed)));
+
+	return _.isEqual(overlappingKeys, observed);
+};
+
+var counterfactual = function(stickiness, cfPremise, obs) {
+	var obs = observations ? observations : obs;
+	
+	// first infer actualSampleParams from actualOutput
+	var actualSampleParams = sampleParamsPrior();
+	var actualInput = obs.input;
+	var actualStructureParams = obs.structureParams;
+	var actualProgram = makeProgram(actualStructureParams);
+	var actualReturnValues = actualProgram(actualInput, actualSampleParams);
+	var actualOutput = actualReturnValues.output;
+	var actualERPs = actualReturnValues.ERPs;
+	condition(match(actualOutput, obs.output));
+
+	// then sticky sample cfSampleParams
+	var cfSampleParams = counterfactualizeLatents(
+		sampleParamsPrior,
+		actualSampleParams,
+		stickiness
+	);
+	// and cfInput
+	var cfInput = counterfactualizeLatents(
+		inputPrior,
+		actualInput,
+		stickiness
+	);
+	// and cfStructureParams
+	var cfStructureParams = counterfactualizeLatents(
+		structureParamsPrior,
+		actualStructureParams,
+		stickiness
+	);
+	// and calculate corresponding output
+	var cfProgram = makeProgram(cfStructureParams, actualERPs);
+	var cfReturnValues = cfProgram(cfInput, cfSampleParams);
+	var cfOutput = cfReturnValues.output;
+
+	// condition on cfPremise if applicable
+	if (cfPremise) {
+		condition(match(cfOutput, cfPremise));
+	}
+
+	// return cfOutput
+	return cfOutput;
+};
+
+var inferSampleParams = cache(function(obs) {
+	var obs = observations ? observations : obs;
+	return Infer(
+		{method: "MCMC", samples: 10000},
+		function() {
+			var sampleParams = sampleParamsPrior();
+			var input = obs.input;
+			var structureParams = obs.structureParams;
+			var program = makeProgram(structureParams);
+			var returnValues = program(input, sampleParams);
+			var output = returnValues.output;
+			condition(match(output, obs.output));
+			return sampleParams;
+		});
+});
+
+var counterfactualWithSubinference = function(stickiness, cfPremise) {
+
+	// first infer actualSampleParams from actualOutput
+	var actualSampleParams = sample(inferSampleParams(obs));
+	var actualStructureParams = obs.structureParams;
+	var actualInput = obs.input;
+	var actualOutput = obs.output;
+
+	// then sticky sample cfSampleParams
+	var cfSampleParams = counterfactualizeLatents(
+		sampleParamsPrior,
+		actualSampleParams,
+		stickiness
+	);
+	// and cfInput
+	var cfInput = counterfactualizeLatents(
+		inputPrior,
+		actualInput,
+		stickiness
+	);
+	// and cfStructureParams
+	var cfStructureParams = counterfactualizeLatents(
+		structureParamsPrior,
+		actualStructureParams,
+		stickiness
+	);
+	// and calculate corresponding output
+	var cfProgram = makeProgram(cfStructureParams, actualStructureParams);
+	var cfReturnValues = cfProgram(cfInput, cfSampleParams, actualInput, actualSampleParams);
+	var cfOutput = cfReturnValues.output;
+
+	// condition on cfPremise if applicable
+	if (cfPremise) {
+		condition(match(cfOutput, cfPremise));
+	}
+
+	// return cfOutput
+	return cfOutput;
+};
+
+// -------- explanation logic ----
+
+var counterfactuallyDifferent = function(explanans, explanandum) {
+	return function() {
+		// actual observations
+		var obs = observations ? observations : obs;
+		var stickiness = 0.53;
+		
+		// first infer actualSampleParams from actualOutput
+		var actualSampleParams = sampleParamsPrior();
+		var actualInput = obs.input;
+		var actualStructureParams = obs.structureParams;
+		var actualProgram = makeProgram(actualStructureParams);
+		var actualReturnValues = actualProgram(actualInput, actualSampleParams);
+		var actualOutput = actualReturnValues.output;
+		var actualExpressions = actualReturnValues.expressions;
+		var actualERPs = actualReturnValues.ERPs;
+		condition(match(actualOutput, obs.output));
+
+		// then sticky sample cfSampleParams
+		var cfSampleParams = counterfactualizeLatents(
+			sampleParamsPrior,
+			actualSampleParams,
+			stickiness
+		);
+		// and cfInput
+		var cfInput = counterfactualizeLatents(
+			inputPrior,
+			actualInput,
+			stickiness
+		);
+		// and cfStructureParams
+		var cfStructureParams = counterfactualizeLatents(
+			structureParamsPrior,
+			actualStructureParams,
+			stickiness
+		);
+		// and calculate corresponding output
+		var cfProgram = makeProgram(cfStructureParams, actualERPs);
+		var cfReturnValues = cfProgram(cfInput, cfSampleParams);
+		var cfOutput = cfReturnValues.output;
+		var cfExpressions = cfReturnValues.expressions;
+
+		// condition on explanans *changing*
+		if (explanans) {
+			condition( cfExpressions[explanans] != actualExpressions[explanans] );
+		}
+
+		// return whether or not explanandum changes
+		if (explanandum) {
+			return cfExpressions[explanandum] != actualExpressions[explanandum];
+		} else {
+			return cfOutput;
+		}
+	};
+};
+
+var explain = function(explanandum, alpha) {
+	var alpha = alpha ? alpha : 1;
+	console.log("to explain: ", explanandum);
+	return function() {
+		// of all possible explanations,
+		var explanans = uniformDraw(expressions);
+		console.log("  explaining: ", explanans);
+
+		// which gives the most counterfactual
+		// difference-making to the explanandum?
+		var cfDifferenceMakingDist = Infer(
+			{method: "enumerate"},
+			counterfactuallyDifferent(
+				explanans,
+				explanandum
+			)
+		);
+
+		var cfDifferenceMaking = cfDifferenceMakingDist.score(true);
+		// higher difference-making is more better
+		factor(alpha * cfDifferenceMaking);
+
+		return explanans;
+	};
+};
+
+// -------------- RSA ----------------
+
+var expressions = [
+	"A",
+	"B"
+];
+
+var utterancePriorMaker = function(base_utterances) {
+	// for each base expression
+	// we can say that expression
+	var unaryUtterances = base_utterances +
+		// or we can negate it
+		map(function(u) {return "! " + u;}, base_utterances)
+	dislay(unaryUtterances);
+
+	// for each pair of unary expressions
+	// we can say "and", "or", or "because"
+	var binaryUtterances = reduce(function(u1, acc) {
+		return acc +
+			// and
+			map(function (u2) {
+				return u1 + " and " + u2;
+			}, unaryUtterances) +
+			// or
+			map(function (u2) {
+				return u1 + " or " + u2;
+			}, unaryUtterances) +
+			// because
+			map(function (u2) {
+				return u1 + " because " + u2;
+			}, unaryUtterances)
+	}, [], unaryUtterances);
+	display(binaryUtterances);
+
+	var possibleUtterances = [""] + unaryUtterances + binaryUtterances;
+
+	// score of utterance is based on length
+	var utteranceERP = Infer(
+		{method: "enumerate"},
+		function() {
+			// var utterance = uniformDraw([
+			// 	"",
+			// 	"A", "B",
+			// 	"! A", "! B",
+			// 	"A and B", "A or B",
+			// 	"A and ! B", "A or ! B",
+			// 	"! A and B", "! A or B",
+			// 	"! A and ! B", "! A or ! B",
+			// 	"A because B", "B because A",
+			// 	"A because ! B", "B because ! A",
+			// 	"! A because B", "! B because A",
+			// 	"! A because ! B", "! B because ! A"
+			// ]);
+			var utterance = uniformDraw(possibleUtterances);
+			if (utterance!="") {
+				factor(-utterance.split(" ").length)
+			}
+			return utterance;
+		}
+	);
+
+	return function() {
+		sample(utteranceERP);
+	};
+};
+
+var utterancePrior = utterancePriorMaker(expressions);
+
+var because = function(explanans, explanandum, obs, actualSampleParams, actualERPs) {
+	// var cfPremise = {};
+	// cfPremise[explanans] = false;
+	// counterfactual(0.53, cfPremise, obs);
+
+	var explanans = explanans[0]=="!" ? !explanans[1] : explanans;
+	var explanandum = explanandum[0]=="!" ? !explanandum[1] : explanandum;
+
+	var stickiness = 0.53;
+
+	// now sticky sample cfSampleParams
+	var cfSampleParams = counterfactualizeLatents(
+		sampleParamsPrior,
+		actualSampleParams,
+		stickiness
+	);
+	// and cfInput
+	var cfInput = counterfactualizeLatents(
+		inputPrior,
+		obs.input,
+		stickiness
+	);
+	// and cfStructureParams
+	var cfStructureParams = counterfactualizeLatents(
+		structureParamsPrior,
+		obs.structureParams,
+		stickiness
+	);
+
+	// and calculate corresponding output
+	var cfProgram = makeProgram(cfStructureParams, actualERPs);
+	var cfReturnValues = cfProgram(cfInput, cfSampleParams);
+	var cfOutput = cfReturnValues.output;
+
+	// condition on the explanans being false
+	condition(!cfOutput[explanans])
+
+	// will the explanandum consequently be false??
+	return !cfOutput[explanandum];
+};
+
+var meaning = function(obs, utterance, actualSampleParams, actualERPs) {
+	var words = utterance.split(" ");
+	if (utterance=="") {
+		return true;
+	} else if (words.length==1) {
+		var word = words[0];
+		return (obs.output)[word];
+	} else if (words.length==2 && words[0] == "!") {
+		var word = words[1];
+		return !(obs.output)[word];
+	} else if (words.length>=3) {
+		if (words.indexOf("and") > -1) {
+			var phrase1 = words.slice(0, words.indexOf("and")).join("");
+			var phrase2 = words.slice(words.indexOf("and")+1).join("");
+			var TV1 = phrase1[0]=="!" ? !(obs.output)[phrase1[1]] : (obs.output)[phrase1];
+			var TV2 = phrase2[0]=="!" ? !(obs.output)[phrase2[1]] : (obs.output)[phrase2];
+			return TV1 && TV2;
+		} else if (words.indexOf("or") > -1) {
+			var phrase1 = words.slice(0, words.indexOf("or")).join("");
+			var phrase2 = words.slice(words.indexOf("or")+1).join("");
+			var TV1 = phrase1[0]=="!" ? !(obs.output)[phrase1[1]] : (obs.output)[phrase1];
+			var TV2 = phrase2[0]=="!" ? !(obs.output)[phrase2[1]] : (obs.output)[phrase2];
+			return TV1 || TV2;
+		} else if (words.indexOf("because") > -1) {
+			var explanandum = words.slice(0, words.indexOf("because")).join("");
+			var explanans = words.slice(words.indexOf("because")+1).join("");
+			return because(explanans, explanandum, obs, actualSampleParams, actualERPs)
+		}
+		display("warning 21391")
+		return true;
+	}
+	display("warning 123");
+	return true;
+};
+
+var cleanup = function(erp) {
+	var all_false = reduce(
+		function(s, acc) {
+			return acc && !s.truthValue
+		},
+		true,
+		erp.support()
+	);
+	if (all_false) {
+		return "enumeration error";
+	} 
+	return Infer(
+		{method: "enumerate"},
+		function() {
+			var s = sample(erp);
+			condition(s.truthValue);
+			return s.observations;
+		}
+	);
+};
+
+var literalERP = cache(function(utterance) {
+	return cleanup(Infer(
+		{method: "enumerate"},
+		function() {
+		
+			// first sample actualSampleParams
+			var actualSampleParams = sampleParamsPrior();
+			var actualInput = inputPrior();
+			var actualStructureParams = structureParamsPrior();
+			var actualProgram = makeProgram(actualStructureParams);
+			var actualReturnValues = actualProgram(actualInput, actualSampleParams);
+			var actualOutput = actualReturnValues.output;
+			var actualERPs = actualReturnValues.ERPs;
+			var obs = {
+				structureParams: actualStructureParams,
+				input: actualInput,
+				output: actualOutput
+			}
+
+			var truthValue = meaning(obs, utterance, actualSampleParams, actualERPs);
+
+			return {
+				observations: obs,
+				truthValue: truthValue
+			};
+		}
+	));
+});
+
+var matchingFactor = function(interpretationERP, obs) {
+	if (interpretationERP=="enumeration error") {
+		return -Infinity;
+	} else {
+		return interpretationERP.score(obs);
+	}
+};
+
+var speaker = function(obs) {
+	// speaker might have observed anything
+	var obs = observations ? observations : obs;
+
+	// they choose something to say
+	var utterance = utterancePrior();
+	display(utterance);
+
+	// the literal listener interprets this
+	var interpretationERP = literalERP(utterance);
+
+	// the speaker makes sure that their
+	// observations line up with interpretation
+	var s = matchingFactor(interpretationERP, obs);
+	factor(1 * s);
+
+	// and then they say it
+	return utterance;
+};
+
+var listener = function(utterance) {};
+
+display(Infer({method: "enumerate"}, utterancePrior));
+
+// display(Infer({method: "enumerate"}, speaker));
+
+"finished"
