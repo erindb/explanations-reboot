@@ -1,0 +1,162 @@
+---
+title: "All booleans!"
+author: "Erin Bennett"
+output: 
+  html_document:
+      toc: false
+bibliography: "../../explanations.bib"
+---
+
+```{r global_options, include=FALSE}
+rm(list=ls())
+knitr::opts_chunk$set(echo=F, warning=F, cache=T, message=F, sanitiz =T, fig.width = 5, fig.height = 3)
+```
+
+```{r load_settings}
+# install.packages('devtools')
+# devtools::install_github("mhtess/rwebppl")
+source("~/Settings/startup.R")
+library(reshape2)
+librar
+```
+
+```{r load_data}
+explanantes = c(story1="A", story2="B", story3="A",
+                story4="C", story5="C", story6="B")
+tags = c(
+  story1A="match", story1B="miss",
+  story2A="match", story2B="match", story2C="miss",
+  story3A="unclear", story3B="match", story3C="unclear",
+  story4A="match", story4B="match", story4C="miss", story4D="miss",
+  story5A="match", story5B="match", story5C="match", story5D="miss",
+  story6A="match", story6B="match", story6C="miss"
+)
+
+df = read.csv("../../data/2015-exp4-and-exp5-lkrep.csv") %>%
+  select(workerid, story_index, story, variable, rating, version) %>%
+  mutate(source = "replication human",
+         workerid = as.character(workerid),
+         variable = ifelse(story=="story3a" & variable=="B",
+                           "C", as.character(variable))) %>%
+  filter(version=="explanation")
+
+expt.aggr = df %>%
+  mutate(story = ifelse(story %in% c("story3a", "story3b"),
+                        "story3", as.character(story))) %>%
+  group_by(story, variable) %>%
+  summarise(
+    low = ci.low(rating),
+    high = ci.high(rating),
+    explanans = explanantes[story[1]],
+    rating = mean(rating),
+    tag = tags[paste(story, variable, sep="")[1]]) %>%
+  mutate(source="human") %>% as.data.frame
+```
+
+```{r plot_experiment}
+expt.aggr %>%
+  ggplot(., aes(x=variable, y=rating, colour=source, group=source)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(x=variable, ymin=low, ymax=high), width=0) +
+  facet_wrap(~story, scale="free") +
+  ylim(0, 1)
+```
+
+```{r}
+webppl(program_file = "rsa.onelink.booleans/lk1/autoexpanded.wppl",
+    inference_opts = list(method="enumerate"),
+    model_var = "speaker",
+    packages = "./node_modules/jsUtils")
+```
+
+```{r}
+model.predictions = function(modelTag, rationalityParam) {
+  lk = function(num, model) {
+    message(paste("story", num))
+    message(paste(model, "/lk", num, "/autoexpanded.wppl", sep=""))
+    explanations.model.rs = webppl(
+      program_file=paste(model, "/lk", num, "/autoexpanded.wppl", sep=""),
+      inference_opts = list(method="enumerate"),
+      model_var = paste("function() {return speaker(", rationalityParam, ");}", sep=""),
+      packages = "./node_modules/jsUtils")
+    return(explanations.model.rs %>%
+             mutate(story = paste("story", num, sep=""),
+                    source = model))
+  }
+  rs.full.data = do.call(rbind, list(
+    lk(1, modelTag),
+    lk(2, modelTag),
+    lk(3, modelTag),
+    lk(4, modelTag),
+    lk(5, modelTag),
+    lk(6, modelTag)
+  ))
+  
+  rs = data.frame(
+    story=c("story1", "story1",
+            "story2", "story2", "story2",
+            "story3", "story3", "story3",
+            "story4", "story4", "story4", "story4",
+            "story5", "story5", "story5", "story5",
+            "story6", "story6", "story6"),
+    variable=c("A", "B",
+               "A", "B", "C",
+               "A", "B", "C",
+               "A", "B", "C", "D",
+               "A", "B", "C", "D",
+               "A", "B", "C"),
+    explanans=c("A", "A",
+                "B", "B", "B",
+                "A", "A", "A",
+                "C", "C", "C", "C",
+                "C", "C", "C", "C",
+                "B", "B", "B"),
+    explanation=c(
+      "A because A", "B because A",
+      "A because B", "B because B", "C because B",
+      "A because A", "B because A", "! C because A",
+      "! A because ! C", "! B because ! C", "! C because ! C", "! D because ! C",
+      "A because C", "B because C", "C because C", "D because C",
+      "! A because ! B", "! B because ! B", "C because ! B")
+  ) %>%
+    mutate(rating = mapply(function(expl, stry) {
+      subdata = (rs.full.data %>%
+                    filter(support==expl & story==stry))
+      amt = sum(subdata$prob)
+    }, as.character(explanation), as.character(story))) %>%
+    mutate(
+    rating = rating / max(rating),
+    low = rating,
+    high = rating,
+    source = "model",
+    tag = tags[paste(story, variable, sep="")]) %>%
+    select(story, variable, low, high,
+           explanans, rating, tag, source)
+  return(rs)
+}
+```
+
+```{r plot_rsa.base}
+plot.model.predictions = function(modelTag, rationalityParam) {
+  model.predictions(modelTag, rationalityParam) %>%
+    rbind(., expt.aggr) %>%
+    gather("statistic", "value", c(rating, low, high)) %>%
+    mutate(statistic = paste(source, statistic, sep=".")) %>%
+    select(-source) %>%
+    spread(statistic, value) %>%
+    ggplot(., aes(x=model.rating, y=human.rating, colour=tag)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=human.low, ymax=human.high), width=0) +
+    geom_errorbarh(aes(xmin=model.low, xmax=model.high), height=0) +
+    ylim(0,1) +
+    # xlim(0,1) +
+    scale_colour_manual(values=c("green3", "deeppink3", "yellow3")) +
+    geom_abline(intercept = 0, slope=1, colour="gray") +
+    ggtitle(paste(modelTag, "lambda:", rationalityParam))
+  ggsave(paste(modelTag, ".rationality", rationalityParam, ".png", sep=""),
+         width=6, height=4)
+}
+```
+
+# References
