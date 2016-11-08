@@ -1,0 +1,19 @@
+var structureParamsPrior = function() {
+	// no CF-able structural params
+	// in this program
+	return {};
+};
+
+var inputPrior = function() {
+	return {
+		A: flip(0.1),
+		ab: flip(0.75),
+		bc: flip(0.75),
+		abcause: flip(0.5),
+		bccause: flip(0.5), // make sure these are getting *inferred*
+		b: flip(0.5),
+		c: flip(0.5)
+	};
+};
+
+"cfprior"

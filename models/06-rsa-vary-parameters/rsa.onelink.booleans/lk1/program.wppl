@@ -1,0 +1,23 @@
+var program = function(input) {
+
+	var A = input.A;
+	var b = input.b;
+	var ab = input.ab;
+	var cause = input.cause;
+
+	var B = cause ? (A & ab) : b;
+
+	return {
+		A: A,
+		B: B
+	}
+};
+
+var input = {
+	A: true,
+	b: true,
+	ab: false,
+	cause: false
+};
+
+program(input);

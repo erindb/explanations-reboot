@@ -1,0 +1,33 @@
+var program = function(input) {
+
+	var A = input.A;
+
+	var ab = input.ab;
+	var bc = input.bc;
+
+	var abcause = input.abcause;
+	var bccause = input.bccause;
+	var b = input.b;
+	var c = input.c;
+
+	var B = abcause ? (A && ab) : b;
+	var C = bccause ? (B && bc) : c;
+
+	return {
+		A: A,
+		B: B,
+		C: C
+	}
+};
+
+var input = {
+	A: true,
+	ab: true,
+	bc: true,
+	abcause: true,
+	bccause: true, // make sure these are getting *inferred*
+	b: true,
+	c: true
+};
+
+program(input);

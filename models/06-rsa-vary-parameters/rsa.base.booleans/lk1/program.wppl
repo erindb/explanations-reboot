@@ -1,0 +1,17 @@
+var program = function(input) {
+
+	var A = input.A;
+	var B = input.B;
+
+	return {
+		A: A,
+		B: B
+	}
+};
+
+var input = {
+	A: true,
+	B: true
+};
+
+program(input);
