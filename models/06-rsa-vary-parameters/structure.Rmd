@@ -1,0 +1,30 @@
+---
+title: "All booleans! Vary structure!"
+author: "Erin Bennett"
+output: 
+  html_document:
+      toc: false
+bibliography: "../../explanations.bib"
+---
+
+```{r global_options, include=FALSE}
+rm(list=ls())
+knitr::opts_chunk$set(echo=F, warning=F, cache=T, message=F, sanitiz =T, fig.width = 5, fig.height = 3)
+```
+
+```{r load_settings}
+# install.packages('devtools')
+# devtools::install_github("mhtess/rwebppl")
+source("~/Settings/startup.R")
+library(reshape2)
+```
+
+## 1. Using only boolean variables, check forward samples from the generative model
+
+## 2. Do counterfactual probabilities match up with L&K's model?
+
+## 3. What happens when we introduce structural uncertainty for *one* link?
+
+## 4. How do explanations compare with and without uncertainty about one link?
+
+<!-- # References -->
