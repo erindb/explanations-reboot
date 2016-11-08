@@ -13,6 +13,7 @@ knitr::opts_chunk$set(echo=F, warning=F, cache=T, message=F, sanitiz =T, fig.wid
 ```
 
 ```{r load_settings}
+#a comment
 source("~/cocolab/settings/startup.R")
 ```
 
@@ -20,7 +21,7 @@ source("~/cocolab/settings/startup.R")
 df = read.csv("../../data/2015-exp4-and-exp5-lkrep.csv") %>%
   select(workerid, story_index, story, variable, rating, version) %>%
   mutate(source = "replication human",
-         workerid = factor(as.character(workerid)),
+         workerid = as.character(workerid),
          variable = ifelse(story=="story3a" & variable=="B", "C", as.character(variable)))
 
 frompixel = function(response.pixels, pixel0, pixel1) {
@@ -51,26 +52,92 @@ cf = df %>% filter(version=="counterfactual")
 
 ## Counterfactuals
 
-A replication of L&K's experiments on mTurk, with `r length(unique(df$workerid))` participants.
-
 ```{r}
-cf %>%
+## enforce:
+## story1 A = 0
+## story2 B = 0
+## story3 A = 0
+## story4 C = 1
+## story5 C = 0
+## story6 B = 1
+eps=1
+cf.bad.responses = cf %>% filter(
+  (story %in% c("story1", "story3a", "story3b") & variable=="A" & rating-0 > eps) |
+    (story=="story2" & variable=="B" & rating-0 > eps) |
+    (story=="story4" & variable=="C" & 1-rating > eps) |
+    (story=="story5" & variable=="C" & rating-0 > eps) |
+    (story=="story6" & variable=="B" & 1-rating > eps))
+cf.bad.workers = unique(cf.bad.responses$workerid)
+                             
+cf.combined = cf %>%
+  filter(!(workerid %in% cf.bad.workers)) %>%
   group_by(story, variable, source) %>%
   summarise(
     ci.high = ci.high(rating),
     ci.low = ci.low(rating),
     rating = mean(rating)) %>%
-  rbind(., lk.orig.data) %>%
+  rbind(., lk.orig.data)
+cf.good.workers = unique((cf %>%
+  filter(!(workerid %in% cf.bad.workers)))$workerid)
+nsubj = length(cf.good.workers)
+cf.combined %>%
   ggplot(., aes(x=variable, y=rating, colour=source, group=source)) +
   geom_point() +
   geom_line() +
   geom_errorbar(aes(x=variable, ymin=ci.low, ymax=ci.high), width=0) +
   facet_wrap(~story, scale="free") +
-  ylim(0, 1) +
-  theme_black +
-  theme(legend.position="right") +
-  scale_colour_manual(values=c("steelblue", "white", "green3", "deeppink"))
-ggsave("cf.rep.png", width=10, height=8)
+  ylim(0, 1) #+
+  # theme_black +
+  # theme(legend.position="right") +
+  # scale_colour_manual(values=c("steelblue", "white", "green3", "deeppink"))
+# ggsave("cf.rep.png", width=10, height=8)
 ```
 
+A replication of L&K's experiments on mTurk, with `r length(unique(cf$workerid))` participants. Only 3 actually met all attention checks, and only 6 came within 0.1 of all attention checks. The rest would have been excluded from the original experiment for providing ratings technically inconsistent with the given premises. In the original online experiment `r (56+40)-(34+23)`/`r 56+40` participants were excluded for these reasons.
+
+```{r}
+cf.comparison = cf.combined %>% filter(source != "lk model") %>%
+  select(-ci.high, -ci.low) %>%
+  spread(source, rating) %>%
+  rename(original=`lk human`, replication=`replication human`)
+cf.cor = cor(cf.comparison$original, cf.comparison$replication)
+cor.text = paste("r^2", round((cf.cor^2), 3), sep="")
+
+cf.comparison %>%
+  ggplot(., aes(x=original, y=replication, colour=story, shape=variable)) +
+  geom_point() +
+  # facet_wrap(~story, scale="free") +
+  ylim(0,1) +
+  xlim(0,1) +
+  annotate("text", x = 0.8, y = 0.2,
+           label = paste("r^2 == ", round(cf.cor^2,3)), parse = TRUE) 
+```
+
+The replication was pretty noisy.
+
 ## Explanations
+
+```{r}
+expl = df %>% filter(version=="explanation")
+```
+
+A replication of L&K's experiments on mTurk, with `r length(unique(expl$workerid))` participants.
+
+```{r}
+df %>%
+  group_by(story, variable, version) %>%
+  summarise(
+    ci.high = ci.high(rating),
+    ci.low = ci.low(rating),
+    rating = mean(rating)) %>%
+  ggplot(., aes(x=variable, y=rating, colour=version, group=version)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(x=variable, ymin=ci.low, ymax=ci.high), width=0) +
+  facet_wrap(~story, scale="free") +
+  ylim(0, 1)
+  # + theme_black +
+  # theme(legend.position="right") +
+  # scale_colour_manual(values=c("steelblue", "white", "green3", "deeppink"))
+# ggsave("cf.rep.png", width=10, height=8)
+```

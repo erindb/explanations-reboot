@@ -9,3 +9,10 @@ models/*/*/*-autoexpanded.wppl
 *_cache
 *_files
 *autoexpanded.wppl
+papers
+presentation-resources
+notes
+*.png
+*.DS_Store
+*.RData
+*node_modules
