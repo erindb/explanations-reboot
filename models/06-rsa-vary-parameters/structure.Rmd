@@ -19,12 +19,38 @@ source("~/Settings/startup.R")
 library(reshape2)
 ```
 
-## 1. Using only boolean variables, check forward samples from the generative model
+## 1. Using only boolean variables, do counterfactual probabilities match up with L&K's model?
 
-## 2. Do counterfactual probabilities match up with L&K's model?
+Yep.
 
-## 3. What happens when we introduce structural uncertainty for *one* link?
+```{r}
+counterfactual = function(variable, storynumber, premise.variable, premise.value) {
+  program_file = paste("rsa.base.booleans/lk", storynumber,
+                       "/autoexpanded.wppl", sep="")
+  rs = webppl(program_file = program_file,
+         inference_opts = list(method="enumerate"),
+         model_var = paste(
+           "function() {return counterfactual(0.53, {'",
+           premise.variable,
+           "': ",
+           ifelse(premise.value, "true", "false"),
+           "});}",
+           sep=""),
+         packages = "./node_modules/jsUtils")
+  return(sum(rs[rs[[variable]]==T, "prob"]))
+}
 
-## 4. How do explanations compare with and without uncertainty about one link?
+lk.model = read.csv("lk-model-data-numbers.csv") %>%
+  mutate(my.model = mapply(counterfactual, variable,
+                           story, premise.variable, premise.value),
+         story = factor(story))
+
+lk.model %>% ggplot(., aes(x=rating, y=my.model, colour=story)) +
+  geom_point()
+```
+
+## 2. What happens when we introduce structural uncertainty for *one* link?
+
+## 3. How do explanations compare with and without uncertainty about one link?
 
 <!-- # References -->
