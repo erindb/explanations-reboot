@@ -29,11 +29,17 @@ def transform_program(prog_file, cfprior_file, expressions_file):
 	# for each structure VARNAME with a cfprior,
 	# replace it in the program with 
 	# latents.VARNAME
-	warnings.warn("structure params priors not implemented", Warning)
 
 	orig_prog_lines = open(prog_file).read().split("\nvar input = {")[0].split("var program = function(input) {\n")[1].split("\n")
 	orig_prog_lines_adjusted = map(lambda line: "\t" + line, orig_prog_lines)
 	orig_prog = "\n".join(orig_prog_lines_adjusted)
+
+	warnings.warn("structure params priors not implemented", Warning)
+	structvars = get_structvars(cfprior_file)
+	prog_with_struct = orig_prog
+	for structvar in structvars:
+		prog_with_struct = re.sub(r"var "+structvar+" *=.*;", "var "+structvar+" = structureParams."+structvar+";", prog_with_struct)
+	print prog_with_struct
 
 	prog_maker_start = """var makeProgram = function(structureParams, origERPs) {
 	return function (input, sampleParams) {"""
@@ -69,6 +75,17 @@ def transform_program(prog_file, cfprior_file, expressions_file):
 		};""", exogenized_prog)
 
 	return new_prog
+
+def get_structvars(cfprior_file):
+	# last line of file is just for returnify
+	cfpriors = "".join(open(cfprior_file).readlines()[:-1])
+	struct_prior_strings = re.findall(r"var structureParamsPrior = (?:.*\n)*.*return.*{((?:.*\n)*)}.*(?:.*\n)*.*inputPrior", cfpriors);
+	if len(struct_prior_strings) != 1:
+		print "error 23891"
+	else:
+		struct_prior_string = struct_prior_strings[0]
+		struct_variable_names = re.findall(r"(.*)\:.*", struct_prior_string)
+		return struct_variable_names
 
 def write_cfpriors(prog_file, cfprior_file):
 	# last line of file is just for returnify
