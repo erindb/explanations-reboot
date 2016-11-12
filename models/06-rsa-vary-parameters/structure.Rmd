@@ -4,7 +4,6 @@ author: "Erin Bennett"
 output: 
 html_document:
 toc: false
-bibliography: "../../explanations.bib"
 ---
 
 ```{r global_options, include=FALSE}
@@ -20,8 +19,6 @@ library(reshape2)
 ```
 
 ## 1. Using only boolean variables, do counterfactual probabilities match up with L&K's model?
-
-Yep.
 
 ```{r}
 counterfactual = function(model, variable, storynumber,
@@ -48,167 +45,35 @@ lk.model = read.csv("lk-model-data-numbers.csv") %>%
                            story, premise.variable, premise.value),
          story = factor(story))
 
-# lk.model %>% ggplot(., aes(x=rating, y=my.model, colour=story)) +
-#   geom_point()
-```
-
-## 2. What about explanations?
-
-<!--
-
-```{r}
-explanation = function(model, variable, storynumber,
-                       premise.variable, premise.value,
-                       actual.value) {
-  premise = paste(ifelse(premise.value, "", "! "), premise.variable, sep="")
-  explanans = paste(ifelse(premise.value, "! ", ""), premise.variable, sep="")
-  explanandum = paste(ifelse(actual.value, "", "! "), variable, sep="")
-  expl = paste(explanandum, " because ", explanans, sep="")
-  rs = webppl(program_file = paste(model, "/lk", storynumber,
-                                   "/autoexpanded.wppl", sep=""),
-              inference_opts = list(method="enumerate"),
-              model_var = "speaker",
-              packages = "./node_modules/jsUtils")
-  return(
-    (rs %>% filter(support==expl))$prob
-  )
-}
-```
-
-```{r}
-lk.model.with.expl = read.csv("lk-model-data-numbers.csv") %>%
-  mutate(model.expl.rating = mapply(explanation, "rsa.base.booleans", variable,
-                           story, premise.variable, premise.value, actual.value),
-         story = factor(story))
-```
-
-```{r}
-lk.model.with.expl %>% ggplot(., aes(x=model.expl.rating)) +
+lk.model %>% ggplot(., aes(x=rating, y=my.model, colour=story)) +
   geom_point()
 ```
 
-```{r}
+Yep.
+
+## 2. What about explanations?
+
+We have human ratings for some explanations. In each story from L&K, we have two explanations that share an explanans (e.g. "B because A" and "C because A").
+
+```{r, fig.height=5}
 expl = read.csv("explanations-expt-data.csv")
-expl %>% mutate(model = rsa.base) %>%
-  ggplot(aes(x=model, y=rating)) +
-  # geom_abline(intercept = 0, slope=1, colour="gray") +
-  geom_point(colour="white") +
-  geom_errorbar(aes(ymin=ci.low, ymax=ci.high), width=0, colour="white") +
-  ylim(0, 1) +
-  xlab("model") +
-  ylab("data") +
-  ggtitle("RSA.BASE")
-ggsave("rsa.base.png", width=4, height=3)
+ggplot(expl, aes(x=variable, y=rating)) +
+  geom_point() + geom_errorbar(aes(ymin=ci.low, ymax=ci.high), width=0) +
+  facet_wrap(~story, scale="free") +
+  ylim(0, 1)
 ```
 
-## 3. What happens when we introduce structural uncertainty for *one* link?
+This display is a bit difficult to interpret, because each story corresponds to its own causal structure and each is also associated with a specific configuration of what is true of the "actual world". So later in this writeup, I'll go story-by-story and explanation-by-explanation to try to understand the data and compare them to the predicitons of various models.
 
-```{r}
-rsA = webppl(program_file = "rsa.onelink.booleans/lk1-A/autoexpanded.wppl",
-             inference_opts = list(method="enumerate"),
-             model_var = "speaker",
-             packages = "./node_modules/jsUtils") %>%
-  mutate(prob = prob)
-# rsB = webppl(program_file = "rsa.onelink.booleans/lk1-B/autoexpanded.wppl",
-#              inference_opts = list(method="enumerate"),
-#              model_var = "speaker",
-#              packages = "./node_modules/jsUtils") %>%
-#   mutate(prob = prob)
-# rsa.BmightCauseA = c((rsA %>% filter(support=="A because A"))$prob,
-#                      (rsA %>% filter(support=="B because A"))$prob)
-rsa.AmightCauseB = c((rsA %>% filter(support=="A because A"))$prob,
-                     (rsA %>% filter(support=="B because A"))$prob)
-# rsa.mix = c((rsA %>% filter(support=="A because A"))$prob,
-#             b.bc.a = (rsA %>% filter(support=="B because A"))$prob)
-```
+Let's first take a simple model of explanations as speech acts, and compare it to the data that we have.
 
-```{r}
-expl = read.csv("explanations-expt-data.csv")
-expl %>% mutate(model = rsa.AmightCauseB) %>%
-  ggplot(aes(x=model, y=rating)) +
-  # geom_abline(intercept = 0, slope=1, colour="gray") +
-  geom_point(colour="white") +
-  geom_errorbar(aes(ymin=ci.low, ymax=ci.high), width=0, colour="white") +
-  ylim(0, 1) +
-  xlab("model") +
-  ylab("data") +
-  ggtitle("rsa.AmightCauseB")
-ggsave("rsa.AmightCauseB.png", width=4, height=3)
-```
+### First Pass Model
 
-```{r}
-expl = read.csv("explanations-expt-data.csv")
-expl %>% mutate(model = rsa.mix) %>%
-  ggplot(aes(x=model, y=rating)) +
-  # geom_abline(intercept = 0, slope=1, colour="gray") +
-  geom_point(colour="white") +
-  geom_errorbar(aes(ymin=ci.low, ymax=ci.high), width=0, colour="white") +
-  ylim(0, 1) +
-  xlab("model") +
-  ylab("data") +
-  ggtitle("rsa.mix")
-ggsave("rsa.mix.png", width=4, height=3)
-```
+So, there are different ways to do a model of explanation, and the whole point of this exercise is to ultimately come up with a really good one.
 
-```{r}
-expl = read.csv("explanations-expt-data.csv")
-expl %>% mutate(model = rsa.AmightCauseB) %>%
-  ggplot(aes(x=model, y=rating)) +
-  # geom_abline(intercept = 0, slope=1, colour="gray") +
-  geom_point(colour="white") +
-  geom_errorbar(aes(ymin=ci.low, ymax=ci.high), width=0, colour="white") +
-  ylim(0, 1) +
-  xlab("model") +
-  ylab("data") +
-  ggtitle("rsa.AmightCauseB")
-ggsave("rsa.AmightCauseB.png", width=4, height=3)
-```
+For now, let's say that all utterances are equally probable. (We could later add in a cost for the length of an utterance, but let's leave that for much later.)
+
+At first, let's try having a *bunch* of alternative utterances, including "and" statements and simple statements of a single variable's value. (We might want to narrow this down to only explanations. We might want to narrow this down even further to explanations whose component expressions are true in the world.)
 
 
-```{r}
-counterfactual.by.variable = function(model, variable, storynumber,
-premise.variable, premise.value) {
-program_file = paste(model, "/lk", storynumber, "-", variable,
-"/autoexpanded.wppl", sep="")
-rs = webppl(program_file = program_file,
-inference_opts = list(method="enumerate"),
-model_var = paste(
-"function() {return counterfactual(0.53, {'",
-premise.variable,
-"': ",
-ifelse(premise.value, "true", "false"),
-"});}",
-sep=""),
-packages = "./node_modules/jsUtils")
-return(sum(rs[rs[[variable]]==T, "prob"]))
-}
-```
 
-```{r}
-rs = webppl(program_file = "rsa.onelink.booleans/lk1-A/autoexpanded.wppl",
-inference_opts = list(method="enumerate"),
-model_var = paste(
-#"forwardSample",
-#"highOrderForwardSample",
-"function() {return counterfactual(0.53, {A: false});}",
-sep=""),
-packages = "./node_modules/jsUtils")
-rs
-```
-
-```{r}
-lk.model = read.csv("lk-model-data-numbers.csv") %>%
-filter(story%in%1:4) %>%
-mutate(my.model = mapply(counterfactual.by.variable,
-"rsa.onelink.booleans", variable,
-story, premise.variable, premise.value),
-story = factor(story))
-
-lk.model %>% ggplot(., aes(x=rating, y=my.model, colour=story)) +
-geom_point()
-```
--->
-
-## 4. How do explanations compare with and without uncertainty about one link?
-
-<!-- # References -->
