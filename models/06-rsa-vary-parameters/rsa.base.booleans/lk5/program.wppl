@@ -6,7 +6,7 @@ var program = function(input) {
 	var ac = true;
 	var bc = input.bc;
 
-	var C = (A && ac) || (B && bc);
+	var C = A ? true : (B && bc);
 	var D = C;
 
 	return {

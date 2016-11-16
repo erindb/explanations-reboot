@@ -63,17 +63,335 @@ ggplot(expl, aes(x=variable, y=rating)) +
   ylim(0, 1)
 ```
 
-This display is a bit difficult to interpret, because each story corresponds to its own causal structure and each is also associated with a specific configuration of what is true of the "actual world". So later in this writeup, I'll go story-by-story and explanation-by-explanation to try to understand the data and compare them to the predicitons of various models.
+This display is a bit difficult to interpret, because each story corresponds to its own causal structure and each is also associated with a specific configuration of what is true of the "actual world". Here's a sketch of the stories that were featured in this experiment:
+
+![](lkstories.png)
+
+Later, I'll go story-by-story and explanation-by-explanation to try to understand the data and compare them to the predicitons of various models.
 
 Let's first take a simple model of explanations as speech acts, and compare it to the data that we have.
 
 ### First Pass Model
 
-So, there are different ways to do a model of explanation, and the whole point of this exercise is to ultimately come up with a really good one.
+There are different ways to do a model of explanation, and the whole point of this exercise is to ultimately come up with a really good one.
 
 For now, let's say that all utterances are equally probable. (We could later add in a cost for the length of an utterance, but let's leave that for much later.)
 
-At first, let's try having a *bunch* of alternative utterances, including "and" statements and simple statements of a single variable's value. (We might want to narrow this down to only explanations. We might want to narrow this down even further to explanations whose component expressions are true in the world.)
+At first, let's try having a *bunch* of alternative utterances, including "and" statements and simple statements of a single variable's value. (We might want to narrow this down to only explanations. Or, we might want to narrow this down even further to explanations whose component expressions are true in the world.)
 
+Finally, we want all of the variables in the model to be "observable", including the variables that say whether or not the causal relation between truly observable variables was "enabled" in the actual world, or otherwise modify one variable's ability to influence another.
+
+We should check each stage of this model, so we know that the model is doing what I think it's doing!
+
+#### Utterance Prior
+
+So let's start with the utterance prior for each story. I'm only going to graph a couple of the "explanations only" version of the prior, but the other utterance priors look OK.
+
+```{r}
+utterancePriors = rbind(
+  do.call(rbind, lapply(1:6, function(storynumber) {
+    ## return utterance prior data frame
+    model = "rsa.base.booleans"
+    rs = webppl(program_file = paste(model, "/lk", storynumber,
+                                     "/autoexpanded.wppl", sep=""),
+                inference_opts = list(method="enumerate"),
+                model_var = "utterancePriorAllAlternatives",
+                packages = "./node_modules/jsUtils")
+    rs$story = paste("story", storynumber)
+    rs$storynumber = storynumber
+    rs$alternatives = "all"
+    return(rs)
+  })),
+  do.call(rbind, lapply(1:6, function(storynumber) {
+    ## return utterance prior data frame
+    model = "rsa.base.booleans"
+    rs = webppl(program_file = paste(model, "/lk", storynumber,
+                                     "/autoexpanded.wppl", sep=""),
+                inference_opts = list(method="enumerate"),
+                model_var = "utterancePriorOnlyExplanations",
+                packages = "./node_modules/jsUtils")
+    rs$story = paste("story", storynumber)
+    rs$storynumber = storynumber
+    rs$alternatives = "explanations"
+    return(rs)
+  }))
+)
+plot_story= function(strynum) {
+utterancePriors %>%
+  filter(alternatives=="explanations") %>%
+  filter(story==paste("story", strynum)) %>%
+  ggplot(., aes(x=support, y=prob)) +
+  geom_bar(stat="identity") +
+  facet_wrap(~ story, scale="free") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+}
+plot_story(1)
+plot_story(2)
+plot_story(4)
+```
+
+#### Literal Listener
+
+Next, let's check the literal interpretations of some "because" sentences (and some other sentences).
+
+The semantics I'm choosing for "because" for now is one where "X because Y" does not *explicitly* imply "X" and "Y". (We might want to change that later.)
+
+I'm assuming that a literal listener calculates the probability of the counterfactual corresponding to the because statement for each world and factors according to that probability. So if the counterfactual probability is especially for a particular world, that world will be downweighted from the prior.
+
+##### Story 1: no cause
+
+![](lkstories-graphs/story1.png)
+
+```{r}
+literal1 = function(utterance) {
+  rs = webppl(program_file = "rsa.base.booleans/lk1/autoexpanded.wppl",
+              inference_opts = list(method="enumerate"),
+              model_var = paste("function() {return sample(literalERP(", utterance, "));}"),
+              packages = "./node_modules/jsUtils")
+  rs$utterance = utterance
+  return(rs)
+}
+rs1 = rbind(literal1("''"), literal1("'A'"), literal1("'A because A'"), literal1("'B because A'"))
+```
+
+```{r}
+print_world = function(a, b) {
+  return(paste(
+    ifelse(a, "A", ""),
+    ifelse(b, "B", "")
+  ))
+}
+rs1 %>% mutate(world = mapply(print_world, output.A, output.B)) %>%
+  ggplot(., aes(x=world, y=prob, fill=utterance)) +
+  geom_bar(stat="identity", position="dodge") +
+  theme(axis.text.x = element_text(angle = -90, hjust = 0)) +
+  scale_fill_brewer()
+```
+
+Under this semantics, for story 1, "A because A" provides no information, and "B because A" provides a tiny bit of information: "B" is more likely to be false. (That way, if "A" were false in a counterfactual, "B" would also happen to be false, because it was false in the actual world.) In contrast to the information provided by the utterance "A" this is a really, really tiny belief update.
+
+##### Story 2: Causal chain
+
+![](lkstories-graphs/story2.png)
+
+Story 1 doesn't *actually* have any cause in it. Let's look at a story that does have cause. In story 2, A causes B and B causes C. So let's try the same sentences: "", "A", "A because A", and "B because A".
+
+```{r}
+literal2 = function(utterance) {
+  rs = webppl(program_file = "rsa.base.booleans/lk2/autoexpanded.wppl",
+              inference_opts = list(method="enumerate"),
+              model_var = paste("function() {return sample(literalERP(", utterance, "));}"),
+              packages = "./node_modules/jsUtils")
+  rs$utterance = utterance
+  return(rs)
+}
+rs2 = rbind(literal2("''"), literal2("'A'"), literal2("'A because A'"), literal2("'B because A'"))
+```
+
+```{r}
+print_world = function(a, b, ab, bc) {
+  return(paste(
+    ifelse(a, "A", ""),
+    ifelse(b, "B", ""),
+    ifelse(ab, "ab", ""),
+    ifelse(bc, "bc", "")
+  ))
+}
+rs2 %>% mutate(world = mapply(print_world, output.A, output.B, output.ab, output.bc)) %>%
+  ggplot(., aes(x=world, y=prob, fill=utterance)) +
+  geom_bar(stat="identity", position="dodge") +
+  theme(axis.text.x = element_text(angle = -90, hjust = 0)) +
+  scale_fill_brewer()
+```
+
+```{r}
+rs2 %>% mutate(world = mapply(print_world, output.A, output.B, output.ab, output.bc)) %>%
+  filter(utterance != "'A'") %>%
+  ggplot(., aes(x=world, y=prob, fill=utterance)) +
+  geom_bar(stat="identity", position="dodge") +
+  theme(axis.text.x = element_text(angle = -90, hjust = 0)) +
+  scale_fill_brewer()
+```
+
+In story2, with the semantics we're using and no causal uncertainty, "B because A" conveys no information. "B because A" and "C because B" also convey no meaning.
+
+This makes total sense. In this cause structure, "B" can be true if and only if both "A" and "ab" are true. So when we're evaluating the truth of "B because A," which in our semantics is equivalent to "Counterfactually, if !A, then !B," we have to condition our counterfactual world-generator on only giving us worlds where A is false. In every single one of those worlds, B is also false. So no matter what actual world state we are in, this statement is trivially true given the causal model.
+
+We would *have* to introduce causal uncertainty in order for "B because A" to evaluate to anything but true.
+
+Similarly, "C because B" is always true.
+
+In contrast, the reverse direction, "A because B", actually does convey some information about the actual state of the world. Given this utterance, this world is slightly more likely:
+
+* "A" (and consequently "B") were false, but the causal relation between them was enabled
+
+And it's slightly less likely that "A" is true (for similar reasons to story 1).
+
+```{r}
+rs2b = rbind(literal2("''"), literal2("'A because B'"), literal2("'C because B'"))
+rs2b %>% mutate(world = mapply(print_world, output.A, output.B, output.ab, output.bc)) %>%
+  filter(utterance != "'A'") %>%
+  ggplot(., aes(x=world, y=prob, fill=utterance)) +
+  geom_bar(stat="identity", position="dodge") +
+  theme(axis.text.x = element_text(angle = -90, hjust = 0)) +
+  scale_fill_brewer()
+```
+
+So looking at marginal probabilities, the counterfactual utterance "If !B then !A," updates our beliefs such that it's slightly more likely that "A" (and consequently "B") was false and that the causal relation between "A" and "B" was enabled.
+
+```{r}
+rs2b %>% rename(A = output.A, B = output.B, ab = output.ab, bc = output.bc) %>%
+  select(A, B, ab, bc, prob, utterance) %>%
+  gather("variable", "value", c(A, B, ab, bc)) %>%
+  group_by(utterance, variable) %>%
+  summarise(marginal.prob = sum(prob[value])) %>%
+  ggplot(., aes(x=variable, y=marginal.prob, fill=utterance)) +
+  geom_bar(stat="identity", position="dodge") +
+  theme(axis.text.x = element_text(angle = -90, hjust = 0)) +
+  scale_fill_brewer()
+```
+
+##### Story 3: Polarity of cause
+
+![](lkstories-graphs/story3.png)
+
+In story 3, the variable B controls the polarity of A's causal influence on C. If B is true, then C will match the value of A. Otherwise, C will have the opposite value from A.
+
+
+```{r}
+literal3 = function(utterance) {
+  rs = webppl(program_file = "rsa.base.booleans/lk3/autoexpanded.wppl",
+              inference_opts = list(method="enumerate"),
+              model_var = paste("function() {return sample(literalERP(", utterance, "));}"),
+              packages = "./node_modules/jsUtils")
+  rs$utterance = utterance
+  return(rs)
+}
+rs3 = rbind(literal3("''"), literal3("'A'"),
+            literal3("'C because A'"),
+            literal3("'A because C'"),
+            literal3("'A because B'"),
+            literal3("'B because A'"),
+            literal3("'C because B'"),
+            literal3("'B because C'"))
+```
+
+Just like in the other stories, a direct utterance about a state of one of the variables (e.g. "A") updates beliefs much more than any of the explanations.
+
+```{r}
+print_world = function(a, b, c) {
+  return(paste(
+    ifelse(a, "A", ""),
+    ifelse(b, "B", ""),
+    ifelse(c, "C", "")
+  ))
+}
+rs3 %>% mutate(world = mapply(print_world, output.A, output.B, output.C)) %>%
+  ggplot(., aes(x=world, y=prob, fill=utterance)) +
+  geom_bar(stat="identity", position="dodge") +
+  theme(axis.text.x = element_text(angle = -90, hjust = 0)) +
+  scale_fill_brewer()
+```
+
+But, zooming in on explanations:
+
+```{r}
+rs3 %>% mutate(world = mapply(print_world, output.A, output.B, output.C)) %>%
+  filter(utterance != "'A'") %>%
+  ggplot(., aes(x=world, y=prob, fill=utterance)) +
+  geom_bar(stat="identity", position="dodge") +
+  theme(axis.text.x = element_text(angle = -90, hjust = 0)) +
+  scale_fill_few()
+```
+
+Does "C because A" convey no meaning, or just very little meaning?
+
+```{r}
+rs3 %>% mutate(world = mapply(print_world, output.A, output.B, output.C)) %>%
+  filter(utterance != "'A'") %>%
+  ggplot(., aes(x=world, y=prob, fill=utterance)) +
+  geom_bar(stat="identity", position="dodge") +
+  theme(axis.text.x = element_text(angle = -90, hjust = 0)) +
+  scale_fill_few()
+```
+
+Why does "C because A" convey no meaning about the state of the world?
+
+Well, there are 4 possible world states: (!A, !B), (!A, B), (A, !B), and (A, B).
+
+So let's look at the counterfactual probability of !C given !A with each of these world states set as the actual world.
+
+```{r}
+print_world = function(a,b,c) {
+  paste(
+    ifelse(a, "A", ""),
+    ifelse(b, "B", ""),
+    ifelse(c, "C", "")
+  )
+}
+cfprob3givenNotA = function(a, b, c) {
+  output = paste("{A:",
+                 ifelse(a, "true", "false"),
+                 ", B:",
+                 ifelse(b, "true", "false"),
+                 ", C:",
+                 ifelse(c, "true", "false"),
+                 "}")
+  rs = webppl(program_file = "rsa.base.booleans/lk3/autoexpanded.wppl",
+              inference_opts = list(method="enumerate"),
+              model_var = paste(
+                "function() {return counterfactual(0.53,",
+                "{A: false},",
+                "{output:", output, "}",
+                ") }"),
+              packages = "./node_modules/jsUtils")
+  rs$actual = print_world(a, b, c)
+  return(sum(rs$prob[!rs$C]))
+}
+cfprob3givenNotA(F, F, F)
+cfprob3givenNotA(F, T, T)
+cfprob3givenNotA(T, F, T)
+cfprob3givenNotA(T, T, F)
+```
+
+
+
+
+
+
+
+```{r}
+# ## a bunch of alternative utterances: that's in transform.py, etc.
+# ## all utterances equally probable: also set in transform.py, etc.
+# explanation = function(model, variable, storynumber,
+#                        premise.variable, premise.value,
+#                        actual.value) {
+#   premise = paste(ifelse(premise.value, "", "! "), premise.variable, sep="")
+#   explanans = paste(ifelse(premise.value, "! ", ""), premise.variable, sep="")
+#   explanandum = paste(ifelse(actual.value, "", "! "), variable, sep="")
+#   expl = paste(explanandum, " because ", explanans, sep="")
+#   rs = webppl(program_file = paste(model, "/lk", storynumber,
+#                                    "/autoexpanded.wppl", sep=""),
+#               inference_opts = list(method="enumerate"),
+#               model_var = "function() {return speaker('all_alternatives');}",
+#               packages = "./node_modules/jsUtils")
+#   return(
+#     (rs %>% filter(support==expl))$prob
+#   )
+# }
+```
+
+```{r}
+# lk.model.with.expl = read.csv("lk-model-data-numbers.csv") %>%
+#   mutate(model.expl.rating = mapply(explanation, "rsa.base.booleans", variable,
+#                            story, premise.variable, premise.value, actual.value),
+#          story = factor(story))
+# lk.model.with.expl %>% ggplot(., aes(x=model.expl.rating, y=rating)) +
+#    geom_point()
+```
+
+```{r}
+
+```
 
 

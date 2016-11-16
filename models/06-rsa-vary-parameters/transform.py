@@ -39,12 +39,11 @@ def transform_program(prog_file, cfprior_file, expressions_file):
 	prog_with_struct = orig_prog
 	for structvar in structvars:
 		prog_with_struct = re.sub(r"var "+structvar+" *=.*;", "var "+structvar+" = structureParams."+structvar+";", prog_with_struct)
-	print prog_with_struct
 
 	prog_maker_start = """var makeProgram = function(structureParams, origERPs) {
 	return function (input, sampleParams) {"""
 
-	prog_maker = prog_maker_start + "\n" + orig_prog + "\n};\n"
+	prog_maker = prog_maker_start + "\n" + prog_with_struct + "\n};\n"
 
 	exogenized_prog = re.sub(r"var ([a-zA-Z0-9]+) ?= ?flip\((.*)\);?", r"""
 		var \1ERP = Bernoulli({p: (\2)});
