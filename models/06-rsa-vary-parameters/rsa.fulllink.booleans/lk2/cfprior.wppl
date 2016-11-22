@@ -1,0 +1,15 @@
+var structureParamsPrior = function() {
+	// no CF-able structural params
+	// in this program
+	return {};
+};
+
+var inputPrior = function() {
+	return {
+		A: flip(0.1),
+		ab: flip(0.75),
+		bc: flip(0.75)
+	};
+};
+
+"cfprior"

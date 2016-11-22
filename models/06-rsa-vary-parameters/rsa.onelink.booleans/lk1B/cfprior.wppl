@@ -1,0 +1,12 @@
+var structureParamsPrior = function() {
+	return { cause: flip(0.5) };
+};
+
+var inputPrior = function() {
+	return {
+		A: flip(0.1),
+		B: flip(0.1)
+	};
+};
+
+"cfprior"

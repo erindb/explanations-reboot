@@ -34,7 +34,7 @@ def transform_program(prog_file, cfprior_file, expressions_file):
 	orig_prog_lines_adjusted = map(lambda line: "\t" + line, orig_prog_lines)
 	orig_prog = "\n".join(orig_prog_lines_adjusted)
 
-	warnings.warn("structure params priors not implemented", Warning)
+	# warnings.warn("structure params priors not implemented", Warning)
 	structvars = get_structvars(cfprior_file)
 	prog_with_struct = orig_prog
 	for structvar in structvars:
@@ -63,7 +63,7 @@ def transform_program(prog_file, cfprior_file, expressions_file):
 	expressions_lst = expressions_json["expressions"]
 	expressions = ",\n\t\t\t\t".join(map(lambda expr: '"' + expr + '": ' + expr, expressions_lst))
 
-	new_prog = re.sub(r"\n\t\treturn ({(?:.*\n)*\t\t})", r"""
+	new_prog = re.sub(r"\n\t*return ({(?:[^}]*\n?)[^}]*})\;", r"""
 		return {
 			ERPs: {
 				""" + erps + """
@@ -83,7 +83,7 @@ def get_structvars(cfprior_file):
 		print "error 23891"
 	else:
 		struct_prior_string = struct_prior_strings[0]
-		struct_variable_names = re.findall(r"(.*)\:.*", struct_prior_string)
+		struct_variable_names = re.findall(r"\t*(.*)\:.*", struct_prior_string)
 		return struct_variable_names
 
 def write_cfpriors(prog_file, cfprior_file):

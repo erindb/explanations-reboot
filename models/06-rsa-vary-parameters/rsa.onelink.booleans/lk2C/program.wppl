@@ -1,4 +1,9 @@
+// C because B
+// could have been no causal link B->C
+
 var program = function(input) {
+
+	var cause = true;
 
 	var A = input.A;
 
@@ -6,7 +11,7 @@ var program = function(input) {
 	var bc = input.bc;
 
 	var B = A && ab;
-	var C = B && bc;
+	var C = cause ? (B && bc) : false;
 
 	return {
 		A: A,

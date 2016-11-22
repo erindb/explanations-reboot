@@ -1,0 +1,28 @@
+// C because B
+// could have been no causal link B->C
+
+var program = function(input) {
+
+	var causeBC = true;
+
+	var A = input.A;
+	var Mab = input.Mab;
+	var Mbc = input.Mbc;
+	
+	var B = Mab ? A : !A;
+	var C = causeBC ? (Mbc ? B : !B) : false;
+
+	return {
+		A: A,
+		B: B,
+		C: C
+	}
+};
+
+var input = {
+	A: false,
+	Mab: true,
+	Mbc: false
+};
+
+program(input);

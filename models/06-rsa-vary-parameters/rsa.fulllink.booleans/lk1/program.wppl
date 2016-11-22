@@ -1,0 +1,38 @@
+var program = function(input) {
+
+	var independent = function(a,b) {
+		var A = a;
+		var B = b;
+		return {A: A, B: B};
+	};
+	var causeAB = function(a, ab) {
+		var A = a;
+		var B = (A && ab);
+		return {A: A, B: B};
+	};
+	var causeBA = function(b, ba) {
+		var B = b;
+		var A = (B && ba);
+		return {A: A, B: B};
+	};
+
+	var connectedAB = false;
+	var directedAB = false;
+
+	if (connectedAB) {
+		if (directedAB) {
+			return causeAB(input.a, input.ab);
+		} else {
+			return causeBA(input.b, input.ba);
+		}
+	} else {
+		return independent(input.a, input.b);
+	}
+};
+
+var input = {
+	a: true,
+	b: true
+};
+
+program(input);

@@ -1,0 +1,22 @@
+// B because A
+// could have been A->B
+
+var program = function(input) {
+
+	var cause = false;
+
+	var A = input.A;
+	var B = cause ? A : input.B;
+
+	return {
+		A: A,
+		B: B
+	}
+};
+
+var input = {
+	A: true,
+	B: true
+};
+
+program(input);

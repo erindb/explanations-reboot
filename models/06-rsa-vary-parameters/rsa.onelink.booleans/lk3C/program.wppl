@@ -1,0 +1,28 @@
+// C because A
+// could have been no causal link B->C
+
+var program = function(input) {
+
+	var causeAC = true;
+
+	var xor = function(a,b) {
+		return (a || b) && !(a && b);
+	};
+
+	var A = input.A;
+	var B = input.B;
+	var C = causeAC ? xor(A, B) : B;
+
+	return {
+		A: A,
+		B: B,
+		C: C
+	}
+};
+
+var input = {
+	A: true,
+	B: true
+};
+
+program(input);
