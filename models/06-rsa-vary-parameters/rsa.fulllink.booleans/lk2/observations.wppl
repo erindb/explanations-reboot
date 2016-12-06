@@ -1,11 +1,18 @@
 // ------------ observations -------------------
 
 var observations = {
-	structureParams: {},
+	structureParams: {
+		connectedAB: true,
+		directedAB: true,
+		connectedBC: true,
+		directedBC: true,
+		connectedAC: true,
+		directedAC: true
+	},
 	input: {
 		A: true,
 		ab: true,
-		bc: true
+		bc: true,
 	},
 	output: {
 		A: true,

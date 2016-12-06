@@ -11,7 +11,7 @@ var program = function(input) {
 	return {
 		A: A,
 		B: B
-	}
+	};
 };
 
 var input = {

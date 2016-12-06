@@ -21,7 +21,7 @@ var program = function(input) {
 		B: B,
 		C: C,
 		D: D
-	}
+	};
 };
 
 var input = {

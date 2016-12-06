@@ -49,11 +49,11 @@ lk.model = read.csv("lk-model-data-numbers.csv") %>%
 lk.model %>% ggplot(., aes(x=rating, y=my.model, colour=story)) +
   geom_point() +
   scale_colour_brewer(type="qual", palette=2) +
-  theme_black +
-  theme(legend.position="right") +
+  #theme_black +
+  #theme(legend.position="right") +
   ylab("my code") +
   xlab("their code")
-ggsave("model-replication.png", width=5, height=3)
+#ggsave("model-replication.png", width=5, height=3)
 ```
 
 Yep.
@@ -65,9 +65,11 @@ We have human ratings for some explanations. In each story from L&K, we have two
 ```{r, fig.height=5}
 expl = read.csv("explanations-expt-data.csv")
 ggplot(expl, aes(x=variable, y=rating)) +
-  geom_point() + geom_errorbar(aes(ymin=ci.low, ymax=ci.high), width=0) +
+  geom_point(colour="#e7298a", size=2) + geom_errorbar(aes(ymin=ci.low, ymax=ci.high), width=0, lwd=1, colour="#e7298a") +
   facet_wrap(~story, scale="free") +
-  ylim(0, 1)
+  ylim(0, 1) #+ theme_black +
+  #theme(legend.position="right")
+#ggsave("explanations-results.png", width=10, height=8)
 ```
 
 This display is a bit difficult to interpret, because each story corresponds to its own causal structure and each is also associated with a specific configuration of what is true of the "actual world". Here's a sketch of the stories that were featured in this experiment:
@@ -110,7 +112,7 @@ utterancePriors = rbind(
     rs = webppl(program_file = paste(model, "/lk", storynumber,
                                      "/autoexpanded.wppl", sep=""),
                 inference_opts = list(method="enumerate"),
-                model_var = "possiblePriors['all_alternatives']",
+                model_var = "possiblePriors('all_alternatives')",
                 packages = "./node_modules/jsUtils")
     rs$story = paste("story", storynumber)
     rs$storynumber = storynumber
@@ -123,7 +125,7 @@ utterancePriors = rbind(
     rs = webppl(program_file = paste(model, "/lk", storynumber,
                                      "/autoexpanded.wppl", sep=""),
                 inference_opts = list(method="enumerate"),
-                model_var = "possiblePriors['only_explanations']",
+                model_var = "possiblePriors('only_explanations')",
                 packages = "./node_modules/jsUtils")
     rs$story = paste("story", storynumber)
     rs$storynumber = storynumber
@@ -132,13 +134,13 @@ utterancePriors = rbind(
   }))
 )
 plot_story= function(strynum) {
-utterancePriors %>%
-  filter(alternatives=="explanations") %>%
-  filter(story==paste("story", strynum)) %>%
-  ggplot(., aes(x=support, y=prob)) +
-  geom_bar(stat="identity") +
-  facet_wrap(~ story, scale="free") +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+  utterancePriors %>%
+    filter(alternatives=="explanations") %>%
+    filter(story==paste("story", strynum)) %>%
+    ggplot(., aes(x=support, y=prob)) +
+    geom_bar(stat="identity") +
+    facet_wrap(~ story, scale="free") +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1))
 }
 plot_story(1)
 plot_story(2)
@@ -566,7 +568,7 @@ Unsurprisingly, there is very little correlation between people's ratings of exp
 
 ```{r}
 rate.expl = function(story.number, variable, actual.value,
-                             premise.variable, premise.value) {
+                     premise.variable, premise.value) {
   
   explanandum = paste(ifelse(actual.value, "", "! "), variable, sep="")
   explanans = paste(ifelse(premise.value, "! ", ""), premise.variable, sep="")
@@ -595,18 +597,20 @@ expl.with.model = expl %>%
 ```{r}
 expl.with.model %>% ggplot(., aes(x=model, y=rating, colour=story)) +
   geom_point() +
+  ylim(0, 1) +
+  xlim(0,1) +
   geom_errorbar(aes(ymin=ci.low, ymax=ci.high)) +
   scale_colour_brewer(type="qual", palette = 2) #+ theme_black +
-  #theme(legend.position="right")
+#theme(legend.position="right")
 #ggsave("RSA-base.png", width=5, height=3)
-cor.test(expl.with.model$model, expl.with.model$rating)
+# cor.test(expl.with.model$model, expl.with.model$rating)
 ```
 
 But wait! When we narrow down the alternative utterances to only explanations with the same explanandum, we do much better. Our correlation is still only 0.427, but we're still maybe getting somewhere.
 
 ```{r}
 rate.expl = function(story.number, variable, actual.value,
-                             premise.variable, premise.value) {
+                     premise.variable, premise.value) {
   
   explanandum = paste(ifelse(actual.value, "", "! "), variable, sep="")
   explanans = paste(ifelse(premise.value, "! ", ""), premise.variable, sep="")
@@ -628,15 +632,19 @@ rate.expl = function(story.number, variable, actual.value,
 expl.with.model = expl %>%
   mutate(model = mapply(rate.expl, story.number, variable,
                         actual.value, premise.variable, premise.value))
+```
 
+```{r}
 expl.with.model %>% ggplot(., aes(x=model, y=rating, colour=story)) +
   geom_point() +
+  ylim(0, 1) +
+  xlim(0,1) +
   geom_errorbar(aes(ymin=ci.low, ymax=ci.high)) +
   scale_colour_brewer(type="qual", palette = 2) +
   ggtitle("with explanandum constrained") #+ theme_black +
-  #theme(legend.position="right")
+#theme(legend.position="right")
 #ggsave("RSA-base-explanandum-fixed.png", width=5, height=3)
-cor.test(expl.with.model$model, expl.with.model$rating)
+# cor.test(expl.with.model$model, expl.with.model$rating)
 ```
 
 ## 3. Now let's introduce some causal uncertainty!
@@ -671,13 +679,13 @@ In story1, introducing the possibility that A might take the exact same value as
 
 ```{r}
 rs.onelinkA = webppl(program_file = "rsa.onelink.booleans/lk1A/autoexpanded.wppl",
-            model_var = "counterfactual",
-            inference_opts = list(method="enumerate"),
-            packages = "./node_modules/jsUtils") %>% mutate(structure="onelink")
+                     model_var = "counterfactual",
+                     inference_opts = list(method="enumerate"),
+                     packages = "./node_modules/jsUtils") %>% mutate(structure="onelink")
 rs.base = webppl(program_file = "rsa.base.booleans/lk1/autoexpanded.wppl",
-            model_var = "counterfactual",
-            inference_opts = list(method="enumerate"),
-            packages = "./node_modules/jsUtils") %>% mutate(structure="base")
+                 model_var = "counterfactual",
+                 inference_opts = list(method="enumerate"),
+                 packages = "./node_modules/jsUtils") %>% mutate(structure="base")
 cf1 = rbind(rs.base, rs.onelinkA)
 print_world = function(a, b) {
   return(paste(
@@ -804,7 +812,7 @@ Seems pretty unhelpful to use the QUD here...
 
 ```{r}
 rate.expl = function(story.number, variable, actual.value,
-                             premise.variable, premise.value) {
+                     premise.variable, premise.value) {
   
   explanandum = paste(ifelse(actual.value, "", "! "), variable, sep="")
   explanans = paste(ifelse(premise.value, "! ", ""), premise.variable, sep="")
@@ -827,20 +835,24 @@ expl.with.model = expl %>%
   filter(story.number %in% 1:6 & variable %in% c("A", "B", "C")) %>%
   mutate(model = mapply(rate.expl, story.number, variable,
                         actual.value, premise.variable, premise.value))
+```
 
+```{r}
 expl.with.model %>% ggplot(., aes(x=model, y=rating, colour=story)) +
   geom_point() +
+  ylim(0, 1) +
+  xlim(0,1) +
   geom_errorbar(aes(ymin=ci.low, ymax=ci.high), width=0) +
   scale_colour_brewer(type="qual", palette = 2) +
   ggtitle("all explanations") #+ theme_black +
-  #theme(legend.position="right")
+#theme(legend.position="right")
 #ggsave("RSA-onelink.png", width=5, height=3)
 cor.test(expl.with.model$model, expl.with.model$rating)
 ```
 
 ```{r}
 rate.expl = function(story.number, variable, actual.value,
-                             premise.variable, premise.value) {
+                     premise.variable, premise.value) {
   
   explanandum = paste(ifelse(actual.value, "", "! "), variable, sep="")
   explanans = paste(ifelse(premise.value, "! ", ""), premise.variable, sep="")
@@ -864,56 +876,257 @@ expl.with.model = expl %>%
   filter(story.number %in% 1:6 & variable %in% c("A", "B", "C")) %>%
   mutate(model = mapply(rate.expl, story.number, variable,
                         actual.value, premise.variable, premise.value))
+```
 
-expl.with.model %>% ggplot(., aes(x=model, y=rating, colour=story)) +
+```{r}
+expl.with.model %>% ggplot(., aes(x=model, y=rating, colour=story, shape=variable)) +
   geom_point() +
+  ylim(0, 1) +
+  xlim(0,1) +
   geom_errorbar(aes(ymin=ci.low, ymax=ci.high), width=0) +
   scale_colour_brewer(type="qual", palette = 2) +
   ggtitle("with explanandum constrained") #+ theme_black +
-  #theme(legend.position="right")
+#theme(legend.position="right")
 #ggsave("RSA-onelink-explanandum-fixed.png", width=5, height=3)
-cor.test(expl.with.model$model, expl.with.model$rating)
+# cor.test(expl.with.model$model, expl.with.model$rating)
 ```
 
-## 3. Now let's introduce some BETTER causal uncertainty!
+```{r}
+expl.with.model %>% ggplot(., aes(x=model, y=rating, colour=tag)) +
+  geom_point() +
+  ylim(0, 1) +
+  xlim(0,1) +
+  geom_errorbar(aes(ymin=ci.low, ymax=ci.high), width=0) +
+  scale_colour_brewer(type="qual", palette = 2) +
+  ggtitle("with explanandum constrained")
+```
+
+
+<!-- ## 3. Now let's introduce some BETTER causal uncertainty!
 
 OK, but really, people are probably considering other causal configurations. They're probably not just getting rid of a particular causal link, they're probably imagining it could be in the opposite direction (e.g. B→A instead of A→B).
 
+```{r}
+# rate.expl = function(story.number, variable, actual.value,
+#                      premise.variable, premise.value) {
+#   
+#   explanandum = paste(ifelse(actual.value, "", "! "), variable, sep="")
+#   explanans = paste(ifelse(premise.value, "! ", ""), premise.variable, sep="")
+#   utterance = paste(explanandum, " because ", explanans, sep="")
+#   
+#   rs = webppl(
+#     program_file = paste("rsa.fulllink.booleans/lk",
+#                          story.number,
+#                          "/autoexpanded.wppl", sep=""),
+#     model_var = paste(
+#       "function() {return speaker('only_answers_to_why: ",
+#       explanandum,"');}", sep=""),
+#     inference_opts = list(method="enumerate"),
+#     packages = "./node_modules/jsUtils")
+#   prob_utterance = rs$prob[rs$support==utterance]
+#   
+#   return(prob_utterance)
+# }
+# expl.with.model = expl %>%
+#   filter(story.number %in% 1:1 & variable %in% c("A", "B")) %>%
+#   mutate(model = mapply(rate.expl, story.number, variable,
+#                         actual.value, premise.variable, premise.value))
+# 
+# expl.with.model %>% ggplot(., aes(x=model, y=rating, colour=story)) +
+#   geom_point() +
+#   geom_errorbar(aes(ymin=ci.low, ymax=ci.high), width=0) +
+#   scale_colour_brewer(type="qual", palette = 2) +
+#   ggtitle("with explanandum constrained") #+ theme_black +
+# #theme(legend.position="right")
+# #ggsave("RSA-fulllink-explanandum-fixed.png", width=5, height=3)
+# cor.test(expl.with.model$model, expl.with.model$rating)
+```
+
+```{r}
+# rs = webppl(
+#   program_file = "rsa.fulllink.booleans/lk2/autoexpanded.wppl",
+#   model_var = "highOrderForwardSample",
+#   inference_opts = list(method="enumerate"),
+#   packages = "./node_modules/jsUtils")
+# 
+# rs
+```
+
+-->
+
+### LOL, I should have used a yes-no alternative utterance set
 
 ```{r}
 rate.expl = function(story.number, variable, actual.value,
-                             premise.variable, premise.value) {
-  
+                     premise.variable, premise.value) {
   explanandum = paste(ifelse(actual.value, "", "! "), variable, sep="")
   explanans = paste(ifelse(premise.value, "! ", ""), premise.variable, sep="")
   utterance = paste(explanandum, " because ", explanans, sep="")
-  
+
   rs = webppl(
-    program_file = paste("rsa.fulllink.booleans/lk",
+    program_file = paste("rsa.onelink.booleans/lk",
                          story.number,
+                         variable,
                          "/autoexpanded.wppl", sep=""),
-    model_var = paste(
-      "function() {return speaker('only_answers_to_why: ",
-      explanandum,"');}", sep=""),
+    model_var = paste("function() {return speaker(':", utterance, "');}", sep=""),
+    # model_var = "literal('A')",
     inference_opts = list(method="enumerate"),
     packages = "./node_modules/jsUtils")
   prob_utterance = rs$prob[rs$support==utterance]
-  
+
   return(prob_utterance)
 }
 expl.with.model = expl %>%
-  filter(story.number %in% 1:1 & variable %in% c("A", "B")) %>%
+  filter(story.number %in% 1:6 & variable %in% c("A", "B", "C", "D")) %>%
   mutate(model = mapply(rate.expl, story.number, variable,
                         actual.value, premise.variable, premise.value))
+```
 
-expl.with.model %>% ggplot(., aes(x=model, y=rating, colour=story)) +
+```{r}
+expl.with.model %>%
+  # filter(as.character(variable) != as.character(premise.variable)) %>%
+  ggplot(., aes(x=model, y=rating, colour=story, shape=variable)) +
   geom_point() +
   geom_errorbar(aes(ymin=ci.low, ymax=ci.high), width=0) +
   scale_colour_brewer(type="qual", palette = 2) +
-  ggtitle("with explanandum constrained") #+ theme_black +
-  #theme(legend.position="right")
-#ggsave("RSA-fulllink-explanandum-fixed.png", width=5, height=3)
-cor.test(expl.with.model$model, expl.with.model$rating)
+  ylim(0, 1) +
+  xlim(0,1) +
+  ggtitle("yes or no") #+ #theme_black +
+#theme(legend.position="right")
+# ggsave("RSA-onelink-yes-or-no-filtered.png", width=10, height=6)
+# cor.test((expl.with.model %>% filter(abs(model-0.5)>0.001))$model, (expl.with.model %>% filter(abs(model-0.5)>0.001))$rating)
 ```
 
+```{r}
+expl.with.model %>%
+  # filter(as.character(variable) != as.character(premise.variable)) %>%
+  ggplot(., aes(x=model, y=rating, colour=tag)) +
+  geom_point() +
+  geom_errorbar(aes(ymin=ci.low, ymax=ci.high), width=0) +
+  scale_colour_brewer(type="qual", palette = 2) +
+  ylim(0, 1) +
+  xlim(0,1) +
+  ggtitle("yes or no") #+ #theme_black +
+#theme(legend.position="right")
+ggsave("RSA-onelink-yes-or-no-filtered.png", width=10, height=6)
+# cor.test((expl.with.model %>% filter(abs(model-0.5)>0.001))$model, (expl.with.model %>% filter(abs(model-0.5)>0.001))$rating)
+```
+
+Now this looks more reasonable, but there's a peak at explanations being rated at 0.5 -- probably because they convey no information, given the counterfactual causal structures considered.
+
+Which of these are at the 0.5 mark?
+
+Turns out most of them are the "A because A" style explanations, which because of the implicature that other explanations wouldn't work for A, would require S2.
+
+### S2
+
+So, let's try S2 where S1 can give any explanation for the explanandum.
+
+```{r}
+webppl(
+  program_file = "rsa.onelink.booleans/lk1A/autoexpanded.wppl",
+  model_var =
+    paste("s2('A because A', 'A')", sep=""),
+  inference_opts = list(method="enumerate"),
+  packages = "./node_modules/jsUtils"
+)
+```
+
+
+```{r}
+# expl.with.model %>% filter(abs(model-0.5)<0.001) %>%
+#   select(premise.variable, variable, story.number)
+```
+
+<!-- ### Literal meanings of each explanation
+
+B C 2
+C D 4
+C D 5
+
+```{r}
+# print_world = function(a, b, c) {
+#   return(paste(
+#     ifelse(a, "A", ""),
+#     ifelse(b, "B", ""),
+#     ifelse(c, "C", "")
+#   ))
+# }
+# literal.model = function(story.number, utterance) {
+#   words = strsplit(utterance, " ")[[1]]
+#   explanandum_lst = words[1:which(words == "because")-1]
+#   explanans_lst = words[(which(words == "because")+1):length(words)]
+#   explanandum = paste(explanandum_lst, collapse = " ")
+#   explanans = paste(explanans_lst, collapse = " ")
+#   variable = explanandum_lst[(which(words == "because")-1)]
+#   model_var = paste("function() {return sample(literalERP('", utterance, "'));}",
+#                     sep="")
+#   program_file = paste("rsa.onelink.booleans/lk",
+#                        story.number,
+#                        variable,
+#                        "/autoexpanded.wppl", sep="")
+#   rs = rbind(
+#     webppl(
+#       program_file = program_file,
+#       model_var = model_var,
+#       inference_opts = list(method="enumerate"),
+#       packages = "./node_modules/jsUtils") %>%
+#       mutate(utterance = utterance),
+#     webppl(
+#       program_file = program_file,
+#       model_var = "function() {return sample(literalERP(''));}",
+#       inference_opts = list(method="enumerate"),
+#       packages = "./node_modules/jsUtils") %>%
+#       mutate(utterance = "prior")
+#   )
+#   return(rs)
+# }
+# 
+# literal.model(2, "C because B") %>%
+#   mutate(world = mapply(print_world, output.A, output.B, output.C)) %>%
+#   ggplot(., aes(x=world, y=prob, fill=utterance)) +
+#   geom_bar(stat="identity", position="dodge") +
+#   theme(axis.text.x = element_text(angle = -90, hjust = 0)) +
+#   scale_fill_brewer(type="qual", palette=2)
+```
+-->
+
+
 ## References
+
+## Other
+
+CF.prob model
+
+```{r}
+cf.prob = read.csv("cf-experiment-data.csv") %>%
+  mutate(story = ifelse(story %in% c("story3a", "story3b"),
+                        "story3", as.character(story))) %>%
+  group_by(story, variable) %>%
+  summarise(human.rating = mean(rating)) %>%
+  as.data.frame %>%
+  merge(., expl, by=c("story", "variable")) %>%
+  mutate(model = ifelse(actual.value, 1-human.rating, human.rating))
+cf.prob %>%
+  ggplot(., aes(x=model, y=rating, colour=story, shape=variable)) +
+  geom_point() +
+  geom_errorbar(aes(ymin=ci.low, ymax=ci.high), width=0) +
+  scale_colour_brewer(type="qual", palette = 2) +
+  ylim(0,1) +
+  xlim(0,1) +
+  ggtitle("CF.prob") #+ theme_black +
+  #theme(legend.position="right")
+# ggsave("cf-prob.png", width=5, height=3)
+```
+
+```{r}
+cf.prob %>%
+  ggplot(., aes(x=model, y=rating, colour=tag)) +
+  geom_point() +
+  geom_errorbar(aes(ymin=ci.low, ymax=ci.high), width=0) +
+  scale_colour_brewer(type="qual", palette = 2) +
+  ylim(0,1) +
+  xlim(0,1) +
+  ggtitle("CF.prob")
+```
+

@@ -237,6 +237,14 @@ var explain = function(explanandum, alpha) {
 
 var utterancePriorMaker = function(base_utterances, priorType) {
 
+	var explanationOrSilent = [priorType.slice(1,priorType.length), ""];
+
+	if (priorType[0] == ":") {
+		return function() {
+			uniformDraw(explanationOrSilent);
+		};
+	}
+
 	// for each base expression
 	// we can say that expression
 	var unaryUtterances = base_utterances.concat(
@@ -278,7 +286,7 @@ var utterancePriorMaker = function(base_utterances, priorType) {
 
 	var possibleUtterances = (
 		priorType=="all_alternatives" ?
-		[""].concat(unaryUtterances).concat(binaryUtterances) :
+		[""].concat(unaryUtterances).concat(binaryUtterances).concat(becauseUtterances) :
 		(priorType=="only_explanations" || priorTypeComponents.length>1) ? becauseUtterances : []
 	);
 
@@ -524,27 +532,98 @@ var speaker = function(priorType, entailmentType, QUD, rationalityParam, obs) {
 	var entailmentType = entailmentType ? entailmentType : "none";
 	var rationalityParam = rationalityParam ? rationalityParam : 1;
 
-	// they choose something to say
-	var utterancePrior = possiblePriors(priorType);
-	var utterance = utterancePrior();
-	// display(utterance);
+	return function() {
+		// they choose something to say
+		var utterancePrior = possiblePriors(priorType);
+		var utterance = utterancePrior();
 
-	// the literal listener interprets this
-	var interpretationERP = literalERP(utterance, entailmentType);
+		// the literal listener interprets this
+		var interpretationERP = literalERP(utterance, entailmentType);
 
-	var projectedInterpretation = QUD ? marginalize(interpretationERP, QUD) : interpretationERP;
-	var projectedObs = QUD ? projectObs(obs, QUD) : obs;
+		var projectedInterpretation = QUD ? marginalize(interpretationERP, QUD) : interpretationERP;
+		var projectedObs = QUD ? projectObs(obs, QUD) : obs;
 
-	// the speaker makes sure that their
-	// observations line up with interpretation
-	var s = matchingFactor(projectedInterpretation, projectedObs);
-	factor(rationalityParam * s);
+		// the speaker makes sure that their
+		// observations line up with interpretation
+		var s = matchingFactor(projectedInterpretation, projectedObs);
+		factor(rationalityParam * s);
 
-	// and then they say it
-	return utterance;
+		// and then they say it
+		return {
+			observations: utterance,
+			truthFactor: s
+		};
+	};
 };
 
-var listener = function(utterance) {};
+var speakerERP = cache(function(priorType, entailmentType, QUD, rationalityParam, obs) {
+	var entailmentType = entailmentType ? entailmentType : "none";
+	return cleanup(Infer(
+		{method: "enumerate"},
+		speaker(priorType, entailmentType, QUD, rationalityParam, obs)
+	));
+});
+
+var listener = function(utterance, explanandum) {
+
+	return function() {
+		var actualSampleParams = sampleParamsPrior();
+		var actualInput = inputPrior();
+		var actualStructureParams = structureParamsPrior();
+		var actualProgram = makeProgram(actualStructureParams);
+		var actualReturnValues = actualProgram(actualInput, actualSampleParams);
+		var actualOutput = actualReturnValues.output;
+		var actualERPs = actualReturnValues.ERPs;
+		var obs = {
+			structureParams: actualStructureParams,
+			input: actualInput,
+			output: actualOutput
+		};
+
+		var descriptionERP = speakerERP("all_alternatives", false, false, 1, obs);
+		// var descriptionERP = speakerERP("only_answers_to_why: " + explanandum, false, false, 1, obs);
+
+		var descriptionFactor = descriptionERP.score(utterance);
+
+		return {
+			observations: obs,
+			truthFactor: descriptionFactor
+		};
+	};
+};
+
+var listenerERP = cache(function(utterance, explanandum) {
+	var entailmentType = "none";
+	return cleanup(Infer(
+		{method: "enumerate"},
+		listener(utterance, explanandum)
+	));
+});
+
+var s2 = function(base_utterance, explanandum) {
+	var QUD = false;
+	var obs = observations;
+	var rationalityParam = 1;
+
+	return function() {
+		var utterancePrior = possiblePriors(":" + base_utterance);
+		var utterance = utterancePrior();
+
+		// the pragmatic listener interprets this
+		var interpretationERP = listenerERP(utterance, explanandum);
+
+		var projectedInterpretation = QUD ? marginalize(interpretationERP, QUD) : interpretationERP;
+		var projectedObs = QUD ? projectObs(obs, QUD) : obs;
+
+		// the speaker makes sure that their
+		// observations line up with interpretation
+		var s = matchingFactor(projectedInterpretation, projectedObs);
+		factor(rationalityParam * s);
+
+		// and then they say it
+		return utterance;
+	};
+};
 
 // display(Infer({method: "enumerate"}, utterancePrior).support());
 

@@ -1,14 +1,24 @@
 var structureParamsPrior = function() {
 	// no CF-able structural params
 	// in this program
-	return {};
+	return {
+		connectedAB: flip(0.5),
+		directedAB: flip(0.5),
+		connectedBC: flip(0.5),
+		directedBC: flip(0.5),
+		connectedAC: flip(0.5),
+		directedAC: flip(0.5)
+	};
 };
 
 var inputPrior = function() {
 	return {
 		A: flip(0.1),
-		ab: flip(0.75),
-		bc: flip(0.75)
+		B: flip(0.1),
+		C: flip(0.1),
+		AB: flip(0.75),
+		BC: flip(0.75),
+		AC: flip(0.75)
 	};
 };
 

@@ -1,18 +1,35 @@
 var program = function(input) {
 
-	var A = input.A;
+	var progEval = function(input, variable) {
+		var allVars = ["A", "B", "C"];
+		var earlierVars = allVars.slice(0, allVars.indexOf(variable));
+		var laterVars = allVars.slice(allVars.indexOf(variable), allVars.length);
+		var links = earlierVars.map(function(v) {
+			return v + variable;
+		}).concat(laterVars.map(function(v) {
+			return variable + v;
+		}));
+		display(links);
+		return input[variable];
+	};
 
-	var ab = input.ab;
-	var bc = input.bc;
+	var A = progEval(input, "A");
+	var B = progEval(input, "B");
+	var C = progEval(input, "C");
 
-	var B = A && ab;
-	var C = B && bc;
+	// var A = input.A;
+
+	// var ab = input.ab;
+	// var bc = input.bc;
+
+	// var B = A && ab;
+	// var C = B && bc;
 
 	return {
 		A: A,
 		B: B,
 		C: C
-	}
+	};
 };
 
 var input = {
