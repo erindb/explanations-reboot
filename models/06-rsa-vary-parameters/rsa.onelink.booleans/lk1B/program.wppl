@@ -6,7 +6,7 @@ var program = function(input) {
 	var cause = false;
 
 	var A = input.A;
-	var B = cause ? A : input.B;
+	var B = cause ? (A && input.ab) : input.B;
 
 	return {
 		A: A,

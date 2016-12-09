@@ -3,7 +3,7 @@
 
 var program = function(input) {
 
-	var causeCD = true;
+	var cause = true;
 
 	var A = input.A;
 	var B = input.B;
@@ -12,7 +12,7 @@ var program = function(input) {
 	var bc = input.bc;
 
 	var C = (A && ac) ? true : (B && bc);
-	var D = causeCD ? C : false;
+	var D = cause ? C : true;
 
 	return {
 		A: A,

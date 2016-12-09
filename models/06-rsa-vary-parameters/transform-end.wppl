@@ -20,7 +20,22 @@ var highOrderForwardSample = function(obs) {
 	var program = makeProgram(structureParams);
 	var returnValues = program(input, sampleParams);
 	var output = returnValues.output;
-	return output;
+	return {structureParams: structureParams,
+		input: input,
+		output: output};
+};
+
+var evenHigherOrderForwardSample = function(obs) {
+	var obs = obs ? obs : observations;
+	var sampleParams = sampleParamsPrior();
+	var input = inputPrior();
+	var structureParams = structureParamsPrior();
+	var program = makeProgram(structureParams);
+	var returnValues = program(input, sampleParams);
+	var output = returnValues.output;
+	return {structureParams: structureParams,
+		input: input,
+		output: output};
 };
 
 // -------- counterfactuals logic ----
@@ -32,6 +47,13 @@ var counterfactualizeLatents = function(model, actual, stickiness) {
 	return mapObject(function(key, value) {
 		return flip(s) ? actual[key] : totallyDifferent[key];
 	}, actual);
+};
+
+var reduce_to_matching_keys = function(bigger_object, limiting_object) {
+	var overlappingKeys = _.object(map(function(k) {
+		return [k, bigger_object[k]];
+	}, _.keys(limiting_object)));
+	return overlappingKeys;
 };
 
 var match = function(inferred, observed) {
@@ -306,7 +328,8 @@ var utterancePriorMaker = function(base_utterances, priorType, costPerWord, expl
 	var utteranceERP = Infer({method: "enumerate"}, function() {
 		var allUtterances = getUtteranceSet();
 		var utterance = uniformDraw(allUtterances);
-		if (utterance!="") {
+		// for ":" prior type, that's yes/no and they're equally costly
+		if (utterance!="" & priorType[0]!=":") {
 			factor(- costPerWord * utterance.split(" ").length)
 		}
 		return utterance;
@@ -501,7 +524,21 @@ var matchingFactor = function(interpretationERP, obs) {
 	if (interpretationERP=="enumeration error") {
 		return -Infinity;
 	} else {
-		return interpretationERP.score(obs);
+		// obs.input might have more keys than interpretationERP.input
+		var reducedInterpretationERP = Infer(
+			{method: "enumerate"},
+			function() {
+				var result = sample(interpretationERP);
+				return {
+					structureParams: result.structureParams,
+					input: reduce_to_matching_keys(result.input, obs.input),
+					output: result.output
+				}
+			}
+		);
+		// display(obs);
+		// display(reducedInterpretationERP);
+		return reducedInterpretationERP.score(obs);
 	}
 };
 
@@ -526,6 +563,7 @@ var speaker = function(priorType, cost, explanandum, entailmentType, QUD, ration
 	var rationalityParam = rationalityParam ? rationalityParam : 1;
 
 	return function() {
+
 		// they choose something to say
 		var utterancePrior = possiblePriors(priorType, cost, explanandum);
 		var utterance = utterancePrior();

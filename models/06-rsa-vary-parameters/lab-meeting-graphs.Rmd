@@ -16,7 +16,7 @@ knitr::opts_chunk$set(echo=F, warning=F, cache=T, message=F, sanitiz =T, fig.wid
 ```{r load_settings}
 source("~/Settings/startup.R")
 library(reshape2)
-theme.new = theme_set(theme_bw(12))
+theme.new = theme_set(theme_black)
 ```
 
 ```{r load_expt_explanation_data}
@@ -270,69 +270,483 @@ cf.expl %>%
 
 # Plot RSA base explanations model
 
-```{r}
+```{r define_explanations_rating_function}
+get_model_var = function(utterance, explanandum, speaker, cost) {
+  if (speaker == "weird_s2") {
+    return(paste("s2('", utterance, "', ", cost, ", '", explanandum, "', 'varies')", sep=""))
+  } else if (speaker == "s2") {
+    return(paste("s2('", utterance, "', ", cost, ", '", explanandum, "', 'all_alternatives')", sep=""))
+  } else if (speaker == "speaker") {
+    return(paste("function() {return sample(speakerERP(':", utterance, "', ", cost, "));}", sep=""))
+  } else if (speaker == "literal") {
+    return(paste("function() {return sample(literalERP('", utterance, "'));}", sep=""))
+  }
+}
+get_program_file = function(story.number, variable, 
+                            causal.uncertainty) {
+  if (causal.uncertainty=="base") {
+    return(paste("rsa.base.booleans/lk",
+                 story.number,
+                 "/autoexpanded.wppl", sep=""))
+  } else if (causal.uncertainty=="fulllink") {
+    return(paste("rsa.base.booleans/lk",
+                 story.number,
+                 "/autoexpanded.wppl", sep=""))
+  } else if (causal.uncertainty=="onelink") {
+    return(paste("rsa.onelink.booleans/lk",
+                 story.number,
+                 variable,
+                 "/autoexpanded.wppl", sep=""))
+  }
+}
+rate.expl = function(story.number, variable, actual.value,
+                     premise.variable, premise.value, 
+                     causal.uncertainty, speaker, cost) {
+  explanandum = paste(ifelse(actual.value, "", "! "), variable, sep="")
+  explanans = paste(ifelse(premise.value, "! ", ""), premise.variable, sep="")
+  utterance = paste(explanandum, " because ", explanans, sep="")
+  
+  model_var = get_model_var(utterance, explanandum, speaker, cost)
+  program_file = get_program_file(story.number, variable, causal.uncertainty)
 
+  rs = webppl(
+    program_file = program_file,
+    model_var = model_var,
+    inference_opts = list(method="enumerate"),
+    packages = "./node_modules/jsUtils")
+  if (speaker=="literal") {
+    return(rs)
+  }
+  prob_utterance = rs$prob[rs$support==utterance]
+
+  return(prob_utterance)
+}
+plot.expl = function(df, filename) {
+  df %>%
+    ggplot(., aes(x=model, y=rating)) +
+    geom_point(colour="white") +
+    geom_errorbar(aes(ymin=ci.low, ymax=ci.high), width=0, colour="white") +
+    scale_colour_brewer(type="qual", palette = 2) +
+    ylim(0, 1) +
+    xlim(0, 1)
+  ggsave(paste("lab-meeting-graphs/", filename, sep=""), width=4, height=3)
+}
+plot.expl.with.stories = function(df, filename) {
+  df %>%
+    ggplot(., aes(x=model, y=rating, colour=story,
+                  shape=variable)) +
+    geom_point(size=4) +
+    geom_errorbar(aes(ymin=ci.low, ymax=ci.high), width=0) +
+    scale_colour_brewer(type="qual", palette = 2) +
+    ylim(0, 1) +
+    xlim(0, 1)
+  ggsave(paste("lab-meeting-graphs/", filename, sep=""), width=7, height=4.25)
+}
 ```
 
-```{r lk1_base}
+```{r run_rsa_base_weird_s2_model}
+rsa_base_weird_s2 = expl %>%
+  mutate(model = mapply(rate.expl, story.number, variable,
+                        actual.value, premise.variable, 
+                        premise.value, "base", "weird_s2"))
+```
+
+```{r plot_rsa_base_weird_s2_model}
+plot.expl(rsa_base_weird_s2, "rsa-base-weird-s2.png")
+```
+
+```{r plot_rsa_base_weird_s2_model_stories}
+plot.expl.with.stories(rsa_base_weird_s2, "rsa-base-weird-s2-stories.png")
+```
+
+```{r plot_rsa_base_weird_s2_model_stories}
+rsa_base_weird_s2 %>%
+    ggplot(., aes(x=model, y=rating, colour=tag)) +
+    geom_point(size=4) +
+    geom_errorbar(aes(ymin=ci.low, ymax=ci.high), width=0) +
+    scale_colour_brewer(type="qual", palette = 2) +
+    ylim(0, 1) +
+    xlim(0, 1)
+  ggsave("lab-meeting-graphs/rsa-base-weird-s2-tagged.png", width=7, height=4.25)
+```
+
+```{r run_rsa_base_s2_model}
+rsa_base_s2 = expl %>%
+  mutate(model = mapply(rate.expl, story.number, variable,
+                        actual.value, premise.variable, 
+                        premise.value, "base", "s2", 0))
+```
+
+```{r plot_rsa_base_s2_model}
+plot.expl(rsa_base_s2, "rsa-base-s2.png")
+```
+
+```{r plot_rsa_base_s2_model_filtered}
+rsa_base_s2 %>%
+  filter(char(premise.variable) != char(variable)) %>%
+  plot.expl(., "rsa-base-s2-filtered.png")
+```
+
+```{r plot_rsa_base_s2_model_filtered_stories}
+rsa_base_s2 %>%
+  filter(char(premise.variable) != char(variable)) %>%
+  plot.expl.with.stories(., "rsa-base-s2-filtered-stories.png")
+```
+
+```{r plot_rsa_base_s2_model_tagged}
+rsa_base_s2 %>%
+    ggplot(., aes(x=model, y=rating, colour=tag)) +
+    geom_point(size=4) +
+    geom_errorbar(aes(ymin=ci.low, ymax=ci.high), width=0) +
+    scale_colour_brewer(type="qual", palette = 2) +
+    ylim(0, 1) +
+    xlim(0, 1)
+  ggsave("lab-meeting-graphs/rsa-base-s2-tagged.png", width=7, height=4.25)
+```
+
+```{r plot_rsa_base_s2_model_stories}
+plot.expl.with.stories(rsa_base_s2, "rsa-base-s2-stories.png")
+```
+
+```{r run_rsa_base_s1_model}
+rsa_base_s1 = expl %>%
+  mutate(model = mapply(rate.expl, story.number, variable,
+                        actual.value, premise.variable, 
+                        premise.value, "base", "speaker", 0))
+```
+
+```{r plot_rsa_base_s1_model}
+plot.expl(rsa_base_s1, "rsa-base-s1.png")
+```
+
+```{r plot_rsa_base_s1_model_stories}
+plot.expl.with.stories(rsa_base_s1, "rsa-base-s1-stories.png")
+```
+
+```{r run_rsa_base_s2_cost1_model}
+rsa_base_s2_cost1 = expl %>%
+  mutate(model = mapply(rate.expl, story.number, variable,
+                        actual.value, premise.variable, 
+                        premise.value, "base", "s2", 1))
+```
+
+```{r plot_rsa_base_s2_cost1_model}
+plot.expl(rsa_base_s2_cost1, "rsa-base-s2-cost1.png")
+```
+
+```{r plot_rsa_base_s2_model_cost1_stories}
+plot.expl.with.stories(rsa_base_s2_cost1, "rsa-base-s2-cost1-stories.png")
+```
+
+```{r run_rsa_base_s2_cost5_model}
+rsa_base_s2_cost5 = expl %>%
+  mutate(model = mapply(rate.expl, story.number, variable,
+                        actual.value, premise.variable, 
+                        premise.value, "base", "s2", 5))
+```
+
+```{r plot_rsa_base_s2_cost5_model}
+plot.expl(rsa_base_s2_cost5, "rsa-base-s2-cost5.png")
+```
+
+```{r plot_rsa_base_s2_model_cost5_stories}
+plot.expl.with.stories(rsa_base_s2_cost5, "rsa-base-s2-cost5-stories.png")
+```
+
+```{r run_rsa_base_s2_cost10_model}
+rsa_base_s2_cost10 = expl %>%
+  mutate(model = mapply(rate.expl, story.number, variable,
+                        actual.value, premise.variable, 
+                        premise.value, "base", "s2", 10))
+```
+
+```{r plot_rsa_base_s2_cost10_model}
+plot.expl(rsa_base_s2_cost10, "rsa-base-s2-cost10.png")
+```
+
+```{r plot_rsa_base_s2_model_cost10_stories}
+plot.expl.with.stories(rsa_base_s2_cost10, "rsa-base-s2-cost10-stories.png")
+```
+
+# Explain RSA base explanations model
+
+```{r define_literal_fn}
+literal = function(story.number, variable, causal.uncertainty, utterance) {
+  rs = webppl(
+    program_file = get_program_file(
+      story.number, variable, causal.uncertainty),
+    model_var = paste("function() {return sample(literalERP('", utterance, "'));}", sep=""),
+    inference_opts = list(method="enumerate"),
+    packages = "./node_modules/jsUtils"
+  )
+  rs$utterance = utterance
+  rs$causal.uncertainty = causal.uncertainty
+  return(rs)
+}
+print_world = function(a, b, c, d, cause) {
+  paste(
+    ifelse(a, "A", ""),
+    ifelse(b, "B", ""),
+    ifelse(c, "C", ""),
+    ifelse(d, "D", ""),
+    ifelse(cause, "cause", "")
+  )
+}
+```
+
+```{r rsa_base_literal_story1b}
+story1b = rbind(literal(1, "B", "base", "B because A"),
+      literal(1, "B", "base", "")) %>%
+  mutate(world = mapply(print_world, output.A, output.B, F, F, F))
+# story1b %>% ggplot(., aes(x=world, y=prob, fill=utterance)) +
+#     geom_bar(stat="identity", position="dodge") +
+#     scale_fill_brewer(type="qual", palette = 2)
+story1b %>% rename(B=output.B, A=output.A) %>%
+  gather("variable", "value", c(A, B)) %>%
+  group_by(utterance, variable) %>%
+  summarise(marginal.prob = sum(prob[value])) %>%
+  ggplot(., aes(x=utterance, y=marginal.prob)) +
+  geom_bar(stat="identity", position="dodge") +
+  scale_colour_brewer(type="qual", palette = 2) +
+  facet_wrap(~variable, scale="free") +
+  theme(axis.text.x = element_text(angle = -90, hjust = 0))
+ggsave("lab-meeting-graphs/rsa_base_literal.png", width=5, height=5)
+```
+
+```{r rsa_base_literal_story2a}
+story2a = rbind(literal(2, "A", "base", "A because B"),
+      literal(2, "A", "base", "")) %>%
+  mutate(world = mapply(print_world, output.A, output.B, output.C, F))
+# story2a %>% ggplot(., aes(x=world, y=prob, fill=utterance)) +
+#     geom_bar(stat="identity", position="dodge") +
+#     scale_fill_brewer(type="qual", palette = 2)
+story2a %>% rename(B=output.B, A=output.A, C=output.C) %>%
+  gather("variable", "value", c(A, B, C)) %>%
+  group_by(utterance, variable) %>%
+  summarise(marginal.prob = sum(prob[value])) %>%
+  ggplot(., aes(x=utterance, y=marginal.prob)) +
+  geom_bar(stat="identity", position="dodge") +
+  scale_colour_brewer(type="qual", palette = 2) +
+  facet_wrap(~variable, scale="free") +
+  theme(axis.text.x = element_text(angle = -90, hjust = 0))
+ggsave("lab-meeting-graphs/rsa_base_literal_story2a.png", width=7, height=5)
+```
+
+```{r rsa_base_literal_story3c}
+story3c = rbind(literal(3, "C", "base", "! C because A"),
+      literal(3, "C", "base", "")) %>%
+  mutate(world = mapply(print_world, output.A, output.B, output.C, F))
+# story3c %>% ggplot(., aes(x=world, y=prob, fill=utterance)) +
+#     geom_bar(stat="identity", position="dodge") +
+#     scale_fill_brewer(type="qual", palette = 2)
+story3c %>% rename(B=output.B, A=output.A, C=output.C) %>%
+  gather("variable", "value", c(A, B, C)) %>%
+  group_by(utterance, variable) %>%
+  summarise(marginal.prob = sum(prob[value])) %>%
+  ggplot(., aes(x=utterance, y=marginal.prob)) +
+  geom_bar(stat="identity", position="dodge") +
+  scale_colour_brewer(type="qual", palette = 2) +
+  facet_wrap(~variable, scale="free") +
+  theme(axis.text.x = element_text(angle = -90, hjust = 0))
+ggsave("lab-meeting-graphs/rsa_base_literal_story3c.png", width=7, height=5)
+```
+
+# Plot RSA onelink
+
+```{r run_rsa_onelink_s2_model}
+rsa_onelink_s2 = expl %>%
+  # filter(char(variable) != char(premise.variable)) %>%
+  mutate(model = mapply(rate.expl, story.number, variable,
+                        actual.value, premise.variable, 
+                        premise.value, "onelink", "s2", 0))
+```
+
+```{r plot_rsa_onelink_s2_model}
+plot.expl(rsa_onelink_s2, "rsa-onelink-s2.png")
+```
+
+```{r plot_rsa_onelink_s2_model_filtered_stories}
+plot.expl.with.stories(
+  rsa_onelink_s2 %>%
+    filter(char(variable) != char(premise.variable)),
+  "rsa-onelink-s2-filteredstories.png")
+```
+
+```{r plot_rsa_onelink_s2_model_stories}
+plot.expl.with.stories(rsa_onelink_s2, "rsa-onelink-s2-stories.png")
+```
+
+```{r run_rsa_onelink_s2_cost10_model}
+rsa_onelink_s2_cost10 = expl %>%
+  # filter(char(variable) != char(premise.variable)) %>%
+  mutate(model = mapply(rate.expl, story.number, variable,
+                        actual.value, premise.variable, 
+                        premise.value, "onelink", "s2", 10))
+```
+
+```{r plot_rsa_onelink_s2_cost10_model}
+plot.expl(rsa_onelink_s2_cost10, "rsa-onelink-s2.png")
+```
+
+```{r plot_rsa_onelink_s2_cost10_model_filtered_stories}
+plot.expl.with.stories(
+  rsa_onelink_s2_cost10 %>%
+    filter(char(variable) != char(premise.variable)),
+  "rsa-onelink-s2-filteredstories.png")
+```
+
+```{r plot_rsa_onelink_s2_cost10_model_stories}
+plot.expl.with.stories(rsa_onelink_s2_cost10, "rsa-onelink-s2-stories.png")
+```
+
+# Testing / Debugging
+
+```{r run_rsa_onelink_s2_model}
+rsa_onelink_s2 = expl %>%
+  filter(story=="story5" & variable=="D") %>%
+  mutate(model = mapply(rate.expl, story.number, variable,
+                        actual.value, premise.variable, 
+                        premise.value, "onelink", "s2", 0))
+rsa_onelink_s2
+```
+
+```{r testing_higherOrderForwardSample}
 rs = webppl(
-  program_file = "rsa.base.booleans/lk1/autoexpanded.wppl",
-  inference_opts = list(method="enumerate"),
-  model_var = "function() {return sample(speakerERP(':A because A', 1));}",
-  # model_var = "s2('A because A', 1, 'A', 'all_alternatives')",
-  packages = "./node_modules/jsUtils"
-)
-rs
+    program_file = "rsa.onelink.booleans/lk4D/autoexpanded.wppl",
+    model_var = paste("function() {return evenHigherOrderForwardSample();}", sep=""),
+    inference_opts = list(method="enumerate"),
+    packages = "./node_modules/jsUtils"
+  ) %>%
+  mutate(world = mapply(print_world, output.A, output.B,
+                        output.C, output.D, structureParams.cause))
+rs %>%
+  ggplot(., aes(x=world, y=prob)) +
+  geom_bar(stat="identity") +
+  theme(axis.text.x = element_text(angle = -90, hjust = 0))
 ```
 
-```{r lk1_onelink}
+```{r story4d_onelink}
+story4d = rbind(literal(4, "D", "onelink", "D because C"),
+      literal(4, "D", "onelink", "")) %>%
+  mutate(world = mapply(print_world, output.A, output.B, output.C, output.D, structureParams.cause))
+
+story4d %>% ggplot(., aes(x=world, y=prob, fill=utterance)) +
+  geom_bar(stat="identity", position="dodge") +
+  scale_fill_brewer(type="qual", palette = 2) +
+  theme(axis.text.x = element_text(angle = -90, hjust = 0))
+
+story4d %>%
+  rename(B=output.B, A=output.A, C=output.C, D=output.D,
+         cause = structureParams.cause) %>%
+  gather("variable", "value", c(A, B, C, D, cause)) %>%
+  group_by(utterance, variable) %>%
+  summarise(marginal.prob = sum(prob[value])) %>%
+  ggplot(., aes(x=utterance, y=marginal.prob)) +
+  geom_bar(stat="identity", position="dodge") +
+  scale_colour_brewer(type="qual", palette = 2) +
+  facet_wrap(~variable, scale="free") +
+  theme(axis.text.x = element_text(angle = -90, hjust = 0))
+ggsave("lab-meeting-graphs/rsa_onelink_literal_story4d.png", width=5, height=5)
+```
+
+```{r}
+literal = function(story.number, variable, causal.uncertainty, utterance) {
+  rs = webppl(
+    program_file = get_program_file(
+      story.number, variable, causal.uncertainty),
+    model_var = paste("function() {return sample(literalERP('", utterance, "'));}", sep=""),
+    inference_opts = list(method="enumerate"),
+    packages = "./node_modules/jsUtils"
+  )
+  rs$utterance = utterance
+  rs$causal.uncertainty = causal.uncertainty
+  return(rs)
+}
+print_world = function(a, b) {
+  paste(
+    ifelse(a, "A", ""),
+    ifelse(b, "B", "")
+  )
+}
+story1b = rbind(
+  literal(1, "B", "onelink", ""),
+literal(1, "B", "onelink", "B because A"))  %>%
+  mutate(world = mapply(print_world, output.A, output.B))
+story1b %>%
+  rename(cause = structureParams.cause) %>%
+  group_by(cause, utterance) %>%
+  summarise(marginal.prob = sum(prob)) %>%
+  ggplot(., aes(x=cause, y=marginal.prob,
+                fill=utterance)) +
+  geom_bar(stat="identity", position="dodge")
+story1b %>%
+  ggplot(., aes(x=world, y=prob,
+                fill=utterance)) +
+  geom_bar(stat="identity", position="dodge") +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0)) +
+  scale_fill_brewer(type='qual', palette = 2)
+ggsave("lab-meeting-graphs/story1b-full.png", width=7, height=4.25)
+```
+
+```{r}
+print_world = function(cause, a, b, ab) {
+  paste(
+    ifelse(cause, "cause", ""),
+    ifelse(a, "A", ""),
+    ifelse(b, "B", ""),
+    ifelse(ab, "ab", "")
+  )
+}
+story1b = rbind(
+  rate.expl(1, "B", T, "A", F, "onelink", "literal", 0) %>%
+    mutate(causal.uncertainty=T,
+           world = mapply(print_world, structureParams.cause, output.A, output.B, input.ab)) %>%
+    select(world, prob, causal.uncertainty),
+  rate.expl(1, "B", T, "A", F, "base", "literal", 0) %>% mutate(causal.uncertainty=F,
+           world = mapply(print_world, F, output.A, output.B, F)) %>%
+    select(world, prob, causal.uncertainty))
+story1b
+```
+
+```{r story1_base_vs_onelink}
+compare_base_vs_onelink = function(storynum, this.var,
+                                   actual.value, premise.variable,
+                                   premise.value) {
+  data.frame(
+    causal.uncertainty = c(T, F),
+    model = c(rate.expl(storynum, this.var, actual.value, premise.variable, premise.value, "onelink", "speaker", 0),
+              rate.expl(storynum, this.var, actual.value, premise.variable, premise.value, "base", "speaker", 0))
+  ) %>%
+    ggplot(., aes(x=causal.uncertainty, y=model)) +
+    geom_hline(yintercept = (expl %>% filter(story==paste("story", storynum, sep="") & variable==this.var))$rating, colour="white") +
+    geom_hline(yintercept = (expl %>% filter(story==paste("story", storynum, sep="") & variable==this.var))$ci.high, colour="darkgray") +
+    geom_hline(yintercept = (expl %>% filter(story==paste("story", storynum, sep="") & variable==this.var))$ci.low, colour="darkgray") +
+    geom_bar(stat="identity") +
+    ylim(0, 1)
+  ggsave(paste("lab-meeting-graphs/story", storynum, this.var, "-causal-uncertainty-comparison.png", sep=""), width=3, height=3)
+}
+compare_base_vs_onelink(1, "B", T, "A", F)
+compare_base_vs_onelink(2, "A", T, "B", F)
+compare_base_vs_onelink(2, "C", T, "B", F)
+```
+
+```{r lk1_rsa}
 rs = webppl(
   # program_file = "rsa.base.booleans/lk1/autoexpanded.wppl",
-  program_file = "rsa.onelink.booleans/lk1A/autoexpanded.wppl",
+  program_file = "rsa.onelink.booleans/lk1B/autoexpanded.wppl",
   inference_opts = list(method="enumerate"),
-  # model_var = "function() {return sample(speakerERP(':A because A', 1));}",
-  model_var = "s2('A because A', 0, 'A', 'varies')",
+  # model_var = "function() {return sample(literalERP(''));}",
+  model_var = "function() {return sample(literalERP('B because A'));}",
+  # model_var = "function() {return sample(speakerERP(':B because A', 0));}",
+  # model_var = "s2('B because A', 0, 'B', 'all_alternatives')",
   packages = "./node_modules/jsUtils"
 )
-rs
-```
+rs %>% filter(structureParams.cause==F &
+  output.A & output.B)
 
+rate.expl(1, "B", T, "A", F, "onelink", "speaker", 0)
+rate.expl(1, "B", T, "A", F, "base", "speaker", 0)
 
-# Plot explanations data
-
-```{r plot_expt_results_story1}
-expl %>% filter(story=="story1") %>%
-  mutate(
-    variable = factor(variable),
-    utterance = factor(
-      variable, levels=c("A", "B"),
-      labels=c("A because A", "B because A"))) %>%
-  ggplot(., aes(x=utterance, y=rating)) +
-  geom_point(size=2, colour="white") +
-  geom_errorbar(aes(ymin=ci.low, ymax=ci.high), width=0, lwd=1, colour="white") +
-  ylim(0, 1) + theme_black +
-theme(legend.position="right")
-ggsave("lab-meeting-graphs/explanations-results-story1.png", width=5, height=3)
-```
-
-```{r plot_expt_results_tagged}
-expl %>% 
-  ggplot(., aes(x=variable, y=rating, colour=tag)) +
-  geom_point(size=2) +
-  geom_errorbar(aes(ymin=ci.low, ymax=ci.high), width=0, lwd=1) +
-  facet_wrap(~story, scale="free") +
-  scale_colour_brewer(type="qual", palette = 2) +
-  ylim(0, 1) + theme_black +
-  theme(legend.position="right")
-ggsave("lab-meeting-graphs/explanations-results-tagged.png", width=12, height=8)
-```
-
-```{r plot_expt_results}
-ggplot(expl, aes(x=variable, y=rating)) +
-  geom_point(size=2, colour="white") +
-  geom_errorbar(aes(ymin=ci.low, ymax=ci.high), width=0, lwd=1, colour="white") +
-  facet_wrap(~story, scale="free") +
-  ylim(0, 1) + theme_black +
-theme(legend.position="right")
-ggsave("lab-meeting-graphs/explanations-results.png", width=10, height=8)
+rate.expl(2, "A", T, "B", F, "onelink", "speaker", 0)
+rate.expl(2, "A", T, "B", F, "base", "speaker", 0)
 ```

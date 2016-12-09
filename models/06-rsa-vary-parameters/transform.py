@@ -38,6 +38,7 @@ def transform_program(prog_file, cfprior_file, expressions_file):
 	structvars = get_structvars(cfprior_file)
 	prog_with_struct = orig_prog
 	for structvar in structvars:
+		structvar = structvar.strip()
 		prog_with_struct = re.sub(r"var "+structvar+" *=.*;", "var "+structvar+" = structureParams."+structvar+";", prog_with_struct)
 
 	prog_maker_start = """var makeProgram = function(structureParams, origERPs) {

@@ -11,7 +11,7 @@ var program = function(input) {
 	var bc = input.bc;
 
 	var B = A && ab;
-	var C = cause ? (B && bc) : false;
+	var C = cause ? (B && bc) : true;
 
 	return {
 		A: A,
