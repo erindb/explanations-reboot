@@ -235,15 +235,11 @@ var explain = function(explanandum, alpha) {
 
 // -------------- RSA ----------------
 
-var utterancePriorMaker = function(base_utterances, priorType) {
+var utterancePriorMaker = function(base_utterances, priorType, costPerWord, explanandum) {
+	var explanandum = explanandum ? explanandum : "thereisnoexplanandumforthisprior";
 
+	// in case we get ":", a signal to check "yes or no" for the rest
 	var explanationOrSilent = [priorType.slice(1,priorType.length), ""];
-
-	if (priorType[0] == ":") {
-		return function() {
-			uniformDraw(explanationOrSilent);
-		};
-	}
 
 	// for each base expression
 	// we can say that expression
@@ -262,18 +258,19 @@ var utterancePriorMaker = function(base_utterances, priorType) {
 			// or
 			map(function (u2) {
 				return u1 + " or " + u2;
-			}, unaryUtterances))//.concat(
-			// // because
-			// map(function (u2) {
-			// 	return u1 + " because " + u2;
-			// }, unaryUtterances))
+			}, unaryUtterances))
 	}, [], unaryUtterances);
 
-	var priorTypeComponents = priorType.split(": ");
-	var explananda = priorTypeComponents.length==1 ? unaryUtterances : [priorTypeComponents[1]];
+	var allBecauseUtterances = reduce(function(u1, acc) {
+		return acc.concat(
+			// because
+			map(function (u2) {
+				return u1 + " because " + u2;
+			}, unaryUtterances))
+	}, [], unaryUtterances);
 
-	var becauseUtterances = reduce(function(u1, acc) {
-		if (explananda.indexOf(u1) > -1) {
+	var selectBecauseUtterances = reduce(function(u1, acc) {
+		if (u1 == explanandum) {
 			return acc.concat(
 				// because
 				map(function (u2) {
@@ -284,48 +281,44 @@ var utterancePriorMaker = function(base_utterances, priorType) {
 		}
 	}, [], unaryUtterances);
 
-	var possibleUtterances = (
-		priorType=="all_alternatives" ?
-		[""].concat(unaryUtterances).concat(binaryUtterances).concat(becauseUtterances) :
-		(priorType=="only_explanations" || priorTypeComponents.length>1) ? becauseUtterances : []
-	);
-
-	// score of utterance is based on length
-	var utteranceERP = Infer(
-		{method: "enumerate"},
-		function() {
-			// var utterance = uniformDraw([
-			// 	"",
-			// 	"A", "B",
-			// 	"! A", "! B",
-			// 	"A and B", "A or B",
-			// 	"A and ! B", "A or ! B",
-			// 	"! A and B", "! A or B",
-			// 	"! A and ! B", "! A or ! B",
-			// 	"A because B", "B because A",
-			// 	"A because ! B", "B because ! A",
-			// 	"! A because B", "! B because A",
-			// 	"! A because ! B", "! B because ! A"
-			// ]);
-			
-			var utterance = uniformDraw(possibleUtterances);
-			// start with equal probability
-
-			// var costPerWord = 6;
-			// if (utterance!="") {
-			// 	factor(- costPerWord * utterance.split(" ").length)
-			// }
-			return utterance;
+	var getUtteranceSet = function() {
+		if (priorType == "all_alternatives") {
+			return [""].concat(
+				unaryUtterances
+			).concat(
+				binaryUtterances
+			).concat(allBecauseUtterances)
+		} else if (priorType == "only_explanations") {
+			// return [""].concat(allBecauseUtterances);
+			return allBecauseUtterances;
+		} else if (priorType == "fixed_explanandum") {
+			// return [""].concat(selectBecauseUtterances);
+			return selectBecauseUtterances;
+		} else if (priorType[0] == ":") {
+			// a signal to check "yes or no" for the rest
+			return explanationOrSilent;
+		} else {
+			display("error 20932423: invalid priorType");
+			return [""];
 		}
-	);
+	};
+
+	var utteranceERP = Infer({method: "enumerate"}, function() {
+		var allUtterances = getUtteranceSet();
+		var utterance = uniformDraw(allUtterances);
+		if (utterance!="") {
+			factor(- costPerWord * utterance.split(" ").length)
+		}
+		return utterance;
+	});
 
 	return function() {
 		sample(utteranceERP);
 	};
 };
 
-var possiblePriors = cache(function(type) {
-	utterancePriorMaker(expressions, type);
+var possiblePriors = cache(function(type, cost, explanandum) {
+	utterancePriorMaker(expressions, type, cost, explanandum);
 });
 
 var conditionExplanansERP = cache(function(explanans, obs, actualSampleParams, actualERPs) {
@@ -525,7 +518,7 @@ var marginalize = function(erp, variable) {
 	}
 };
 
-var speaker = function(priorType, entailmentType, QUD, rationalityParam, obs) {
+var speaker = function(priorType, cost, explanandum, entailmentType, QUD, rationalityParam, obs) {
 
 	// speaker might have observed anything
 	var obs = obs ? obs : observations;
@@ -534,7 +527,7 @@ var speaker = function(priorType, entailmentType, QUD, rationalityParam, obs) {
 
 	return function() {
 		// they choose something to say
-		var utterancePrior = possiblePriors(priorType);
+		var utterancePrior = possiblePriors(priorType, cost, explanandum);
 		var utterance = utterancePrior();
 
 		// the literal listener interprets this
@@ -556,15 +549,15 @@ var speaker = function(priorType, entailmentType, QUD, rationalityParam, obs) {
 	};
 };
 
-var speakerERP = cache(function(priorType, entailmentType, QUD, rationalityParam, obs) {
+var speakerERP = cache(function(priorType, cost, explanandum, entailmentType, QUD, rationalityParam, obs) {
 	var entailmentType = entailmentType ? entailmentType : "none";
 	return cleanup(Infer(
 		{method: "enumerate"},
-		speaker(priorType, entailmentType, QUD, rationalityParam, obs)
+		speaker(priorType, cost, explanandum, entailmentType, QUD, rationalityParam, obs)
 	));
 });
 
-var listener = function(utterance, explanandum) {
+var listener = function(utterance, cost, explanandum, rationalityParam, innerUtterancePriorType) {
 
 	return function() {
 		var actualSampleParams = sampleParamsPrior();
@@ -579,9 +572,8 @@ var listener = function(utterance, explanandum) {
 			input: actualInput,
 			output: actualOutput
 		};
-
-		var descriptionERP = speakerERP("all_alternatives", false, false, 1, obs);
-		// var descriptionERP = speakerERP("only_answers_to_why: " + explanandum, false, false, 1, obs);
+		// var descriptionERP = speakerERP("all_alternatives", false, false, 1, obs);
+		var descriptionERP = speakerERP(innerUtterancePriorType, cost, explanandum, false, false, rationalityParam, obs);
 
 		var descriptionFactor = descriptionERP.score(utterance);
 
@@ -592,25 +584,42 @@ var listener = function(utterance, explanandum) {
 	};
 };
 
-var listenerERP = cache(function(utterance, explanandum) {
+var listenerERP = cache(function(utterance, cost, explanandum, rationalityParam, innerUtterancePriorType) {
 	var entailmentType = "none";
+	var rationalityParam = rationalityParam ? rationalityParam : 1;
 	return cleanup(Infer(
 		{method: "enumerate"},
-		listener(utterance, explanandum)
+		listener(utterance, cost, explanandum, rationalityParam, innerUtterancePriorType)
 	));
 });
 
-var s2 = function(base_utterance, explanandum) {
+var s2 = function(base_utterance, cost, explanandum,
+	innerUtterancePriorType,
+	innerRationalityParam, outerRationalityParam) {
 	var QUD = false;
+	var cost = cost ? cost : 0;
 	var obs = observations;
-	var rationalityParam = 1;
+	// "only_answers_to_why: " + explanandum
+	var innerRationalityParam = innerRationalityParam ? innerRationalityParam : 1;
+	var outerRationalityParam = outerRationalityParam ? outerRationalityParam : 1;
 
 	return function() {
-		var utterancePrior = possiblePriors(":" + base_utterance);
+		var utterancePrior = possiblePriors(":" + base_utterance, cost, explanandum);
 		var utterance = utterancePrior();
 
-		// the pragmatic listener interprets this
-		var interpretationERP = listenerERP(utterance, explanandum);
+		// // the pragmatic listener interprets this
+		// var interpretationERP = (
+		// 	utterance == "" ? 
+		// 	literalERP(utterance) :
+		// 	listenerERP(utterance, innerRationalityParam, innerUtterancePriorType)
+		// );
+		var interpretationERP = (
+			(innerUtterancePriorType=="varies") ? 
+			(utterance=="" ? 
+				literalERP(utterance) :
+				listenerERP(utterance, cost, explanandum, innerRationalityParam, "fixed_explanandum")) :
+			listenerERP(utterance, cost, explanandum, innerRationalityParam, innerUtterancePriorType)
+		);
 
 		var projectedInterpretation = QUD ? marginalize(interpretationERP, QUD) : interpretationERP;
 		var projectedObs = QUD ? projectObs(obs, QUD) : obs;
@@ -618,7 +627,7 @@ var s2 = function(base_utterance, explanandum) {
 		// the speaker makes sure that their
 		// observations line up with interpretation
 		var s = matchingFactor(projectedInterpretation, projectedObs);
-		factor(rationalityParam * s);
+		factor(outerRationalityParam * s);
 
 		// and then they say it
 		return utterance;

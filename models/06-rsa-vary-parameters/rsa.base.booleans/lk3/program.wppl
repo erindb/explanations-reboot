@@ -12,7 +12,7 @@ var program = function(input) {
 		A: A,
 		B: B,
 		C: C
-	}
+	};
 };
 
 var input = {

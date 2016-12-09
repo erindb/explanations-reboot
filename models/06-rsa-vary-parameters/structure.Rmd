@@ -62,14 +62,59 @@ Yep.
 
 We have human ratings for some explanations. In each story from L&K, we have two explanations that share an explanans (e.g. "B because A" and "C because A").
 
+```{r}
+# expl = read.csv("explanations-expt-data.csv")
+# expl %>% filter(story=="story1") %>%
+#   mutate(
+#     variable = factor(variable),
+#     utterance = factor(
+#       variable, levels=c("A", "B"),
+#       labels=c("A because A", "B because A"))) %>%
+#   ggplot(., aes(x=utterance, y=rating)) +
+#   geom_point(size=2, colour="white") +
+#   geom_errorbar(aes(ymin=ci.low, ymax=ci.high), width=0, lwd=1, colour="white") +
+#   ylim(0, 1) + theme_black +
+# theme(legend.position="right")
+# ggsave("explanations-results-story1.png", width=5, height=3)
+```
+
+
+```{r, fig.height=5}
+# expl = read.csv("explanations-expt-data.csv")
+# expl %>% mutate(tag = ifelse(tag %in% c("higher", "lower"), "miss", as.character(tag))) %>%
+# ggplot(., aes(x=variable, y=rating, colour=tag)) +
+#   geom_point(size=2) +
+#   geom_errorbar(aes(ymin=ci.low, ymax=ci.high), width=0, lwd=1) +
+#   facet_wrap(~story, scale="free") +
+#   scale_colour_brewer(type="qual", palette = 2) +
+#   ylim(0, 1) + theme_black +
+# theme(legend.position="right")
+# ggsave("explanations-results-tagged.png", width=12, height=8)
+```
+
+```{r, fig.height=5}
+# expl = read.csv("explanations-expt-data.csv")
+# ggplot(expl, aes(x=variable, y=rating)) +
+#   geom_point(size=2, colour="white") +
+#   geom_errorbar(aes(ymin=ci.low, ymax=ci.high), width=0, lwd=1, colour="white") +
+#   facet_wrap(~story, scale="free") +
+#   ylim(0, 1) + theme_black +
+# theme(legend.position="right")
+# ggsave("explanations-results.png", width=10, height=8)
+```
+
 ```{r, fig.height=5}
 expl = read.csv("explanations-expt-data.csv")
 ggplot(expl, aes(x=variable, y=rating)) +
-  geom_point(colour="#e7298a", size=2) + geom_errorbar(aes(ymin=ci.low, ymax=ci.high), width=0, lwd=1, colour="#e7298a") +
+  geom_point(#colour="white", 
+    size=2) +
+  geom_errorbar(aes(ymin=ci.low, ymax=ci.high), width=0, lwd=1#, colour="white"
+                ) +
+  # geom_point(colour="#e7298a", size=2) + geom_errorbar(aes(ymin=ci.low, ymax=ci.high), width=0, lwd=1, colour="#e7298a") +
   facet_wrap(~story, scale="free") +
   ylim(0, 1) #+ theme_black +
-  #theme(legend.position="right")
-#ggsave("explanations-results.png", width=10, height=8)
+  # theme(legend.position="right")
+# ggsave("explanations-results.png", width=10, height=8)
 ```
 
 This display is a bit difficult to interpret, because each story corresponds to its own causal structure and each is also associated with a specific configuration of what is true of the "actual world". Here's a sketch of the stories that were featured in this experiment:
@@ -578,7 +623,8 @@ rate.expl = function(story.number, variable, actual.value,
     program_file = paste("rsa.base.booleans/lk",
                          story.number,
                          "/autoexpanded.wppl", sep=""),
-    model_var = "function() {return speaker('only_explanations');}",
+    model_var = paste("s2('",
+    utterance, "', '", explanandum, "')", sep=""),
     inference_opts = list(method="enumerate"),
     packages = "./node_modules/jsUtils")
   prob_utterance = rs$prob[rs$support==utterance]
@@ -600,9 +646,9 @@ expl.with.model %>% ggplot(., aes(x=model, y=rating, colour=story)) +
   ylim(0, 1) +
   xlim(0,1) +
   geom_errorbar(aes(ymin=ci.low, ymax=ci.high)) +
-  scale_colour_brewer(type="qual", palette = 2) #+ theme_black +
-#theme(legend.position="right")
-#ggsave("RSA-base.png", width=5, height=3)
+  scale_colour_brewer(type="qual", palette = 2) + theme_black +
+theme(legend.position="right")
+ggsave("RSA-base.png", width=5, height=3)
 # cor.test(expl.with.model$model, expl.with.model$rating)
 ```
 
@@ -1022,16 +1068,76 @@ Turns out most of them are the "A because A" style explanations, which because o
 
 So, let's try S2 where S1 can give any explanation for the explanandum.
 
+So, literally, "A because A" means nothing more than "", but pragmatically, "A because A" implies that other answers to "why A?" are not good.
+
+So I'm considering the pragmatic interpretation of "" to be the same as the literal interpretation of "", and the pragmatic interpretation of "A because A" is listener("A because A") when alternative utterances are "answers to why: A".
+
 ```{r}
-webppl(
-  program_file = "rsa.onelink.booleans/lk1A/autoexpanded.wppl",
-  model_var =
-    paste("s2('A because A', 'A')", sep=""),
-  inference_opts = list(method="enumerate"),
-  packages = "./node_modules/jsUtils"
-)
+# webppl(
+#   program_file = "rsa.onelink.booleans/lk1A/autoexpanded.wppl",
+#   model_var =
+#     paste("s2('A because A', 'A')", sep=""),
+#   inference_opts = list(method="enumerate"),
+#   packages = "./node_modules/jsUtils"
+# )
 ```
 
+```{r}
+rate.expl = function(story.number, variable, actual.value,
+                     premise.variable, premise.value) {
+  explanandum = paste(ifelse(actual.value, "", "! "), variable, sep="")
+  explanans = paste(ifelse(premise.value, "! ", ""), premise.variable, sep="")
+  utterance = paste(explanandum, " because ", explanans, sep="")
+
+  rs = webppl(
+    program_file = paste("rsa.onelink.booleans/lk",
+                         story.number,
+                         variable,
+                         "/autoexpanded.wppl", sep=""),
+    model_var = paste("s2('", utterance, "', '", explanandum, "', 2, 1)", sep=""),
+    # model_var = "literal('A')",
+    inference_opts = list(method="enumerate"),
+    packages = "./node_modules/jsUtils")
+  prob_utterance = rs$prob[rs$support==utterance]
+
+  return(prob_utterance)
+}
+expl.with.model = expl %>%
+  filter(story.number %in% 1:6 & variable %in% c("A", "B", "C", "D")) %>%
+  mutate(model = mapply(rate.expl, story.number, variable,
+                        actual.value, premise.variable, premise.value))
+```
+
+```{r}
+expl.with.model %>%
+  # filter(as.character(variable) != as.character(premise.variable)) %>%
+  ggplot(., aes(x=model, y=rating, colour=story, shape=variable)) +
+  geom_point() +
+  geom_errorbar(aes(ymin=ci.low, ymax=ci.high), width=0) +
+  scale_colour_brewer(type="qual", palette = 2) +
+  ylim(0, 1) +
+  xlim(0,1) +
+  theme(legend.position="right") +
+  ggtitle("yes or no") #+ theme_black
+ggsave("RSA-onelink-yes-or-no-s2-inneralpha2.png", width=10, height=6)
+# ggsave("RSA-onelink-yes-or-no-s2.png", width=10, height=6)
+# cor.test((expl.with.model %>% filter(abs(model-0.5)>0.001))$model, (expl.with.model %>% filter(abs(model-0.5)>0.001))$rating)
+```
+
+```{r}
+expl.with.model %>%
+  # filter(as.character(variable) != as.character(premise.variable)) %>%
+  ggplot(., aes(x=model, y=rating, colour=tag)) +
+  geom_point() +
+  geom_errorbar(aes(ymin=ci.low, ymax=ci.high), width=0) +
+  scale_colour_brewer(type="qual", palette = 2) +
+  ylim(0, 1) +
+  xlim(0,1) +
+  ggtitle("yes or no") + #theme_black +
+#theme(legend.position="right")
+# ggsave("RSA-onelink-yes-or-no-s2-tagged.png", width=10, height=6)
+# cor.test((expl.with.model %>% filter(abs(model-0.5)>0.001))$model, (expl.with.model %>% filter(abs(model-0.5)>0.001))$rating)
+```
 
 ```{r}
 # expl.with.model %>% filter(abs(model-0.5)<0.001) %>%
@@ -1121,12 +1227,33 @@ cf.prob %>%
 
 ```{r}
 cf.prob %>%
+  mutate(tag = ifelse(
+    tag %in% c("higher", "lower"),
+    "miss", as.character(tag))) %>%
   ggplot(., aes(x=model, y=rating, colour=tag)) +
   geom_point() +
   geom_errorbar(aes(ymin=ci.low, ymax=ci.high), width=0) +
   scale_colour_brewer(type="qual", palette = 2) +
   ylim(0,1) +
   xlim(0,1) +
-  ggtitle("CF.prob")
+  ylab("explanation rating") +
+  xlab("transformed CF prob response") + theme_black +
+  theme(legend.position="right")
+  ggsave("cfprob-tagged.png", width=5, height=3)
 ```
+
+```{r}
+cf.prob %>%
+  ggplot(., aes(x=model, y=rating)) +
+  geom_point(colour="white") +
+  geom_errorbar(aes(ymin=ci.low, ymax=ci.high), width=0, colour="white") +
+  scale_colour_brewer(type="qual", palette = 2) +
+  ylim(0,1) +
+  xlim(0,1) +
+  ylab("explanation rating") +
+  xlab("transformed CF prob response") + theme_black +
+  theme(legend.position="right")
+  ggsave("cfprob.png", width=4, height=3)
+```
+
 

@@ -1,0 +1,338 @@
+---
+title: "Lab Meeting Graphs"
+author: "Erin"
+output: 
+html_document:
+toc: false
+---
+
+```{r global_options, include=FALSE}
+rm(list=ls())
+knitr::opts_chunk$set(echo=F, warning=F, cache=T, message=F, sanitiz =T, fig.width = 5, fig.height = 3)
+```
+
+# Load stuff
+
+```{r load_settings}
+source("~/Settings/startup.R")
+library(reshape2)
+theme.new = theme_set(theme_bw(12))
+```
+
+```{r load_expt_explanation_data}
+expl = read.csv("explanations-expt-data.csv") %>%
+  mutate(directional.tag = tag,
+         tag = ifelse(tag %in% c("higher", "lower"),
+                      "miss", as.character(tag)))
+```
+
+```{r load_expt_cf_data}
+cf.expt.data = cbind(read.csv("cf-experiment-data.csv") %>%
+  mutate(source = factor(source, levels=c("replication human", "lk human"), labels=c("cf.replication", "cf.original"))) %>%
+  select(story, variable, source, rating) %>%
+  spread(source, rating) %>%
+  mutate(story.matcher = ifelse(story%in%c("story3a", "story3b"), "story3", as.character(story))),
+  read.csv("cf-experiment-data.csv")$ci.low,
+  read.csv("cf-experiment-data.csv")$ci.high) %>%
+  rename(replication.low = `read.csv("cf-experiment-data.csv")$ci.low`,
+         replication.high = `read.csv("cf-experiment-data.csv")$ci.high`)
+cf.model = read.csv("lk-model-data-numbers.csv") %>%
+  rename(model = rating) %>%
+  mutate(story.matcher = paste("story", story, sep="")) %>%
+  select(-story)
+cf.model.data = merge(cf.model, cf.expt.data, by=c("story.matcher", "variable"))
+all.data = merge(
+  (expl %>% mutate(explanation.rating = rating,
+                   explanation.high = ci.high,
+                   explanation.low = ci.low)),
+  cf.model.data,
+  by=c("story", "variable", "premise.variable",
+       "premise.value", "actual.value")) %>%
+  select(-X.x, -X.y, -rating,
+         -ci.high, -ci.low, -story.number)
+cf.replication.data = read.csv("cf-experiment-data.csv") %>%
+  mutate(source = factor(source, levels=c("replication human", "lk human"), labels=c("replication", "original"))) %>%
+  select(story, variable, source, rating) %>%
+  spread(source, rating)
+cf.data = read.csv("cf-experiment-data.csv") %>%
+  filter(source == "replication human") %>%
+  mutate(story.matcher = ifelse(story %in% c("story3a", "story3b"),
+                 "story3", as.character(story))) %>%
+  rename(replication = rating)
+cf.model.data = merge(cf.data, cf.model, by=c("variable", "story.matcher")) %>% select(-X.x, -X.y, source)
+cf.expl = merge(cf.model.data, expl,
+                by=c("story", "variable", "premise.variable",
+                     "premise.value", "actual.value")) %>%
+  rename(explanation.rating = rating,
+         explanation.high = ci.high.y,
+         explanation.low = ci.low.y,
+         cf.rating = replication,
+         cf.high = ci.high.x,
+         cf.low = ci.low.x,
+         cf.model = model) %>%
+  mutate(cf.model.of.expl = ifelse(actual.value,
+                                   1-cf.model, cf.model),
+         empirical.cf.model.of.expl = ifelse(actual.value,
+                                             1-cf.rating,
+                                             cf.rating),
+         cf.model.high = ifelse(actual.value,
+                                1-cf.high, cf.high),
+         cf.model.low = ifelse(actual.value,
+                               1-cf.low, cf.high))
+```
+
+# Plot counterfactuals experiment
+
+```{r plot_replication_closeness}
+r = round(cor(cf.replication.data$replication, cf.replication.data$original), 2)
+cf.replication.data %>%
+  ggplot(., aes(original, replication)) +
+  geom_point(colour="white") +
+  # annotate(geom="text", label=paste("r=", r, sep=""), colour="white", y=0.9, x=0.1) +
+  theme_black +
+  theme(legend.position="right")
+  ggsave("lab-meeting-graphs/cf-replication-closeness.png", width=4, height=3)
+```
+
+```{r plot_replication_closeness_stories}
+r = round(cor(cf.replication.data$replication, cf.replication.data$original), 2)
+cf.replication.data %>%
+  ggplot(., aes(original, replication, colour=story,
+                shape=variable)) +
+  geom_point(size=4) +
+  # annotate(geom="text", label=paste("r=", r, sep=""), colour="white", y=0.9, x=0.1) +
+  theme_black +
+  scale_colour_brewer(type="qual", palette = 2)
+  ggsave("lab-meeting-graphs/cf-replication-closeness-stories.png", width=7, height=4.25)
+```
+
+```{r plot_orig_cf_model_data}
+r = round(cor(all.data$model, all.data$cf.original), 2)
+all.data %>%
+  ggplot(., aes(model, cf.original)) +
+  geom_point(colour="white") +
+  # annotate(geom="text", label=paste("r=", r, sep=""), colour="white", y=0.9, x=0.1) +
+  # geom_errorbarh(aes(xmin=ci.low, xmax=ci.high), height=0, colour="white") +
+  theme_black +
+  xlab("model") +
+  ylab("original data") +
+  theme(legend.position="right")
+  ggsave("lab-meeting-graphs/cfdata-original.png", width=4, height=3)
+```
+
+```{r plot_orig_cf_model_data_stories}
+r = round(cor(all.data$model, all.data$cf.original), 2)
+all.data %>%
+  ggplot(., aes(model, cf.original, colour=story,
+                shape=variable)) + 
+  geom_point(size=4) +
+  # annotate(geom="text", label=paste("r=", r, sep=""), colour="white", y=0.9, x=0.1) +
+  # geom_errorbarh(aes(xmin=ci.low, xmax=ci.high), height=0, colour="white") +
+  theme_black +
+  xlab("model") +
+  ylab("original data") +
+  scale_colour_brewer(type="qual", palette = 2)
+  ggsave("lab-meeting-graphs/cfdata-original-stories.png", width=7, height=4.25)
+```
+
+```{r plot_cf_model_data}
+r = round(cor(all.data$model, all.data$cf.replication), 2)
+all.data %>%
+  ggplot(., aes(model, cf.replication)) +
+  geom_point(colour="white") +
+  # annotate(geom="text", label=paste("r=", r, sep=""), colour="white", y=0.9, x=0.1) +
+  # geom_errorbarh(aes(xmin=ci.low, xmax=ci.high), height=0, colour="white") +
+  theme_black +
+  ylab("replication data") +
+  theme(legend.position="right")
+  ggsave("lab-meeting-graphs/cfdata-replication.png", width=4, height=3)
+```
+
+```{r plot_cf_model_data_stories}
+r = round(cor(all.data$model, all.data$cf.replication), 2)
+all.data %>%
+  ggplot(., aes(model, cf.replication, colour=story, shape=variable)) +
+  geom_point(size=4) +
+  # annotate(geom="text", label=paste("r=", r, sep=""), colour="white", y=0.9, x=0.1) +
+  # geom_errorbarh(aes(xmin=ci.low, xmax=ci.high), height=0, colour="white") +
+  theme_black +
+  ylab("replication data") +
+  theme(legend.position="right") +
+  scale_colour_brewer(type="qual", palette = 2)
+  ggsave("lab-meeting-graphs/cfdata-replication-stories.png", width=7, height=4.25)
+```
+
+# Plot CF prob vs Explanations
+
+```{r plot_cf_prob}
+r = round(cor(cf.expl$cf.model.of.expl, cf.expl$explanation.rating), 2)
+cf.expl %>%
+  ggplot(., aes(x=cf.model.of.expl, y=explanation.rating)) +
+  geom_point(colour="white") +
+  # annotate(geom="text", label=paste("r=", r, sep=""),
+           # colour="white", x=0.1, y=0.9) +
+  geom_errorbar(aes(ymin=explanation.low, ymax=explanation.high), width=0, colour="white") +
+  scale_colour_brewer(type="qual", palette = 2) +
+  ylim(0,1.001) +
+  xlim(0,1.001) +
+  ylab("explanation rating") +
+  xlab("model CF prob") + theme_black +
+  theme(legend.position="right")
+  ggsave("lab-meeting-graphs/cfprob.png", width=4, height=3)
+```
+
+```{r plot_cf_prob_stories}
+r = round(cor(cf.expl$cf.model.of.expl, cf.expl$explanation.rating), 2)
+cf.expl %>%
+  ggplot(., aes(x=cf.model.of.expl, y=explanation.rating,
+                colour=story, shape=variable)) +
+  geom_point(size=4) +
+  # annotate(geom="text", label=paste("r=", r, sep=""),
+           # colour="white", x=0.1, y=0.9) +
+  geom_errorbar(aes(ymin=explanation.low, ymax=explanation.high), width=0) +
+  scale_colour_brewer(type="qual", palette = 2) +
+  ylim(0,1.001) +
+  xlim(0,1.001) +
+  ylab("explanation rating") +
+  xlab("model CF prob") + theme_black +
+  theme(legend.position="right")
+  ggsave("lab-meeting-graphs/cfprob-stories.png", width=7.5, height=4.25)
+```
+
+```{r plot_cf_prob_tagged}
+cf.expl %>%
+  ggplot(., aes(x=cf.model.of.expl, y=explanation.rating, colour=tag)) +
+  geom_point() +
+  geom_errorbar(aes(ymin=explanation.low, ymax=explanation.high), width=0) +
+  scale_colour_brewer(type="qual", palette = 2) +
+  ylim(-0.001,1.001) +
+  xlim(-0.001,1.001) +
+  ylab("explanation rating") +
+  xlab("CF prob") + theme_black +
+  theme(legend.position="right")
+  ggsave("lab-meeting-graphs/cfprob-tagged.png", width=5, height=3)
+```
+
+```{r plot_empirical_cf_prob}
+r = round(cor(cf.expl$empirical.cf.model.of.expl, cf.expl$explanation.rating), 2)
+cf.expl %>%
+  ggplot(., aes(x=empirical.cf.model.of.expl, y=explanation.rating)) +
+  geom_point(colour="white") +
+  # annotate(geom="text", label=paste("r=", r, sep=""),
+  #          colour="white", x=0.1, y=0.9) +
+  geom_errorbarh(aes(y=explanation.rating,
+                     xmin=cf.model.low, xmax=cf.model.high), height=0, colour="white") +
+  geom_errorbar(aes(ymin=explanation.low, ymax=explanation.high), width=0, colour="white") +
+  scale_colour_brewer(type="qual", palette = 2) +
+  ylim(0,1) +
+  xlim(0,1) +
+  ylab("explanation rating") +
+  xlab("empirical CF prob") + theme_black +
+  theme(legend.position="right")
+  ggsave("lab-meeting-graphs/cfprob-empirical.png", width=4, height=3)
+```
+  
+```{r plot_empirical_cf_prob_story}
+r = round(cor(cf.expl$empirical.cf.model.of.expl, cf.expl$explanation.rating), 2)
+cf.expl %>%
+  ggplot(., aes(x=empirical.cf.model.of.expl, y=explanation.rating,
+                colour=story, shape=variable)) +
+  geom_point(size=4) +
+  # annotate(geom="text", label=paste("r=", r, sep=""),
+  #          colour="white", x=0.1, y=0.9) +
+  geom_errorbarh(aes(y=explanation.rating,
+                     xmin=cf.model.low, xmax=cf.model.high), height=0) +
+  geom_errorbar(aes(ymin=explanation.low, ymax=explanation.high), width=0) +
+  scale_colour_brewer(type="qual", palette = 2) +
+  ylim(0,1) +
+  xlim(0,1) +
+  ylab("explanation rating") +
+  xlab("empirical CF prob") + theme_black +
+  theme(legend.position="right")
+  ggsave("lab-meeting-graphs/cfprob-empirical-stories.png", width=7, height=4.25)
+```
+  
+```{r plot_empirical_cf_prob_tagged}
+cf.expl %>%
+  ggplot(., aes(x=empirical.cf.model.of.expl, y=explanation.rating, colour=tag)) +
+  geom_point() +
+  geom_errorbarh(aes(y=explanation.rating,
+                     xmin=cf.model.low, xmax=cf.model.high), height=0) +
+  geom_errorbar(aes(ymin=explanation.low, ymax=explanation.high), width=0) +
+  scale_colour_brewer(type="qual", palette = 2) +
+  ylim(0,1) +
+  xlim(0,1) +
+  ylab("explanation rating") +
+  xlab("empirical CF prob") + theme_black +
+  theme(legend.position="right")
+  ggsave("lab-meeting-graphs/cfprob-empirical-tagged.png", width=5, height=3)
+```
+
+# Plot RSA base explanations model
+
+```{r}
+
+```
+
+```{r lk1_base}
+rs = webppl(
+  program_file = "rsa.base.booleans/lk1/autoexpanded.wppl",
+  inference_opts = list(method="enumerate"),
+  model_var = "function() {return sample(speakerERP(':A because A', 1));}",
+  # model_var = "s2('A because A', 1, 'A', 'all_alternatives')",
+  packages = "./node_modules/jsUtils"
+)
+rs
+```
+
+```{r lk1_onelink}
+rs = webppl(
+  # program_file = "rsa.base.booleans/lk1/autoexpanded.wppl",
+  program_file = "rsa.onelink.booleans/lk1A/autoexpanded.wppl",
+  inference_opts = list(method="enumerate"),
+  # model_var = "function() {return sample(speakerERP(':A because A', 1));}",
+  model_var = "s2('A because A', 0, 'A', 'varies')",
+  packages = "./node_modules/jsUtils"
+)
+rs
+```
+
+
+# Plot explanations data
+
+```{r plot_expt_results_story1}
+expl %>% filter(story=="story1") %>%
+  mutate(
+    variable = factor(variable),
+    utterance = factor(
+      variable, levels=c("A", "B"),
+      labels=c("A because A", "B because A"))) %>%
+  ggplot(., aes(x=utterance, y=rating)) +
+  geom_point(size=2, colour="white") +
+  geom_errorbar(aes(ymin=ci.low, ymax=ci.high), width=0, lwd=1, colour="white") +
+  ylim(0, 1) + theme_black +
+theme(legend.position="right")
+ggsave("lab-meeting-graphs/explanations-results-story1.png", width=5, height=3)
+```
+
+```{r plot_expt_results_tagged}
+expl %>% 
+  ggplot(., aes(x=variable, y=rating, colour=tag)) +
+  geom_point(size=2) +
+  geom_errorbar(aes(ymin=ci.low, ymax=ci.high), width=0, lwd=1) +
+  facet_wrap(~story, scale="free") +
+  scale_colour_brewer(type="qual", palette = 2) +
+  ylim(0, 1) + theme_black +
+  theme(legend.position="right")
+ggsave("lab-meeting-graphs/explanations-results-tagged.png", width=12, height=8)
+```
+
+```{r plot_expt_results}
+ggplot(expl, aes(x=variable, y=rating)) +
+  geom_point(size=2, colour="white") +
+  geom_errorbar(aes(ymin=ci.low, ymax=ci.high), width=0, lwd=1, colour="white") +
+  facet_wrap(~story, scale="free") +
+  ylim(0, 1) + theme_black +
+theme(legend.position="right")
+ggsave("lab-meeting-graphs/explanations-results.png", width=10, height=8)
+```
