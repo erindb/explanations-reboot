@@ -689,7 +689,7 @@ function make_slides(f) {
 function init() {
   repeatWorker = false;
   (function(){
-      var ut_id = "explanations-exp4-lk-rep-counterfactuals";
+      var ut_id = "erindb-explanations-exp1-explanation-rating-elicitation";
       if (UTWorkerLimitReached(ut_id)) {
         $('.slide').empty();
         repeatWorker = true;
