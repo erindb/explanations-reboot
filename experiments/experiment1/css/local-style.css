@@ -1,0 +1,26 @@
+.slider {
+  /* default is width 400 and margin 10 */
+	width: 400;
+	margin: 10px;
+}
+
+.slide {
+	border-color: white;
+	width: 700px;
+}
+
+#instruct-text, #legal {
+	text-align: left;
+	width: 600px;
+	margin: 20 auto 20 auto;
+}
+
+.story, .story_intro {
+    text-align: left;
+    width: 700px;
+    margin: auto;
+}
+
+.story_intro {
+	margin-bottom: 10px;
+}
