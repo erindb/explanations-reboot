@@ -68,7 +68,7 @@ This is a component that I hypothesize will make a big difference. If there is n
 
 ### Semantics $[[u]]$
 
-"A because B" could mean 
+"A because B" definitely means that counterfactually, if !B then !A. But from this utterance, one can usually infer that both A and B are also true. So is "A" part of the semanatic meaning of "A because B"? Is "B"? Or are those propositions inferred pragmatically? Might there be lexical uncertainty about this at the $L_1$ and $S_2$ levels? Certian kinds of projection seem possible, indicating that these might be presuppositions. (Hence the inclusion of inferrable common ground in the model.)
 
 ### Utterance prior $Pr(u)$
 
@@ -171,7 +171,19 @@ Equal probability for each possible meaning of "because".
 
 Equal probability for wanting to know each of the observable state variables and structural variables.
 
+The QUD seems more likely to be about causal structure when an explanation utterance is used, even when the explanation is tautological (e.g. "A because A"). Is this a lexical effect or a pragmatic one?
+
 ### CG Prior $Pr(CG)$
+
+First think to try:
+
+Uniform([True, A, B, A and B])
+
+This probably leads to the presupposition that A is true if the meaning of "B because A" is "B and if !A then !B"
+
+When does hearing an explanation trigger some background knowledge?
+
+Next thing to try:
 
 $$\begin{align*}
 Pr(CG) &\propto \sum_w P(CG | w) \cdot Pr(w) \\
@@ -180,6 +192,41 @@ Pr(CG) &\propto \sum_w P(CG | w) \cdot Pr(w) \\
          
 where $cg$ is a parameter that specifies the probability of any observation independently entering the common ground. In @qing_rational_2016, this parameter was set to 0.4. I think.
 This parameter will be set to 0.4 initially and fit to the data in later work.
+
+## Summary
+
+* World Prior (2)
+* Semantics (4)
+    - !A $\rightarrow$ !B only
+    - +A
+    - +B
+    - +A+B
+* Utterance Prior (2)
+    - yes/no
+    - max
+* Utterance Cost (3)
+    - 0
+    - {0, 1}
+    - [0, 1]
+* Rationality Parameters (1)
+* Lexical Prior (2)
+    - fixed
+    - $Pr(\mathcal{L})$
+* QUD (2)
+    - fixed at $\mathcal{Q}_{max}$
+    - $Pr(\mathcal{Q})$
+* CG Prior (3)
+    - fixed at {}
+    - $Uniform(\mathscr{p})$
+    - $Pr(CG)$
+
+1. basic RSA (with causal uncertainty and entailments)
+    * World Prior (2) X Semantics (4)
+
+2. presuppositions
+    * World Prior (2) X Semantics (3) X CG Prior (uniform) X Utterance Prior (2)
+    
+Make sure to have full writeups, clean implementation, and excellent error analysis.
 
 ## References
 
