@@ -1,0 +1,334 @@
+---
+title: "Explanations Ratings"
+author: "Erin"
+output: 
+html_document:
+toc: false
+---
+
+```{r global_options, include=FALSE}
+rm(list=ls())
+knitr::opts_chunk$set(
+  echo=F, warning=F, #cache=T, 
+  message=F, #sanitiz =T, 
+  fig.width = 5, fig.height = 3)
+```
+
+```{r load_settings}
+source("~/Settings/startup.R")
+```
+
+```{r load_data}
+all_data = read.csv('../../data/experiment1-production-anonymized-results.csv') %>%
+  mutate(explanation = char(explanation),
+         workerid = factor(workerid))
+demographics = all_data %>% group_by(workerid) %>%
+  summarise(language=language[1],
+            enjoyment=enjoyment[1],
+            gender=gender[1],
+            age=age[1],
+            education=education[1],
+            comments=comments[1],
+            assess=assess[1],
+            time_in_minutes=time_in_minutes[1]) %>%
+  as.data.frame %>%
+  mutate(language = char(language),
+         enjoyment = factor(
+           enjoyment,
+           levels=c(-1, 0, 1, 2),
+           labels=c("no response", "bad", "average", "good")),
+         education = factor(
+           education,
+           levels=c(-1, 0, 1, 2, 3, 4),
+           labels=c("no response",
+                    "some high school",
+                    "graduated high school",
+                    "some college",
+                    "graduated college",
+                    "hold a higher degree"))
+  )
+parseExpl = function(explanationVector, variable) {
+  newVector = sapply(explanationVector, function(expl) {
+    words = strsplit(expl, " ")[[1]]
+    elements = list()
+    elements["explanandumVariable"] = words[1]
+    elements["explanandumValue"] = words[3]=="present"
+    becauseIndex = which(words=="because")
+    elements["explanansVariable"] = words[becauseIndex+1]
+    elements["explanansValue"] = words[becauseIndex+3]=="present"
+    return(elements[[variable]])
+  })
+  return(unname(newVector))
+}
+df = all_data %>%
+  # not a language experiment per se. I think... (?)
+  # filter(language %in% c("English", "english", "ENGLIGH",
+  #                        "eng", "ENG", "Eng")) %>%
+  mutate(explanansVariable = factor(parseExpl(explanation,
+                                       "explanansVariable")),
+         explanansValue = parseExpl(explanation, 
+                                    "explanansValue"),
+         explanandumVariable = factor(parseExpl(explanation,
+                                         "explanandumVariable")),
+         explanandumValue = parseExpl(explanation,
+                                      "explanandumValue")) %>%
+  select(workerid, story, explanansVariable, explanansValue,
+         explanandumVariable, explanandumValue, response) %>%
+  mutate(story = factor(
+    story,
+    levels=c("story1", "story2", "story3b",
+             "story4", "story5", "story6"),
+    labels=c("story1", "story2", "story3",
+             "story4", "story5", "story6"))) %>%
+  mutate(
+    utterance = paste(
+    ifelse(explanandumValue, "", "! "),
+    explanandumVariable,
+    " because ",
+    ifelse(explanansValue, "", "! "),
+    explanansVariable,
+    sep=""))
+aggr_df = df %>%
+  group_by(story, explanandumVariable,
+           explanansVariable, utterance) %>%
+  summarise(
+    low = ci.low(response),
+    high = ci.high(response),
+    mean_response = mean(response)) %>%
+  as.data.frame()
+```
+
+```{r save_and_load_data}
+write.csv(
+  df,
+  "../../data/full-explanations-elicitation-parsed-data.csv",
+  row.names=F)
+write.csv(
+  aggr_df,
+  "../../data/full-explananations-elicitation-aggregate-data.csv",
+  row.names=F)
+```
+
+
+```{r save_and_load_design}
+# df %>% filter(workerid==1) %>%
+#   select(story, explanansVariable, explanansValue,
+#          explanandumVariable, explanandumValue) %>%
+#   write.csv("../../data/full-explananations-elicitation-design.csv", row.names = F)
+design = read.csv("../../data/full-explananations-elicitation-design.csv")
+```
+
+## Ratings Results Overview
+
+```{r observe_data}
+plot_data_for_story = function(storylabel) {
+  aggr_df %>% filter(story==storylabel) %>%
+    ggplot(.,
+           aes(x=explanansVariable,
+               y=mean_response,
+               group=explanandumVariable)) +
+    geom_point() +
+    geom_errorbar(
+      aes(x=explanansVariable,
+          ymin=low, ymax=high,
+          group=explanandumVariable),
+      width = 0) +
+    geom_line() +
+    xlab("Explanans") +
+    ylab("rating") +
+    ylim(0, 1) +
+    facet_grid(~explanandumVariable)
+}
+```
+
+```{r, fig.width=3, fig.height=2}
+plot_data_for_story("story1")
+knitr::include_graphics("lkstories-graphs/story1.png")
+```
+
+```{r, fig.width=3, fig.height=2}
+plot_data_for_story("story2")
+knitr::include_graphics("lkstories-graphs/story2.png")
+```
+
+```{r, fig.width=3, fig.height=2}
+plot_data_for_story("story3")
+knitr::include_graphics("lkstories-graphs/story3.png")
+```
+
+```{r, fig.width=3, fig.height=2}
+plot_data_for_story("story4")
+knitr::include_graphics("lkstories-graphs/story4.png")
+```
+
+```{r, fig.width=3, fig.height=2}
+plot_data_for_story("story5")
+knitr::include_graphics("lkstories-graphs/story5.png")
+```
+
+```{r, fig.width=3, fig.height=2}
+plot_data_for_story("story6")
+knitr::include_graphics("lkstories-graphs/story6.png")
+```
+
+## Model comparison
+
+```{r run_models}
+# setwd("models")
+# source("run_models.R")
+# setwd("..")
+```
+
+```{r load_model_results}
+model_results = rbind(
+  read.csv("models/model_results/cf_base.csv"),
+  read.csv("models/model_results/cf_onelink.csv"),
+  read.csv("models/model_results/rsa_base.csv"),
+  read.csv("models/model_results/rsa_onelink.csv")) %>%
+  mutate(entailmentType = factor(entailmentType)) %>%
+  rename(model_rating = rating)
+```
+
+### Raw counterfactual probability
+
+```{r compare_cf_model_to_data}
+cf_comparison = model_results %>%
+  filter(model == "cf" & uncertainty == "state_only") %>%
+  merge(., df)
+cf_r = with(cf_comparison, cor(model_rating, response))
+cf_r_filtered = with(
+  cf_comparison %>% filter(explanandumVariable != explanansVariable), cor(model_rating, response))
+aggr_cf_comparison = model_results %>%
+  filter(model == "cf" & uncertainty == "state_only") %>%
+  merge(., aggr_df)
+aggr_cf_comparison %>%
+  ggplot(., aes(x=model_rating,
+                y=mean_response)) +
+  geom_point(colour = "white") +
+  geom_errorbar(aes(x=model_rating,
+                    ymin=low,
+                    ymax=high), width=0, colour = "white") +
+  theme_black
+ggsave("cfprob.png", width = 4, height=3)
+aggr_cf_comparison %>%
+  ggplot(., aes(x=model_rating,
+                y=mean_response,
+                colour=explanandumVariable,
+                shape=explanansVariable)) +
+  geom_point() +
+  geom_errorbar(aes(x=model_rating,
+                    ymin=low,
+                    ymax=high), width=0) +
+  # geom_text(aes(label = utterance)) +
+  facet_wrap(~story) +
+  scale_colour_brewer(type="qual", palette = 2)
+print(cf_r)
+```
+
+### RSA with state uncertainty only
+
+```{r compare_rsa_model_to_data}
+rsa_comparison = model_results %>%
+  filter(model == "rsa" &
+           uncertainty == "state_only") %>%
+  merge(., df)
+rsa_r = with(rsa_comparison, cor(model_rating, response))
+rsa_r_filtered = with(
+  rsa_comparison %>% filter(explanandumVariable != explanansVariable), cor(model_rating, response))
+aggr_rsa_comparison = model_results %>%
+  filter(model == "rsa" & uncertainty == "state_only") %>%
+  merge(., aggr_df)
+aggr_rsa_comparison %>%
+  ggplot(., aes(x=model_rating,
+                y=mean_response)) +
+  geom_point(colour = "white") +
+  geom_errorbar(aes(x=model_rating,
+                    ymin=low,
+                    ymax=high), width=0, colour = "white") +
+  theme_black
+ggsave("rsa_base.png", width = 4, height=3)
+
+aggr_rsa_comparison %>%
+  ggplot(., aes(x=model_rating,
+                y=mean_response,
+                colour=explanandumVariable,
+                shape=explanansVariable)) +
+  geom_point() +
+  geom_errorbar(aes(x=model_rating,
+                    ymin=low,
+                    ymax=high), width=0) +
+  # geom_text(aes(label = utterance)) +
+  facet_wrap(~story) +
+  scale_colour_brewer(type="qual", palette = 2)
+print(rsa_r)
+```
+
+### RSA with causal uncertainty
+
+```{r compare_rsa_model_to_data_causal_uncertainty}
+rsa_comparison_causal_uncertainty = model_results %>%
+  filter(model == "rsa" &
+           uncertainty == "causal") %>%
+  merge(., df)
+rsa_r_causal_uncertainty = with(
+  rsa_comparison_causal_uncertainty,
+  cor(model_rating, response))
+rsa_r_causal_uncertainty_filtered = with(
+  rsa_comparison_causal_uncertainty %>% filter(explanandumVariable != explanansVariable), cor(model_rating, response))
+aggr_rsa_comparison_causal_uncertainty = model_results %>%
+  filter(model == "rsa" & uncertainty == "causal") %>%
+  merge(., aggr_df)
+aggr_rsa_comparison_causal_uncertainty %>%
+  ggplot(., aes(x=model_rating,
+                y=mean_response)) +
+  geom_point(colour="white") +
+  geom_errorbar(aes(x=model_rating,
+                    ymin=low,
+                    ymax=high), width=0, colour="white") +
+  theme_black
+
+ggsave("explanations-aggr.png")
+
+aggr_rsa_comparison_causal_uncertainty %>%
+  ggplot(., aes(x=model_rating,
+                y=mean_response,
+                colour=explanandumVariable,
+                shape=explanansVariable)) +
+  geom_point() +
+  geom_errorbar(aes(x=model_rating,
+                    ymin=low,
+                    ymax=high), width=0) +
+  # geom_text(aes(label = utterance)) +
+  facet_wrap(~story) +
+  scale_colour_brewer(type="qual", palette = 2) +
+  theme_black
+print(rsa_r_causal_uncertainty)
+
+ggsave("explanations.png")
+```
+
+## Participants
+
+### Demographics
+
+```{r observe_demographics, fig.width=2.5, fig.height=1.5}
+demographics %>% ggplot(., aes(x=age)) +
+  geom_histogram(binwidth = 1) +xlab("Age")
+demographics %>%
+  ggplot(., aes(x=time_in_minutes)) +
+  geom_histogram(binwidth = 1) +
+  xlab("Time in Minutes")
+demographics %>% ggplot(., aes(x=assess)) +
+  geom_bar() +xlab("Followed directions?")
+demographics %>% ggplot(., aes(x=enjoyment)) +
+  geom_bar() +xlab("Enjoyment")
+demographics %>% ggplot(., aes(x=language)) +
+  geom_bar() +xlab("Language")
+```
+
+### Comments
+
+```{r observe_comments}
+print(demographics$comments)
+print(mean(demographics$time_in_minutes))
+```

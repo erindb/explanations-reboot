@@ -1,0 +1,26 @@
+var program = function(input) {
+
+	var A = input.A;
+	var B = input.B;
+
+	var ac = true;
+	var bc = input.bc;
+
+	var C = (A && ac) ? true : (B && bc);
+	var D = C;
+
+	return {
+		A: A,
+		B: B,
+		C: C,
+		D: D
+	};
+};
+
+var input = {
+	A: true,
+	B: true,
+	bc: true
+};
+
+program(input);
