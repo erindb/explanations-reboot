@@ -1,0 +1,79 @@
+---
+title: "On Utterance Priors and Tautologies"
+output: html_document
+bibliography: bibliography.bib
+---
+
+```{r global_options, include=FALSE}
+rm(list=ls())
+knitr::opts_chunk$set(
+  echo=F, warning=F, #cache=T, 
+  message=F, #sanitiz =T, 
+  fig.width = 5, fig.height = 3)
+```
+
+```{r load_settings}
+source("~/Settings/startup.R")
+```
+
+For the generics model [@tessler_pragmatic_2016], the alternative utterances considered by both $S_1$ and $S_2$ were the generic utterance and a null utterance: $\{KF, null\}$. No larger sets of alternatives were ever used (though different kinds of negation were tried as alternatives to *null* and yielded similar results). The costs of the two utterances utterances were held equal to each other for both $S_1$ and $S_2$. However, their inferred optimality parameter $\lambda_1$ for $S_1$ was less than 1, suggesting that the generic utterance was probably considered more costly than the null utterance by the $S_1$ speaker. Despite this, for the sake of simplicity they used only two parameters, $\lambda_1$ and $\lambda_2$ for their model.
+
+This choice of alternative utterances followed the design of [@degen_lost_2014], where they showed that an $S_1$ or $S_2$ model with two equally costly alternative utterances predicts truth value judgements quite well.
+
+For the explanations model, we had to consider whether other alternative utterances might be considered.
+
+One example where we might intuitively think that other alternatives should be included in the model is in the case of a tautological explanation, e.g. "A because A". This explanation is trivially "true" in some sense, and so should convey no more meaning than the null utterance. But instead, it seems helpfully informative in some contexts (e.g. where there are no other known causes of A), and misleading in other contexts (e.g. where there is some known cause B of A such that the speaker could have truthfully said "A because B"). 
+
+Empirically, people do indeed have strong intuitions about the interpretation of tautological explanations of the form "A because A", and these interpretations vary depending on the actual causal structure.
+
+```{r}
+dodge = position_dodge(.5)
+df = read.csv("../data/full-explananations-elicitation-aggregate-data.csv")
+df %>% filter(explanansVariable==explanandumVariable) %>%
+  ggplot(aes(x=story, y=mean_response, shape=explanansVariable)) +
+  geom_point(position=dodge) +
+  geom_errorbar(aes(x=story, ymin=low, ymax=high),
+                width=0, position=dodge) +
+  ylim(0,1)
+```
+
+Interestingly, plotting the data this way, it looks like the tautoligical explanation is never actually dispreferred to the null utterance. The lowest rating is smack on the 0.5 line.
+
+Maybe there's a tradeoff: when there are some salient known causes of A, "A because A" implies no known causes of A (misinformation), but it also implies "A" (true information). Maybe these two things cancel each other out and so the utterance is of equal utility with the null utterance.
+
+Or maybe "A because A" is only informative in some contexts. In other contexts, it conveys no information.
+
+So my question is, could this dissociation plausibly arise without giving $S_1$ other explanations as alternative utterances? Maybe there's background knowledge that's inferrable from "A because A"?
+
+If "A because A" has *no* alternative utterances other than the null utterance and its meaning is simply "!A $\rightarrow$ !A", then the two utterances have the same literal meaning. Leon proved that no implicature can take place in such a situation [@bergen_pragmatic_2014].
+
+If "A because A" has no alternative utterances except the null utterance and its meaning is "A and !A $\rightarrow$ !A", then it should be interpreted identically to "A", since those have the same literal meaning. That doesn't seem to be the case. (The explanans/explanandum in our data is *always true*, so that proposition on its own should be rating about as high as its prior probability is low. Not the case.)
+
+If "A because A" has no alternatives and its meaning is ambiguous between "A", "!A $\rightarrow$ !A", and both, I don't know what would happen, but I think it would make no difference.
+
+I really think that introducing an alternative explanation, or at least "A" by itself, would be necessary to break the symmetry between the null utterance and the tautology.
+
+If we did have such alternatives, I believe they would be only at the $S_1$ level.
+
+I suspect that there's also some inference about the QUD at play. "A because A" indicates that the QUD is "Why A?" and the speaker has no answer.
+It's like saying "I'm not saying anything!" with a particular QUD in mind.
+
+Can this inference work without alternative utterances besides "A because A" and *null*? I really don't think so. I think this inference still needs "A because B", and for *inferring* the QUD, it would also need "A".
+
+So here are the minimal alternative utterance sets I think are worth considering:
+
+* {*null*, "A because A"}
+* {*null*, "A because A", "A because B"}
+* {*null*, "A", "A because A"}
+* {*null*, "A", "B", "A because A", "A because B"}
+
+It may be that Horn (M) implicatures are at play, in which case there would need to be a cost-per-word variable $c$. If $c \in \{0, 1\}$, this yields 8 possible utterance priors. Alternatively, $c$ could be a continuous parameter fit to the data. An uninformative prior for $c$ would likely be $c \sim Uniform([0, C])$, where $C$ is some constant taken from prior literature. Not sure what it would be.
+
+But what should "B" be in this model? In the RSA onelink model, I introduce uncertainty about a single, directional cause. The variable that is causally upstream of the explanandum in some world will be included in the utterance prior (or, the proposition that expresses its actual state will be) as one possible explanans. The explanandum will be the other possible explanans. No other explanans will be considered.
+
+<!--
+One critical point in answering this question is that Leon showed that Horn implicature *won't happen* when the literal meanings of utterances are actually identical [@bergen_pragmatic_2014]. When the literal meanings *seem* to be identical, lexical uncertainty can break the asymmetry. This lexical uncertainty can take the form of an inferred parameter that affects the literal meaning, like a threshold variable, ambiguity between two or more possible meanings of a word, or background knowledge.
+-->
+
+## References
+

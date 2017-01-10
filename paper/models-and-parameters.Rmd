@@ -1,0 +1,185 @@
+---
+title: "Models and Parameters"
+output: html_document
+bibliography: bibliography.bib
+---
+
+```{r global_options, include=FALSE}
+rm(list=ls())
+knitr::opts_chunk$set(
+  echo=F, warning=F, #cache=T, 
+  message=F, #sanitiz =T, 
+  fig.width = 5, fig.height = 3)
+```
+
+```{r load_settings}
+source("~/Settings/startup.R")
+```
+
+## Speaker Models
+
+### Basic Model Formulation
+
+$$ L_0(w) \propto Pr(w) \cdot \delta_{[[u]](w)} $$
+
+$$ S_1(u | w) \propto
+Pr(u) \cdot L_0(w | u)^{\lambda_1} $$
+
+### Lexical Uncertainty Model
+
+$$ L_0(w\ |\ u,\ \mathcal{L}) \propto
+Pr(w) \cdot \delta_{[[u]](w\ ;\ \mathcal{L})} $$
+
+$$ S_1(u\ |\ w,\ \mathcal{L}) \propto
+Pr(u) \cdot L_0(w\ |\ u,\ \mathcal{L})^{\lambda_1} $$
+
+$$ L_1(w\ |\ u) \propto
+\sum_{\mathcal{L}} Pr(w) \cdot S_1(u\ |\ w,\ \mathcal{L}) \cdot Pr(\mathcal{L}) $$
+
+$$ S_2(u\ |\ w) \propto Pr(u) \cdot L_1(w\ |\ u)^{\lambda_2} $$
+
+### Inferring QUD and/or common ground
+
+$$ L_0(\mathcal{Q}(w)\ |\ u,\mathcal{Q},CG) \propto
+\sum_{w' \in [[u]]} Pr(w') \cdot
+\delta_{\mathcal{Q}(w)=\mathcal{Q}(w')} $$
+
+$$ S_1(u\ |\ w, \mathcal{Q}, CG) \propto
+Pr(u) \cdot L_0(\mathcal{Q}(w)\ |\ u, \mathcal{Q}, CG)^{\lambda_1} $$
+
+$$ L_1(w\ |\ u) \propto
+\sum_{CG} \sum_{\mathcal{Q}} Pr(w) \cdot 
+S_1(u\ |\ w, \mathcal{Q}, CG) \cdot
+Pr(\mathcal{Q}) \cdot Pr(CG)  $$
+
+$$ S_2(u\ |\ w) \propto Pr(u) \cdot L_1(w\ |\ u)^{\lambda_2} $$
+
+## Model Components
+
+### World prior $Pr(w)$
+
+This requires some extension of the actual causal structure to include latent parameters that specify alternative world states *and* alternative causal structures.
+
+This is non-trivial. Doing inference over the full state of possible causal structures would be a form of program induction, which is theoretically possible, but I think intractible for me right now.
+
+A first step is just to toggle the existence of each causal link. If there exists a causal link, take it away and make the previously downstream variable deterministically take its state in the actual world. If there are two or more variables that have no causes in the actual world, we create a new causal link that goes from one variable to the other in either direction. That is, we imagine that counterfactually, they might have been connected to each other in one direction or the other. Newly introduced causal links will be deterministic (downstream variable perfectly matches upstream variable).
+
+This is a component that I hypothesize will make a big difference. If there is no causal parameter with counterfactual values under $Pr(w)$, we will not capture empirical ratings of explanations.
+
+### Semantics $[[u]]$
+
+"A because B" could mean 
+
+### Utterance prior $Pr(u)$
+
+Except in the case of tautologies (see [On Utterance Priors and Tautologies](tautologies.html) for further discussion on this issue), alternative utterances may not matter. The simplest assumption, most consistent with previous literature is that at the top speaker level (either $S_1$ or $S_2$ depending on what parameters are inferred by a listener) there are two utterances, the explanation or a null utterance, and these utterances are equally probable.
+
+$$U_{yes/no} = \{ null,\ A\ because\ A \}$$
+
+and
+
+$$ Pr_{S}(u) = Uniform([U_{yes/no}])$$
+
+Where $Pr_S$ is the prior for the speaker model.
+
+Based on the rationality paramters inferred in @tessler_pragmatic_2016, in the case where we use $S_2$ rather than $S_1$ to predict truth value judgments -- as when there are lifted variables (e.g. semantic variables, QUD, common ground) inferred by the pragmatic listener -- it may be the case that there is a cost-per-word at the level of $S_1$.
+In this case, cost-per-word $c$ would be a free parameter of the model, and this parameter would be fit to the data. Given the cost per word $c$, utterances for this version of $S_1$ would be sampled from the set of possible utterances to softly minimize cost. 
+
+$$ Pr_{S_1}(u) \propto \exp(-c \cdot \# words(u)) $$
+
+and
+
+$$ Pr_{S_2}(u) = Uniform([U_{yes/no}])$$
+
+Initially, the cost parameter $c$ will be set to 0. In later work, we will fit the cost parameter $c$ to the data. For the purpose of Bayesian data analysis, its prior will be Uniform({0, 1}) in the any attempts to fit the data using discrete inference methods. Its prior will later be set to Uniform([0, 1]).
+
+In addition to cost, it is possible that $S_1$ also differs in the alternative utterances available. I speculate that interpreting tautologies (e.g. *A because A*) requires $S_1$ to have available as alternative utterances other possible explanations of A (e.g. *A because B*) and the bare utterance *A*.
+
+Other possible utterance sets (for worlds with 3 boolean variables and the actual utterance *A because B*) include:
+
+$$\begin{align*}
+  U_{components} = \{ &null, \ A, \ B, \ A\ because\ B \} \\
+  U_{other\ variables} = \{ &null,
+  \ A, \ B, \ C,
+  \ !A, \ !B, \ !C, \\
+   &\ A\ because\ A,
+    \ A\ because\ B,
+    \ A\ because\ C,
+    \ A\ because\ !A,
+    \ A\ because\ !B,
+    \ A\ because\ !C \} \\
+  U_{why\ A?} = \{ &null,
+    \ A\ because\ A,
+    \ A\ because\ B,
+    \ A\ because\ C,
+    \ A\ because\ !A,
+    \ A\ because\ !B,
+    \ A\ because\ !C
+    \} \\
+  U_{max} = \{ &null,
+    \ A, \ !A, \ B, \ !B, \ C, \ !C \\
+    &\ A\ because\ A,
+    \ A\ because\ B,
+    \ A\ because\ C,
+    \ A\ because\ !A,
+    \ A\ because\ !B,
+    \ A\ because\ !C, \\
+    &\ B\ because\ A,
+    \ B\ because\ B,
+    \ B\ because\ C,
+    \ B\ because\ !A,
+    \ B\ because\ !B,
+    \ B\ because\ !C, \\
+    &\ C\ because\ A,
+    \ C\ because\ B,
+    \ C\ because\ C,
+    \ C\ because\ !A,
+    \ C\ because\ !B,
+    \ C\ because\ !C \\
+    &\ !A\ because\ A,
+    \ !A\ because\ B,
+    \ !A\ because\ C,
+    \ !A\ because\ !A,
+    \ !A\ because\ !B,
+    \ !A\ because\ !C, \\
+    &\ !B\ because\ A,
+    \ !B\ because\ B,
+    \ !B\ because\ C,
+    \ !B\ because\ !A,
+    \ !B\ because\ !B,
+    \ !B\ because\ !C, \\
+    &\ !C\ because\ A,
+    \ !C\ because\ B,
+    \ !C\ because\ C,
+    \ !C\ because\ !A,
+    \ !C\ because\ !B,
+    \ !C\ because\ !C
+    \}
+  \end{align*}$$
+  
+None of these possible utterance sets depend on the actual world, but all except $U_{max}$ depend on the actual utterance that $S_2$ is given to rate. This worries me, but then again, $U_{yes/no}$ also depends on the utterance given to $S_2$. And that has worked in other RSA models So maybe it's fine.
+
+### Rationality Parameters $\lambda_1$ and $\lambda_2$
+
+Softmax parameters will be set to 1 initially, and fit to the data in later work.
+
+### Lexical Prior $Pr(\mathcal{L})$
+
+Equal probability for each possible meaning of "because".
+
+### QUD Prior $Pr(\mathcal{Q})$
+
+Equal probability for wanting to know each of the observable state variables and structural variables.
+
+### CG Prior $Pr(CG)$
+
+$$\begin{align*}
+Pr(CG) &\propto \sum_w P(CG | w) \cdot Pr(w) \\
+         &=       \sum_w (cg)^{||CG||} \cdot Pr(w)
+\end{align*}$$
+         
+where $cg$ is a parameter that specifies the probability of any observation independently entering the common ground. In @qing_rational_2016, this parameter was set to 0.4. I think.
+This parameter will be set to 0.4 initially and fit to the data in later work.
+
+## References
+
