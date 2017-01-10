@@ -1,0 +1,49 @@
+var program = function(input) {
+
+	var causeROOT = false;
+	var dirROOT = false; // placeholder
+
+	var causeABC = true;
+
+	var abCause = function(a, b, var) {
+		var A = a;
+		var B = A;
+		return {A: A, B: B};
+	};
+	var baCause = function(a, b, var) {
+		var B = b;
+		var A = B;
+		return {A: A, B: B};
+	};
+	var noCause = function(a, b, var) {
+		var A = A;
+		var B = B;
+		return {A: A, B: B};
+	};
+
+	var fn = causeROOT ? (dirROOT ? abCause : baCause) : noCause;
+
+	var valuesAB = fn(input.A, input.B, "A");
+
+	var A = valuesAB.A;
+	var B = valuesAB.B;
+
+	var xor = function(a,b) {
+		return (a || b) && !(a && b);
+	};
+	
+	var C = causeABC ? xor(A, B) : false;
+
+	return {
+		A: A,
+		B: B,
+		C: C
+	};
+};
+
+var input = {
+	A: true,
+	B: true
+};
+
+program(input);

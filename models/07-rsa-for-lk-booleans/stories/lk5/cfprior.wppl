@@ -1,0 +1,21 @@
+var structureParamsPrior = function() {
+	// no CF-able structural params
+	// in this program
+	return {
+		causeROOT: flip(0.5),
+		dirROOT: flip(0.5),
+		causeAC: flip(0.5),
+		causeBC: flip(0.5),
+		causeCD: flip(0.5)
+	};
+};
+
+var inputPrior = function() {
+	return {
+		A: flip(0.75),
+		B: flip(0.75),
+		bc: flip(0.9)
+	};
+};
+
+"cfprior"

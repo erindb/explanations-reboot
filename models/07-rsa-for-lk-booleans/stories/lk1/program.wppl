@@ -1,0 +1,37 @@
+var program = function(input) {
+
+	var cause = false;
+	var dir = false; // placeholder
+
+	var abCause = function(a, b, var) {
+		var A = a;
+		var B = A;
+		return {A: A, B: B};
+	};
+	var baCause = function(a, b, var) {
+		var B = b;
+		var A = B;
+		return {A: A, B: B};
+	};
+	var noCause = function(a, b, var) {
+		var A = A;
+		var B = B;
+		return {A: A, B: B};
+	};
+
+	var fn = cause ? (dir ? abCause : baCause) : noCause;
+
+	var valuesAB = fn(input.A, input.B, "A");
+
+	return {
+		A: valuesAB.A,
+		B: valuesAB.B
+	};
+};
+
+var input = {
+	A: true,
+	B: true
+};
+
+program(input);

@@ -62,7 +62,7 @@ This requires some extension of the actual causal structure to include latent pa
 
 This is non-trivial. Doing inference over the full state of possible causal structures would be a form of program induction, which is theoretically possible, but I think intractible for me right now.
 
-A first step is just to toggle the existence of each causal link. If there exists a causal link, take it away and make the previously downstream variable deterministically take its state in the actual world. If there are two or more variables that have no causes in the actual world, we create a new causal link that goes from one variable to the other in either direction. That is, we imagine that counterfactually, they might have been connected to each other in one direction or the other. Newly introduced causal links will be deterministic (downstream variable perfectly matches upstream variable).
+A first step is just to toggle the existence of each causal link. (See [stories/README.md](../models/07-more-rsa/stories/README.md) for more information on this algorithm for generating world priors with structural uncertainty.) If there exists a causal link, take it away and make the previously downstream variable deterministically take its state in the actual world. If there are two or more variables that have no causes in the actual world, we create a new causal link that goes from one variable to the other in either direction. That is, we imagine that counterfactually, they might have been connected to each other in one direction or the other. Newly introduced causal links will be deterministic (downstream variable perfectly matches upstream variable).
 
 This is a component that I hypothesize will make a big difference. If there is no causal parameter with counterfactual values under $Pr(w)$, we will not capture empirical ratings of explanations.
 
@@ -195,6 +195,7 @@ This parameter will be set to 0.4 initially and fit to the data in later work.
 
 ## Summary
 
+<!--
 * World Prior (2)
 * Semantics (4)
     - !A $\rightarrow$ !B only
@@ -219,11 +220,12 @@ This parameter will be set to 0.4 initially and fit to the data in later work.
     - fixed at {}
     - $Uniform(\mathscr{p})$
     - $Pr(CG)$
+-->
 
-1. basic RSA (with causal uncertainty and entailments)
+1. basic RSA with(out) causal uncertainty trying all possible entailments
     * World Prior (2) X Semantics (4)
 
-2. presuppositions
+2. presuppositions with $U_{yes/no}$ and $U_{max}$
     * World Prior (2) X Semantics (3) X CG Prior (uniform) X Utterance Prior (2)
     
 Make sure to have full writeups, clean implementation, and excellent error analysis.

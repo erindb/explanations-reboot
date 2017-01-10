@@ -1,0 +1,19 @@
+// ------------ observations -------------------
+
+var observations = {
+	structureParams: {
+		causeROOT: false,
+		causeABC: true
+	},
+	input: {
+		A: true,
+		B: true
+	},
+	output: {
+		A: true,
+		B: true,
+		C: false
+	}
+};
+
+observations

@@ -1,0 +1,5 @@
+
+
+## Checks
+
+This is a bit messy and hard for me to keep track of, so I'd like to have checks in place that I'm inputting the model information correctly.
