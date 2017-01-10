@@ -311,11 +311,13 @@ var utterancePriorMaker = function(base_utterances, priorType, costPerWord, expl
 				binaryUtterances
 			).concat(allBecauseUtterances)
 		} else if (priorType == "only_explanations") {
-			// return [""].concat(allBecauseUtterances);
 			return allBecauseUtterances;
+		} else if (priorType == "only_explanations_or_silent") {
+			return [""].concat(allBecauseUtterances);
 		} else if (priorType == "fixed_explanandum") {
-			// return [""].concat(selectBecauseUtterances);
 			return selectBecauseUtterances;
+		} else if (priorType == "fixed_explanandum_or_silent") {
+			return [""].concat(selectBecauseUtterances);
 		} else if (priorType[0] == ":") {
 			// a signal to check "yes or no" for the rest
 			return explanationOrSilent;
@@ -449,6 +451,8 @@ var meaning = function(obs, utterance, actualSampleParams, actualERPs, entailmen
 
 			if (entailmentType == "none") {
 				return scoreExplanandumFalse;
+			} else if (entailmentType == "only_explanandum") {
+				return scoreExplanandumFalse + explanandumScore;
 			} else if (entailmentType == "only_explanans") {
 				return scoreExplanandumFalse + explanansScore;
 			} else if (entailmentType == "both") {
@@ -595,7 +599,8 @@ var speakerERP = cache(function(priorType, cost, explanandum, entailmentType, QU
 	));
 });
 
-var listener = function(utterance, cost, explanandum, rationalityParam, innerUtterancePriorType) {
+var listener = function(utterance, cost, explanandum, rationalityParam, innerUtterancePriorType, entailmentType) {
+	var entailmentType = entailmentType ? entailmentType : false;
 
 	return function() {
 		var actualSampleParams = sampleParamsPrior();
@@ -611,7 +616,7 @@ var listener = function(utterance, cost, explanandum, rationalityParam, innerUtt
 			output: actualOutput
 		};
 		// var descriptionERP = speakerERP("all_alternatives", false, false, 1, obs);
-		var descriptionERP = speakerERP(innerUtterancePriorType, cost, explanandum, false, false, rationalityParam, obs);
+		var descriptionERP = speakerERP(innerUtterancePriorType, cost, explanandum, entailmentType, false, rationalityParam, obs);
 
 		var descriptionFactor = descriptionERP.score(utterance);
 
@@ -622,18 +627,19 @@ var listener = function(utterance, cost, explanandum, rationalityParam, innerUtt
 	};
 };
 
-var listenerERP = cache(function(utterance, cost, explanandum, rationalityParam, innerUtterancePriorType) {
-	var entailmentType = "none";
+var listenerERP = cache(function(utterance, cost, explanandum, rationalityParam, innerUtterancePriorType, entailmentType) {
+	var entailmentType = entailmentType ? entailmentType : "none";
 	var rationalityParam = rationalityParam ? rationalityParam : 1;
 	return cleanup(Infer(
 		{method: "enumerate"},
-		listener(utterance, cost, explanandum, rationalityParam, innerUtterancePriorType)
+		listener(utterance, cost, explanandum, rationalityParam, innerUtterancePriorType, entailmentType)
 	));
 });
 
 var s2 = function(base_utterance, cost, explanandum,
-	innerUtterancePriorType,
+	innerUtterancePriorType, entailmentType,
 	innerRationalityParam, outerRationalityParam) {
+	var entailmentType = entailmentType ? entailmentType : "none";
 	var QUD = false;
 	var cost = cost ? cost : 0;
 	var obs = observations;
@@ -656,7 +662,7 @@ var s2 = function(base_utterance, cost, explanandum,
 			(utterance=="" ? 
 				literalERP(utterance) :
 				listenerERP(utterance, cost, explanandum, innerRationalityParam, "fixed_explanandum")) :
-			listenerERP(utterance, cost, explanandum, innerRationalityParam, innerUtterancePriorType)
+			listenerERP(utterance, cost, explanandum, innerRationalityParam, innerUtterancePriorType, entailmentType)
 		);
 
 		var projectedInterpretation = QUD ? marginalize(interpretationERP, QUD) : interpretationERP;
