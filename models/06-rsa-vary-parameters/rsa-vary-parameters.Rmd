@@ -119,7 +119,27 @@ cf.diff = do.call(rbind, list(
 ```
 
 ```{r plot_cf.diff}
-rbind(cf.diff, expt.aggr) %>%
+rbind(cf.diff %>% as.data.frame, expt.aggr %>% as.data.frame) %>%
+  gather("statistic", "value", c(rating, low, high)) %>%
+  mutate(statistic = paste(source, statistic, sep=".")) %>%
+  select(-source) %>%
+  spread(statistic, value) %>%
+  ggplot(., aes(x=cf.diff.rating, y=human.rating, colour=story)) +
+  # ggplot(., aes(x=cf.diff.rating, y=human.rating, colour=tag)) +
+  geom_point() +
+  geom_errorbar(aes(ymin=human.low, ymax=human.high), width=0) +
+  geom_errorbarh(aes(xmin=cf.diff.low, xmax=cf.diff.high), height=0) +
+  ylim(0,1) +
+  xlim(0,1) +
+  # scale_colour_manual(values=c("green3", "deeppink3", "yellow3")) +
+  geom_abline(intercept = 0, slope=1, colour="gray") +
+  ggtitle("CF.DIFF") + theme_black +
+  theme(legend.position="right") +
+  scale_fill_brewer(type="qual", palette=2)
+ggsave("cf-diff.png", width=6, height=4)
+
+
+rbind(cf.diff %>% as.data.frame, expt.aggr %>% as.data.frame) %>%
   gather("statistic", "value", c(rating, low, high)) %>%
   mutate(statistic = paste(source, statistic, sep=".")) %>%
   select(-source) %>%
@@ -130,10 +150,16 @@ rbind(cf.diff, expt.aggr) %>%
   geom_errorbarh(aes(xmin=cf.diff.low, xmax=cf.diff.high), height=0) +
   ylim(0,1) +
   xlim(0,1) +
-  scale_colour_manual(values=c("green3", "deeppink3", "yellow3")) +
+  scale_colour_manual(values=c(
+    "#66a61e" #"green3"
+    , "#e7298a" #"deeppink3"
+    , "#e6ab02" # "yellow3"
+    )) +
   geom_abline(intercept = 0, slope=1, colour="gray") +
-  ggtitle("CF.DIFF")
-ggsave("cf.diff.png", width=6, height=4)
+  ggtitle("CF.DIFF: tagged for hits and misses") + theme_black +
+  theme(legend.position="right") +
+  scale_fill_brewer(type="qual", palette=2)
+ggsave("cf-diff-hits-and-misses.png", width=6, height=4)
 ```
 
 We implement a second model (RSA.BASE) where there are no structural parameters, there *are* alternative possible inputs, the speaker knows all of the actual input and output values, and the listener knows none of them.
