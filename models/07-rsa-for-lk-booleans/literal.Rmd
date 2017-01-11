@@ -1,0 +1,251 @@
+---
+title: "Literal Listener"
+output: html_document
+---
+
+```{r global_options, include=FALSE}
+rm(list=ls())
+knitr::opts_chunk$set(
+  echo=F, warning=F, cache=T, 
+  message=F, sanitiz =T, 
+  fig.width = 5, fig.height = 2)
+```
+
+```{r load_settings}
+source("~/Settings/startup.R")
+```
+
+```{r}
+literal = function(number, utterance) {
+  program_file = paste("stories/lk", number,
+                       "/autoexpanded.wppl", sep="")
+  return(webppl(
+    program_file = program_file,
+    inference_opts = list(method="enumerate"),
+    model_var = paste(
+      "literal({utterance: '",
+      utterance, "'})", 
+      sep="")
+  ) %>% mutate(utterance=utterance))
+}
+
+plot_literal = function(number, explanations) {
+  rs = rbind(
+    do.call(rbind,
+            lapply(explanations, function(expl) {
+              return(literal(number, expl))
+            })),
+    literal(number, "null"))
+  p = rs %>%
+    gather(variable, value, -prob, -utterance) %>%
+    group_by(variable, utterance) %>%
+    summarise(marginal.prob = sum(prob[value])) %>%
+    separate(variable, c("type", "variable")) %>%
+    ggplot(., aes(x=variable, y=marginal.prob, fill=utterance)) +
+    geom_bar(stat="identity", position="dodge") +
+    facet_wrap(~type, scale="free") +
+    theme(axis.text.x = element_text(angle = -45, hjust = 0)) +
+    scale_fill_brewer(type="qual", palette = 2) +
+    ylim(0, 1)
+  
+  print(p)
+  
+  return(rs)
+}
+```
+
+```{r}
+print_world = function(
+  a=F, b=F, c=F, d=F,
+  cause=F, dir=F,
+  ab=F, bc=F, ac=F, cd=F) {
+  return(paste(
+    ifelse(a, "A", ""),
+    ifelse(b, "B", ""),
+    ifelse(c, "C", ""),
+    ifelse(d, "D", ""),
+    ifelse(cause|dir|ab|ac|bc|cd, "|", ""),
+    ifelse(cause, "c", ""),
+    ifelse(dir, "d", ""),
+    ifelse(ab, "ab|", ""),
+    ifelse(ac, "ac|", ""),
+    ifelse(bc, "bc|", ""),
+    ifelse(cd, "cd|", "")
+    , sep=""))
+}
+```
+
+
+### Story 1
+```{r}
+l1 = plot_literal(1, list("A because B"))
+```
+
+```{r}
+l1 %>% filter(output.A & output.B) %>%
+  group_by(utterance) %>%
+  mutate(prob = prob/sum(prob)) %>%
+  ungroup() %>%
+  as.data.frame() %>%
+  gather(variable, value, -prob, -utterance) %>%
+  group_by(variable, utterance) %>%
+  summarise(marginal.prob = sum(prob[value])) %>%
+  separate(variable, c("type", "variable")) %>%
+  ggplot(., aes(x=variable, y=marginal.prob, fill=utterance)) +
+  geom_bar(stat="identity", position="dodge") +
+  facet_wrap(~type, scale="free") +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0)) +
+  scale_fill_brewer(type="qual", palette = 2) +
+  ylim(0, 1) +
+  ggtitle("presuppose A and B")
+```
+
+### Story 2
+
+```{r}
+l2 = plot_literal(2, c("A because B", "B because A", "C because A"))
+```
+
+Why does the marginal for `causeAB` go down given "B because A"?
+
+```{r}
+l2bcausea = literal(2, "B because A")
+```
+
+I guess B is more likely to be true if it's deterministically true, i.e. if there's no cause. So if "B" is part of the meaning, then that will make a difference.
+
+```{r}
+l2bcausea %>% mutate(world = print_world(
+  a=output.A, b=output.B, c=output.C,
+  ab=structureParams.causeAB, bc=structureParams.causeBC)) %>%
+  filter(structureParams.causeAB)
+```
+
+If we're given that B is true, then saying "A because B" or "B because A" or "C because A" increases the probability of the causes. But I think this is only because they make A more likely.
+
+```{r}
+l2 %>% 
+  gather(variable, value, -prob, -utterance) %>%
+  group_by(variable, utterance) %>%
+  summarise(marginal.prob = sum(prob[value])) %>%
+  separate(variable, c("type", "variable")) %>%
+  ggplot(., aes(x=variable, y=marginal.prob, fill=utterance)) +
+  geom_bar(stat="identity", position="dodge") +
+  facet_wrap(~type, scale="free") +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0)) +
+  scale_fill_brewer(type="qual", palette = 2) +
+  ylim(0, 1)
+```
+
+Apparently, given that B is true, causeAB is pretty unlikely a priori.
+
+```{r}
+l2 %>% filter(output.B) %>%
+  group_by(utterance) %>%
+  mutate(prob = prob/sum(prob)) %>%
+  ungroup() %>%
+  as.data.frame() %>%
+  gather(variable, value, -prob, -utterance) %>%
+  group_by(variable, utterance) %>%
+  summarise(marginal.prob = sum(prob[value])) %>%
+  separate(variable, c("type", "variable")) %>%
+  ggplot(., aes(x=variable, y=marginal.prob, fill=utterance)) +
+  geom_bar(stat="identity", position="dodge") +
+  facet_wrap(~type, scale="free") +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0)) +
+  scale_fill_brewer(type="qual", palette = 2) +
+  ylim(0, 1) +
+  ggtitle("presuppose B")
+```
+
+Given both A and B, "B because A" becomes the best indicator for `causeAB` and "C because A" is a good indicator for both `causeAB` and `causeBC`.
+
+```{r}
+l2 %>% filter(output.A & output.B) %>%
+  group_by(utterance) %>%
+  mutate(prob = prob/sum(prob)) %>%
+  ungroup() %>%
+  as.data.frame() %>%
+  gather(variable, value, -prob, -utterance) %>%
+  group_by(variable, utterance) %>%
+  summarise(marginal.prob = sum(prob[value])) %>%
+  separate(variable, c("type", "variable")) %>%
+  ggplot(., aes(x=variable, y=marginal.prob, fill=utterance)) +
+  geom_bar(stat="identity", position="dodge") +
+  facet_wrap(~type, scale="free") +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0)) +
+  scale_fill_brewer(type="qual", palette = 2) +
+  ylim(0, 1) +
+  ggtitle("presuppose A and B")
+```
+
+Assuming C, too, shows a much more intuitive interpretation of the explanation.
+
+```{r}
+l2 %>% filter(output.A & output.B & output.C) %>%
+  group_by(utterance) %>%
+  mutate(prob = prob/sum(prob)) %>%
+  ungroup() %>%
+  as.data.frame() %>%
+  gather(variable, value, -prob, -utterance) %>%
+  group_by(variable, utterance) %>%
+  summarise(marginal.prob = sum(prob[value])) %>%
+  separate(variable, c("type", "variable")) %>%
+  ggplot(., aes(x=variable, y=marginal.prob, fill=utterance)) +
+  geom_bar(stat="identity", position="dodge") +
+  facet_wrap(~type, scale="free") +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0)) +
+  scale_fill_brewer(type="qual", palette = 2) +
+  ylim(0, 1) +
+  ggtitle("presuppose A, B, and C")
+```
+
+### Story 3
+```{r}
+l3 = plot_literal(3, c("B because ! C", "! C because A", "! C because B"))
+```
+
+```{r}
+l3 %>% filter(output.A & output.B & !output.C) %>%
+  group_by(utterance) %>%
+  mutate(prob = prob/sum(prob)) %>%
+  ungroup() %>%
+  as.data.frame() %>%
+  gather(variable, value, -prob, -utterance) %>%
+  group_by(variable, utterance) %>%
+  summarise(marginal.prob = sum(prob[value])) %>%
+  separate(variable, c("type", "variable")) %>%
+  ggplot(., aes(x=variable, y=marginal.prob, fill=utterance)) +
+  geom_bar(stat="identity", position="dodge") +
+  facet_wrap(~type, scale="free") +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0)) +
+  scale_fill_brewer(type="qual", palette = 2) +
+  ylim(0, 1) +
+  ggtitle("presuppose A, B, and !C")
+```
+
+<!--
+### Story 4
+```{r}
+l4 = plot_literal(4, c("! C because ! A", "! D because !B", "! A because !D"))
+```
+
+```{r}
+l4 %>% filter(!output.A & !output.B & !output.C & !output.D) %>%
+  group_by(utterance) %>%
+  mutate(prob = prob/sum(prob)) %>%
+  ungroup() %>%
+  as.data.frame() %>%
+  gather(variable, value, -prob, -utterance) %>%
+  group_by(variable, utterance) %>%
+  summarise(marginal.prob = sum(prob[value])) %>%
+  separate(variable, c("type", "variable")) %>%
+  ggplot(., aes(x=variable, y=marginal.prob, fill=utterance)) +
+  geom_bar(stat="identity", position="dodge") +
+  facet_wrap(~type, scale="free") +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0)) +
+  scale_fill_brewer(type="qual", palette = 2) +
+  ylim(0, 1) +
+  ggtitle("presuppose !A, !B, !C, and !D")
+```
+-->

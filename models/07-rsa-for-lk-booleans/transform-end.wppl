@@ -10,31 +10,44 @@ var match = function(inferred, observed) {
 };
 
 var reduce_to_matching_keys = function(bigger_object, limiting_object) {
-	var overlappingKeys = _.object(map(function(k) {
+	var objWithOverlappingKeys = _.object(map(function(k) {
 		return [k, bigger_object[k]];
 	}, _.keys(limiting_object)));
-	return overlappingKeys;
+
+	// then for each overlapping key, if its value is also an object,
+	// reduce that, too.
+	var reducedObject = mapObject(function(key, value) {
+		// if it's an object
+		if (value !== null && typeof value === 'object') {
+			var reduced_result = reduce_to_matching_keys(
+				value, limiting_object[key]
+			);
+			return reduced_result;
+		} else {
+			return value;
+		}
+	}, objWithOverlappingKeys);
+
+	return reducedObject;
 };
 
-var matchingFactor = function(interpretationERP, obs) {
-	if (interpretationERP=="enumeration error") {
+var matchingFactor = function(bigERP, obs) {
+	if (bigERP=="enumeration error") {
+		display("bailing")
 		return -Infinity;
 	} else {
 		// obs.input might have more keys than interpretationERP.input
-		var reducedInterpretationERP = Infer(
+		var reducedERP = Infer(
 			{method: "enumerate"},
 			function() {
-				var result = sample(interpretationERP);
-				return {
-					structureParams: result.structureParams,
-					input: reduce_to_matching_keys(result.input, obs.input),
-					output: result.output
-				}
+				var result = sample(bigERP);
+				var reduced_result = reduce_to_matching_keys(result, obs);
+				return reduced_result;
 			}
 		);
 		// display(obs);
 		// display(reducedInterpretationERP);
-		return reducedInterpretationERP.score(obs);
+		return reducedERP.score(obs);
 	}
 };
 
@@ -58,6 +71,16 @@ var cleanup = function(erp) {
 			return s.observations;
 		}
 	);
+};
+
+var marginalize = function(erp, variable) {
+	if (erp=="enumeration error") {
+		return erp;
+	} else {
+		return Infer({method: "enumerate"}, function() {
+			return (sample(erp))[variable];
+		});
+	}
 };
 
 // --------------------------- defaults ----------------------------------------
@@ -112,6 +135,8 @@ var worldModel = function(params) {
 		params.stickiness ? params.stickiness : defaults.stickiness
 	);
 
+	var passErr = params.passErr ? params.passErr : defaults.passErr;
+
 	// by default, forward sample samples from the prior
 	// and ignores all observations.
 	// we can choose to condition on the observed
@@ -154,16 +179,21 @@ var worldModel = function(params) {
 		var output = returnValues.output;
 		var actualERPs = returnValues.ERPs;
 
-		// condition on observations (maybe)
-		if (useObs.structureParams) {
-			condition(match(structureParams, obs.structureParams));
-		}
-		if (useObs.input) {
-			condition(match(input, obs.input));
-		}
-		if (useObs.output) {
-			condition(match(output, obs.output));
-		}
+		var structFactor = (
+			useObs.structureParams ?
+			(match(structureParams, obs.structureParams) ? 0 : -Infinity) :
+			0
+		);
+		var inputFactor = (
+			useObs.input ?
+			(match(input, obs.input) ? 0 : -Infinity) :
+			0
+		);
+		var outputFactor = (
+			useObs.output ?
+			(match(output, obs.output) ? 0 : -Infinity) :
+			0
+		);
 
 		// return a world
 
@@ -197,29 +227,58 @@ var worldModel = function(params) {
 
 			// condition on any counterfactual premises
 			// (found in cfObs)
-			if (cfObs.structureParams) {
-				condition(match(cfStructureParams, cfObs.structureParams));
-			}
-			if (cfObs.input) {
-				condition(match(cfInput, cfObs.input));
-			}
-			if (cfObs.output) {
-				condition(match(cfOutput, cfObs.output));
-			}
 
-			return {
+			var cfStructFactor = (
+				cfObs.structureParams ?
+				(match(cfStructureParams, cfObs.structureParams) ? 0 : -Infinity) :
+				0
+			);
+			var cfInputFactor = (
+				cfObs.input ?
+				(match(cfInput, cfObs.input) ? 0 : -Infinity) :
+				0
+			);
+			var cfOutputFactor = (
+				cfObs.output ?
+				(match(cfOutput, cfObs.output) ? 0 : -Infinity) :
+				0
+			);
+
+			var truthFactor = (structFactor + inputFactor + outputFactor +
+				cfStructFactor + cfInputFactor + cfOutputFactor);
+			var result = {
 				structureParams: structureParams,
 				input: input,
 				output: output,
 				cfStructureParams: cfStructureParams,
 				cfInput: cfInput,
 				cfOutput: cfOutput
+			};
+
+			if (passErr) {
+				return {
+					truthFactor: truthFactor,
+					observations: result
+				}
+			} else {
+				factor(truthFactor);
+				return result;
 			}
 		} else {
-			return {
+			var truthFactor = (structFactor + inputFactor + outputFactor);
+			var result = {
 				structureParams: structureParams,
 				input: input,
 				output: output,
+			};
+			if (passErr) {
+				return {
+					truthFactor: truthFactor,
+					observations: result
+				}
+			} else {
+				factor(truthFactor);
+				return result;
 			}
 		}
 
@@ -383,29 +442,43 @@ var meaning = function(params) {
 		var explanandumWords = words.slice(0, becauseIndex);
 		var explanansWords = words.slice(becauseIndex+1);
 		var explanandumVariable = words[becauseIndex-1];
-		var explanansVariable = words[words.length];
+		var explanansVariable = words[words.length-1];
 		var explanandumValue = explanandumWords[0]!="!";
 		var explanansValue = explanansWords[0]!="!";
-		var explanandum = {explanandumVariable: explanandumValue};
-		var explanans = {explanansVariable: explanansValue};
+		var explanandum = _.object([[explanandumVariable, explanandumValue]]);
+		var explanans = _.object([[explanansVariable, explanansValue]]);
 
-		if (lexicon=="explanans" || lexicon=="both") {
-			// condition on explanans
-			var entailmentFactorA = (
-				match(world.output, explanans) ? 0 : -Infinity
-			);
+		// condition on explanans
+		var entailmentFactorA = (
+			(
+				(lexicon=="explanans" || lexicon=="both") ?
+				match(world.output, explanans) ? 0 : -Infinity :
+				0
+			)
+		);
+
+		// condition on explanandum
+		var entailmentFactorB = (
+			(
+				(lexicon=="explanandum" || lexicon=="both") ?
+				match(world.output, explanandum) ? 0 : -Infinity :
+				0
+			)
+		);
+
+		if (
+			!(
+				lexicon == "explanandum" || lexicon == "explanans" ||
+				lexicon == "both" || lexicon=="none"
+			)
+		) {
+			display("warning 2098-2")
 		}
-		if (lexicon=="explanandum" || lexicon=="both") {
-			// condition on explanandum
-			var entailmentFactorB = (
-				match(world.output, explanandum) ? 0 : -Infinity
-			);
-		}
 
-		var cfPremise = {explanansVariable: !explanansValue};
-		var cfConsequent = {explanandumVariable: !explanandumValue};
+		var cfPremise = _.object([[explanansVariable, !explanansValue]]);
+		var cfConsequent = _.object([[explanandumVariable, !explanandumValue]]);
 
-		var cfERP = Infer({method: "enumerate"}, worldModel({
+		var cfERP = cleanup(Infer({method: "enumerate"}, worldModel({
 			returnCF: true,
 			obs: world,
 			useObs: {
@@ -415,10 +488,23 @@ var meaning = function(params) {
 			},
 			cfObs: {
 				output: cfPremise
-			}
-		}));
+			},
+			passErr: true
+		})));
 
-		var cfFactor = matchingFactor(cfERP, cfConsequent);
+		// display("***")
+		// display("utterance")
+		// display(utterance)
+		// display("cfPremise")
+		// display(cfPremise)
+		// display("explanans")
+		// display(explanans)
+		// display("explanandum")
+		// display(explanandum);
+		// display("cfConsequent")
+		// display(cfConsequent);
+
+		var cfFactor = matchingFactor(cfERP, {cfOutput: cfConsequent});
 
 		return entailmentFactorA + entailmentFactorB + cfFactor;
 	} else {
@@ -464,7 +550,7 @@ var literal = function(params) {
 		var truthFactor = cgFactor + meaningFactor;
 		if (passErr) {
 			return {
-				truthFactor: truthFactor
+				truthFactor: truthFactor,
 				observations: qudFn(world)
 			}
 		} else {
