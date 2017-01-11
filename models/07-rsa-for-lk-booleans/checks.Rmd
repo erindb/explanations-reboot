@@ -14,3 +14,45 @@ knitr::opts_chunk$set(
 ## Checks
 
 This model implementation is a bit messy and hard for me to keep track of (with a lot of room for error in mis-typing things), so I'd like to have checks in place that I'm inputting the model information correctly.
+
+### 1. check CF against LK
+
+```{r}
+number = 1
+cfObs = c(
+  "{output: {A: false}}",
+  "{output: {B: false}}",
+  "{output: {A: false}}",
+  "{output: {C: true}}",
+  "{output: {C: false}}",
+  "{output: {B: true}}"
+)
+program_file = paste("stories/lk", number,
+                     "/autoexpanded.wppl", sep="")
+
+counterfactuals = webppl(
+  program_file = program_file,
+  inference_opts = list(method="enumerate"),
+  model_var = paste(
+    "worldModel({useObs: {structureParams: true, input: true, output: true}, ",
+    "cfObs: ",
+    cfObs[number],
+    ", ",
+    "returnCF: true})",
+    sep="")
+)
+
+counterfactuals %>%
+  gather("variable", "value", -prob) %>%
+  group_by(variable) %>%
+  summarise(marginal.prob = sum(prob[value])) %>%
+  as.data.frame %>%
+  separate(variable, c("type", "variable")) %>%
+  filter(type=="cfOutput") %>%
+  ggplot(., aes(x=variable, y=marginal.prob)) +
+  geom_bar(stat="identity") +
+  ylim(0,1) +
+  ggtitle("counterfactual output") +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0))
+```
+
