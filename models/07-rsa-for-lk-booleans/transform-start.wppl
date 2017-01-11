@@ -1,5 +1,10 @@
 // ------------ explanation-related utils ----------
 
+// none of these functions defined in transform-start.wppl
+// are actually used for the lk-like explanations rating
+// stories. but there here anyway, in case we want to add
+// them in later.
+
 var stickySampler = cache(function(args) {
 	var erp = args.erp;
 	var origERP = args.origERP ? args.origERP : null;
