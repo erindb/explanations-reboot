@@ -4,7 +4,7 @@
 * `transform-start.wppl`: WebPPL code tacked on to the beginning of `autoexpanded.wppl` containing some definitions for later use.
 * `transform-end.wppl`: WebPPL code tacked on to the end of `autoexpanded.wppl` containing all forward sampling, speaker, and listener models.
 * `model.sh` simply applies transform.py to each subdirectory of `stories`.
-* `checks.Rmd` and `checks.html`: some sanity checks to confirm that data is entered into the model correctly.
+* `checks.Rmd` and `checks.html`: some sanity checks to confirm that data is entered into the model files correctly.
 
 ### `stories`
 
