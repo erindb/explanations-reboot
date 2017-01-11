@@ -1,0 +1,173 @@
+---
+title: "worldModel"
+output: html_document
+---
+
+```{r global_options, include=FALSE}
+rm(list=ls())
+knitr::opts_chunk$set(
+  echo=F, warning=F, cache=T, 
+  message=F, sanitiz =T, 
+  fig.width = 5, fig.height = 2)
+```
+
+```{r load_settings}
+source("~/Settings/startup.R")
+```
+
+```{r}
+print_obs = function(a=F, b=F, c=F, d=F) {
+  return(paste(
+    ifelse(a, "A", ""),
+    ifelse(b, "B", ""),
+    ifelse(c, "C", ""),
+    ifelse(d, "D", "")
+    , sep=""))
+}
+print_world = function(
+  a=F, b=F, c=F, d=F,
+  cause=F, dir=F,
+  ab=F, bc=F, ac=F, cd=F) {
+  return(paste(
+    ifelse(a, "A", ""),
+    ifelse(b, "B", ""),
+    ifelse(c, "C", ""),
+    ifelse(d, "D", ""),
+    ifelse(cause, "c", ""),
+    ifelse(dir, "d", ""),
+    ifelse(ab, "ab|", ""),
+    ifelse(ac, "ac|", ""),
+    ifelse(bc, "bc|", ""),
+    ifelse(cd, "cd|", "")
+    , sep=""))
+}
+print_unobs = function(
+  cause=F, dir=F,
+  ab=F, bc=F, ac=F, cd=F) {
+  return(paste(
+    ifelse(cause, "c", ""),
+    ifelse(dir, "d", ""),
+    ifelse(ab, "ab|", ""),
+    ifelse(ac, "ac|", ""),
+    ifelse(bc, "bc|", ""),
+    ifelse(cd, "cd|", "")
+    , sep=""))
+}
+```
+
+Fixing the structural parameters, what are the joint and marginal probabilities of the observable variables?
+
+```{r}
+cfObs = c(
+  "{output: {A: false}}",
+  "{output: {B: false}}",
+  "{output: {A: false}}",
+  "{output: {C: true}}",
+  "{output: {C: false}}",
+  "{output: {B: true}}"
+)
+forwardSample = function(number) {
+  program_file = paste("stories/lk", number,
+                   "/autoexpanded.wppl", sep="")
+  
+  resamplingEverything = webppl(
+    program_file = program_file,
+    inference_opts = list(method="enumerate"),
+    model_var = "worldModel()"
+  )
+  
+  fixingStructure = webppl(
+    program_file = program_file,
+    inference_opts = list(method="enumerate"),
+    model_var = "worldModel({useObs: {structureParams: true}})"
+  )
+  
+  counterfactuals = webppl(
+    program_file = program_file,
+    inference_opts = list(method="enumerate"),
+    model_var = paste(
+      "worldModel({useObs: {structureParams: true, input: true, output: true}, ",
+      "cfObs: ",
+      cfObs[number],
+      ", ",
+      "returnCF: true})",
+      sep="")
+  )
+  
+  p1 = fixingStructure %>%
+    gather("variable", "value", -prob) %>%
+    group_by(variable) %>%
+    summarise(marginal.prob = sum(prob[value])) %>%
+    as.data.frame %>%
+    separate(variable, c("type", "variable")) %>%
+    ggplot(., aes(x=variable, y=marginal.prob)) +
+    geom_bar(stat="identity") +
+    facet_wrap(~type, scale="free") +
+    ylim(0,1) +
+    ggtitle("actual structure") +
+    theme(axis.text.x = element_text(angle = -45, hjust = 0))
+  
+  p2 = resamplingEverything %>%
+    gather("variable", "value", -prob) %>%
+    group_by(variable) %>%
+    summarise(marginal.prob = sum(prob[value])) %>%
+    as.data.frame %>%
+    separate(variable, c("type", "variable")) %>%
+    ggplot(., aes(x=variable, y=marginal.prob)) +
+    geom_bar(stat="identity") +
+    facet_wrap(~type, scale="free") +
+    ylim(0,1) +
+    ggtitle("resampling structure") +
+    theme(axis.text.x = element_text(angle = -45, hjust = 0))
+  
+  p3 = counterfactuals %>%
+    gather("variable", "value", -prob) %>%
+    group_by(variable) %>%
+    summarise(marginal.prob = sum(prob[value])) %>%
+    as.data.frame %>%
+    separate(variable, c("type", "variable")) %>%
+    filter(type=="cfOutput") %>%
+    ggplot(., aes(x=variable, y=marginal.prob)) +
+    geom_bar(stat="identity") +
+    ylim(0,1) +
+    ggtitle("counterfactual output") +
+    theme(axis.text.x = element_text(angle = -45, hjust = 0))
+  
+  print(p1)
+  print(p2)
+  print(p3)
+  
+  return(T)
+}
+```
+
+#### Story 1
+```{r}
+done = forwardSample(1)
+```
+
+#### Story 2
+```{r}
+done = forwardSample(2)
+```
+
+#### Story 3
+```{r}
+done = forwardSample(3)
+```
+
+#### Story 4
+```{r}
+done = forwardSample(4)
+```
+
+#### Story 5
+```{r}
+done = forwardSample(5)
+```
+
+#### Story 6
+```{r}
+done = forwardSample(6)
+```
+
