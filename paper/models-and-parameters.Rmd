@@ -20,7 +20,7 @@ source("~/Settings/startup.R")
 
 ### Basic Model Formulation
 
-$$ L_0(w) \propto Pr(w) \cdot \delta_{[[u]](w)} $$
+$$ L_0(w | u) \propto Pr(w) \cdot \delta_{[[u]](w)} $$
 
 $$ S_1(u | w) \propto
 Pr(u) \cdot L_0(w | u)^{\lambda_1} $$
@@ -40,17 +40,36 @@ $$ S_2(u\ |\ w) \propto Pr(u) \cdot L_1(w\ |\ u)^{\lambda_2} $$
 
 ### Inferring QUD and/or common ground
 
-$$ L_0(\mathcal{Q}(w)\ |\ u,\mathcal{Q},CG) \propto
-\sum_{w' \in [[u]]} Pr(w') \cdot
+$$ L_0(\mathcal{Q}(w)\ |\ u,\mathcal{Q}, cg) \propto
+\sum_{w' \in [[u]]} Pr(w'\ |\ cg) \cdot
 \delta_{\mathcal{Q}(w)=\mathcal{Q}(w')} $$
 
-$$ S_1(u\ |\ w, \mathcal{Q}, CG) \propto
-Pr(u) \cdot L_0(\mathcal{Q}(w)\ |\ u, \mathcal{Q}, CG)^{\lambda_1} $$
+$$ S_1(u\ |\ w, \mathcal{Q}, cg) \propto
+Pr(u) \cdot L_0(\mathcal{Q}(w)\ |\ u, \mathcal{Q}, cg)^{\lambda_1} $$
 
 $$ L_1(w\ |\ u) \propto
 \sum_{CG} \sum_{\mathcal{Q}} Pr(w) \cdot 
-S_1(u\ |\ w, \mathcal{Q}, CG) \cdot
+S_1(u\ |\ w, \mathcal{Q}, CG(w)) \cdot
 Pr(\mathcal{Q}) \cdot Pr(CG)  $$
+
+$$ S_2(u\ |\ w) \propto Pr(u) \cdot L_1(w\ |\ u)^{\lambda_2} $$
+
+where $cg=CG(w)$ represents the states of the variables in common ground in world $w$.
+
+### Infer Everything
+
+$$ L_0(\mathcal{Q}(w)\ |\ u, \mathcal{Q}, cg, \mathcal{L})) \propto
+\sum_{w' s.t. [[u]](w' ; \mathcal{L})} Pr(w'\ |\ cg) \cdot
+\delta_{\mathcal{Q}(w)=\mathcal{Q}(w')} $$
+
+$$ S_1(u\ |\ w, \mathcal{Q}, cg, \mathcal{L}) \propto
+Pr(u) \cdot
+L_0(\mathcal{Q}(w)\ |\ u, \mathcal{Q}, cg, \mathcal{L})^{\lambda_1} $$
+
+$$ L_1(w\ |\ u) \propto
+\sum_{CG} \sum_{\mathcal{Q}} \sum_{\mathcal{L}} Pr(w) \cdot 
+S_1(u\ |\ w, \mathcal{Q}, CG(w), \mathcal{L}) \cdot
+Pr(\mathcal{Q}) \cdot Pr(CG) \cdot Pr(\mathcal{L})  $$
 
 $$ S_2(u\ |\ w) \propto Pr(u) \cdot L_1(w\ |\ u)^{\lambda_2} $$
 
