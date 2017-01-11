@@ -1,7 +1,7 @@
 var program = function(input) {
 
 	var causeAB = true;
-	var casueBC = true;
+	var causeBC = true;
 
 	var A = input.A;
 	var Mab = input.Mab;

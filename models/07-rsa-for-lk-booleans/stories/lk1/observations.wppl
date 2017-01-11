@@ -2,7 +2,7 @@
 
 var observations = {
 	structureParams: {
-		cause: false
+		causeROOT: false
 	},
 	input: {
 		A: true,

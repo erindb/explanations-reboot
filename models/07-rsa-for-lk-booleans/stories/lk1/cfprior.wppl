@@ -2,8 +2,8 @@ var structureParamsPrior = function() {
 	// no CF-able structural params
 	// in this program
 	return {
-		cause: 0.5,
-		dir: 0.5
+		causeROOT: flip(0.5),
+		dirROOT: flip(0.5)
 	};
 };
 

@@ -7,31 +7,31 @@ var program = function(input) {
 	var causeBC = true;
 	var causeCD = true;
 
-	var abCause = function(a, b, var) {
+	var abCause = function(a, b) {
 		var A = a;
 		var B = A;
-		return {A: A, B: B};
+		return {A: A, B: B}
 	};
-	var baCause = function(a, b, var) {
+	var baCause = function(a, b) {
 		var B = b;
 		var A = B;
-		return {A: A, B: B};
+		return {A: A, B: B}
 	};
-	var noCause = function(a, b, var) {
-		var A = A;
-		var B = B;
-		return {A: A, B: B};
+	var noCause = function(a, b) {
+		var A = a;
+		var B = b;
+		return {A: A, B: B}
 	};
 
 	var fn = causeROOT ? (dirROOT ? abCause : baCause) : noCause;
 
-	var valuesAB = fn(input.A, input.B, "A");
+	var valuesAB = fn(input.A, input.B);
 
 	var A = valuesAB.A;
 	var B = valuesAB.B;
 	
 	var C = (
-		((causeAC & causeAB) ? A || B :
+		((causeAC & causeBC) ? A || B :
 			(causeAC ? A :
 				(causeBC ? B :
 					false))));
