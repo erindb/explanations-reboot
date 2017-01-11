@@ -249,5 +249,13 @@ This parameter will be set to 0.4 initially and fit to the data in later work.
     
 Make sure to have full writeups, clean implementation, and excellent error analysis.
 
+## Should I be using KL?
+
+One thing to note is that the speaker doesn't know the full state of the world. They have to infer some of the structure parameters. I'm including the structure parameters as part of what the speaker wants to communicate about the world. But the speaker sometimes doesn't know some of them. So really, I should be using KL divergence between the listener's interpretation and the speaker's beliefs as the speaker's utility function.
+
+However, because all of my structure params are independent of one another, and because the unobserved structure params have no effect on the observations the speaker makes and because each state of those unobserved structureParams is equally probable, the effect of these variables will actually marginalize out. If any of those conditions were not met, we might be in trouble. I should worry about that for future explanations projects.
+
+Oh. Actually, the way I implemented this before is that the speaker only wants to communicate their *obervations*, not their inferences based on those observations. This is probably the most reasonable thing for this experiment.
+
 ## References
 
