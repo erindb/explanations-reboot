@@ -1,0 +1,17 @@
+number,explanans,explanandum,cause,presup1,presup2,presup3,presup4
+1,A,B,causeROOT,none,explanans,explanandum,both
+2,A,B,causeAB,none,explanans,explanandum,both
+2,B,C,causeBC,none,explanans,explanandum,both
+3,A,B,causeROOT,none,explanans,explanandum,both
+3,A,! C,causeABC,none,explanans,explanandum,both
+3,B,! C,causeABC,none,explanans,explanandum,both
+4,! A,! C,causeROOT,none,explanans,explanandum,both
+4,! A,! C,causeAC,none,explanans,explanandum,both
+4,! B,! C,causeBC,none,explanans,explanandum,both
+4,! C,! D,causeCD,none,explanans,explanandum,both
+5,A,B,causeROOT,none,explanans,explanandum,both
+5,A,C,causeAC,none,explanans,explanandum,both
+5,B,C,causeBC,none,explanans,explanandum,both
+5,C,D,causeCD,none,explanans,explanandum,both
+6,! A,! B,causeAB,none,explanans,explanandum,both
+6,! B,C,causeBC,none,explanans,explanandum,both

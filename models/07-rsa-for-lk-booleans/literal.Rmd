@@ -75,7 +75,78 @@ print_world = function(
 }
 ```
 
+```{r}
+literal_with_cg = function(number, utterance, cg) {
+  program_file = paste("stories/lk", number,
+                       "/autoexpanded.wppl", sep="")
+  return(webppl(
+    program_file = program_file,
+    inference_opts = list(method="enumerate"),
+    model_var = paste(
+      "literal({utterance: '",
+      utterance, "', cg: ",
+      cg,
+      "})", 
+      sep="")
+  ) %>% mutate(utterance=utterance))
+}
+```
 
+```{r}
+l1_givenB = literal_with_cg(1, "B because A", "['A', 'B']")
+```
+
+
+
+```{r}
+getCGVars = function(explanandum, explanans, cg) {}
+input = read.csv("interpreting-explanations.csv") %>%
+  mutate(explanation = paste(explanandum, " because ",
+                             explanans, sep=""),
+         cg = getCGVars(explanandum, explanans, cg)) %>%
+  gather("trash", "cg",
+         c(presup1, presup2, presup3, presup4)) %>%
+  select(-trash)
+marginal_literal = function(number, utterance, cause, cg) {
+  print(utterance)
+  print(cg)
+  expl = literal_with_cg(number, utterance, cg)
+  null = literal_with_cg(number, "null", cg)
+  expl_marginal = sum((
+    expl %>%
+      filter(.[[paste("structureParams", cause, sep=".")]]
+  ))$prob)
+  null_marginal = sum((
+    null %>%
+      filter(.[[paste("structureParams", cause, sep=".")]]
+  ))$prob)
+  return(paste(expl_marginal, null_marginal, sep="~"))
+}
+output = input %>%
+  filter(number==2) %>%
+  mutate(marginal_prob = mapply(
+    marginal_literal, number, char(utterance), cause, cg
+  ))
+```
+
+```{r}
+output %>%
+  separate(marginal_prob, c("expl", "null"), sep="~") %>%
+  mutate(update = num(expl) - num(null)) %>%
+  ggplot(., aes(x=cg, y=update, fill=utterance)) +
+  geom_bar(stat="identity") +
+  facet_wrap(~number, scale="free") +
+  ylab("update on relevant link") +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0))
+```
+
+
+```{r}
+literal = function(number, utterance)
+```
+
+
+<!--
 ### Story 1
 ```{r}
 l1 = plot_literal(1, list("A because B"))
@@ -224,7 +295,6 @@ l3 %>% filter(output.A & output.B & !output.C) %>%
   ggtitle("presuppose A, B, and !C")
 ```
 
-<!--
 ### Story 4
 ```{r}
 l4 = plot_literal(4, c("! C because ! A", "! D because !B", "! A because !D"))
