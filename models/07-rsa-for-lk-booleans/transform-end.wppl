@@ -277,36 +277,8 @@ var worldModel = function(params) {
 
 // --------------------------- utterance prior ---------------------------------
 
-var utterancePriorMaker = function(params) {
-	var utteranceSet = params.utteranceSet ? params.utteranceSet : defaults.utteranceSet;
-	var costPerWord = params.costPerWord ? params.costPerWord : defaults.costPerWord;
-	var actualUtterance = params.actualUtterance ? params.actualUtterance : false;
-
-	var getExplanandum = function(utterance) {
-		if (utterance) {
-			var words = actualUtterance.split(" ");
-			var becauseIndex = words.indexOf("because");
-			var explanandum = words.slice(1,becauseIndex).join(" ");
-			return explanandum;
-		} else {
-			return "thereisnoexplanandumforthisprior";
-		}
-	};
-
-	var convertPriorType = function(utteranceSet, actualUtterance) {
-		if (utteranceSet == "even_more") {
-			return "all_alternatives"
-		} else if ("yes/no") {
-			return ":" + actualUtterance;
-		} else {
-			display("warning 092834");
-			return utteranceSet;
-		}
-	};
-
-	var priorType = convertPriorType(utteranceSet, actualUtterance)
-	var base_utterances = expressions;
-	var explanandum = getExplanandum(actualUtterance);
+var utterancePriorMaker = function(base_utterances, priorType, costPerWord, explanandum) {
+	var explanandum = explanandum ? explanandum : "thereisnoexplanandumforthisprior";
 
 	// in case we get ":", a signal to check "yes or no" for the rest
 	var explanationOrSilent = [priorType.slice(1,priorType.length), ""];
@@ -390,8 +362,8 @@ var utterancePriorMaker = function(params) {
 	};
 };
 
-var lookupUtterancePrior = cache(function(params) {
-	return utterancePriorMaker(params);
+var possiblePriors = cache(function(type, cost, explanandum) {
+	utterancePriorMaker(expressions, type, cost, explanandum);
 });
 
 // --------------------------- other priors ------------------------------------
@@ -537,25 +509,8 @@ var meaning = function(obs, utterance, actualSampleParams, actualERPs, entailmen
 	return 0;
 };
 
-var literal = function(params) {
-	var params = params ? params : {};
-
-	var utterance = params.utterance;
-
-	var lexicon = params.lexicon ? params.lexicon : defaults.lexicon;
-	var getEntailmentType = function(lexicon) {
-		if (lexicon == "explanandum") {
-			return "only_explanandum";
-		} else if (lexicon == "explanans") {
-			return "only_explanans";
-		} else if (lexicon == "both" || lexicon=="none") {
-			return lexicon;
-		} else {
-			display("warning -9382423: " + lexicon);
-		}
-	};
-	var entailmentType = getEntailmentType(lexicon);
-
+var literal = function(utterance, entailmentType) {
+	var entailmentType = entailmentType ? entailmentType : "none";
 	return function() {
 		// first sample actualSampleParams
 		var actualSampleParams = sampleParamsPrior();
@@ -579,282 +534,193 @@ var literal = function(params) {
 		};
 	}
 };
-var literalERP = cache(function(params) {
-	var inferenceOpts = (
-		params.inferenceOpts ? params.inferenceOpts : defaults.inferenceOpts
-	);
-	return cleanup(Infer(inferenceOpts.literal, literal(params)));
+var literalERP = cache(function(utterance, entailmentType) {
+	var entailmentType = entailmentType ? entailmentType : "none";
+	return cleanup(Infer(
+		{method: "enumerate"},
+		literal(utterance, entailmentType)
+	));
 });
 
-var s1 = function(params) {
-	var params = params ? params : {};
+var projectObs = function(obs, QUD) {
+	return obs[QUD];
+};
+var marginalize = function(erp, variable) {
+	if (erp=="enumeration error") {
+		return erp;
+	} else {
+		return Infer({method: "enumerate"}, function() {
+			return (sample(erp))[variable];
+		});
+	}
+};
 
-	// communicate the world, if provided. otherwise communicate
-	// actual observations from experiment
-	var world = params.world ? params.world : observations;
+var speaker = function(priorType, cost, explanandum, entailmentType, QUD, rationalityParam, obs) {
 
-	var inferenceOpts = (
-		params.inferenceOpts ? params.inferenceOpts : defaults.inferenceOpts
-	);
-
-	var qud = params.qud ? params.qud : defaults.qud;
-	var cgStates = params.cgStates ? params.cgStates : {};
-	var lexicon = params.lexicon ? params.lexicon : defaults.lexicon;
-	var utteranceSet = (
-		params.utteranceSet ? params.utteranceSet : defaults.utteranceSet
-	);
-	var costPerWord = (
-		params.costPerWord ? params.costPerWord : defaults.costPerWord
-	);
-
-	var lambda1 = params.lambda1 ? params.lambda1 : defaults.lambda1;
-	var stickiness = (
-		params.stickiness ? params.stickiness : defaults.stickiness
-	);
-	var actualUtterance = (
-		params.actualUtterance ? params.actualUtterance : false
-	);
-
-	var passErr = params.passErr ? params.passErr : defaults.passErr;
+	// speaker might have observed anything
+	var obs = obs ? obs : observations;
+	var entailmentType = entailmentType ? entailmentType : "none";
+	var rationalityParam = rationalityParam ? rationalityParam : 1;
 
 	return function() {
 
-		var utterancePrior = lookupUtterancePrior({
-			utteranceSet: utteranceSet,
-			actualUtterance: actualUtterance,
-			costPerWord: costPerWord
-		});
+		// they choose something to say
+		var utterancePrior = possiblePriors(priorType, cost, explanandum);
 		var utterance = utterancePrior();
 
-		// factor by interpretation
-		var literalInterpretation = literalERP({
-			inferenceOpts: inferenceOpts,
-			utterance: utterance,
-			qud: qud,
-			cgStates: cgStates,
-			lexicon: lexicon,
-			stickiness: stickiness,
-			passErr: true
-		});
+		// the literal listener interprets this
+		var interpretationERP = literalERP(utterance, entailmentType);
+
+		var projectedInterpretation = QUD ? marginalize(interpretationERP, QUD) : interpretationERP;
+		var projectedObs = QUD ? projectObs(obs, QUD) : obs;
 
 		// the speaker makes sure that their
- 		// observations line up with interpretation
-		var interpretationFactor = matchingFactor(
-			literalInterpretation, world
-		);
+		// observations line up with interpretation
+		var s = matchingFactor(projectedInterpretation, projectedObs);
+		factor(rationalityParam * s);
 
-		var truthFactor = lambda1 * interpretationFactor;
-		
-		if (passErr) {
-			return {
-				truthFactor:truthFactor,
-				observations: utterance
-			};
-		} else {
-			factor(truthFactor);
-			return utterance;
-		}
+		// and then they say it
+		return {
+			observations: utterance,
+			truthFactor: s
+		};
 	};
 };
-var s1ERP = cache(function(params) {
-	var inferenceOpts = (
-		params.inferenceOpts ? params.inferenceOpts : defaults.inferenceOpts
-	);
-	return cleanup(Infer(inferenceOpts.s1, s1(params)));
+
+var speakerERP = cache(function(priorType, cost, explanandum, entailmentType, QUD, rationalityParam, obs) {
+	var entailmentType = entailmentType ? entailmentType : "none";
+	return cleanup(Infer(
+		{method: "enumerate"},
+		speaker(priorType, cost, explanandum, entailmentType, QUD, rationalityParam, obs)
+	));
 });
 
-var listener = function(params) {
-	var params = params ? params : {};
-
-	var utterance = params.utterance;
-
-	var inferenceOpts = (
-		params.inferenceOpts ? params.inferenceOpts : defaults.inferenceOpts
-	);
-
-	var utteranceSet = (
-		params.utteranceSet ? params.utteranceSet : defaults.utteranceSet
-	);
-
-	var lambda1 = params.lambda1 ? params.lambda1 : defaults.lambda1;
-	var stickiness = (
-		params.stickiness ? params.stickiness : defaults.stickiness
-	);
-	var actualUtterance = (
-		params.actualUtterance ? params.actualUtterance : false
-	);
-	var costPerWord = (
-		params.costPerWord ? params.costPerWord : defaults.costPerWord
-	);
-
-	var passErr = params.passErr ? params.passErr : defaults.passErr;
-
-	var inferQUD = params.inferQUD ? params.inferQUD : defaults.inferQUD;
-	var inferCG = params.inferCG ? params.inferCG : defaults.inferCG;
-	var inferLexicon = (
-		params.inferLexicon ? params.inferLexicon : defaults.inferLexicon
-	);
-
-	var qud = inferQUD ? qudPrior() : (params.qud ? params.qud : defaults.qud);
-	var cg = inferCG ? qudPrior() : (params.cg ? params.cg : defaults.cg);
-	var lexicon = inferLexicon ? qudPrior() : (
-		params.lexicon ? params.lexicon : defaults.lexicon
-	);
-
-	if (params.cg && params.inferCG) { display("warning 72913"); }
-	if (params.qud && params.inferQUD) { display("warning 19482"); }
-	if (params.lexicon && params.inferLexicon) { display("warning 73830427"); }
+var listener = function(utterance, cost, explanandum, rationalityParam, innerUtterancePriorType, entailmentType) {
+	var entailmentType = entailmentType ? entailmentType : false;
 
 	return function() {
+		var actualSampleParams = sampleParamsPrior();
+		var actualInput = inputPrior();
+		var actualStructureParams = structureParamsPrior();
+		var actualProgram = makeProgram(actualStructureParams);
+		var actualReturnValues = actualProgram(actualInput, actualSampleParams);
+		var actualOutput = actualReturnValues.output;
+		var actualERPs = actualReturnValues.ERPs;
+		var obs = {
+			structureParams: actualStructureParams,
+			input: actualInput,
+			output: actualOutput
+		};
+		// var descriptionERP = speakerERP("all_alternatives", false, false, 1, obs);
+		var descriptionERP = speakerERP(innerUtterancePriorType, cost, explanandum, entailmentType, false, rationalityParam, obs);
 
-		// sample a world
-		// note that counterfactual sampling happens inside meaning function
-		var world = (worldModel({
-			returnCF: false
-		}))();
+		var descriptionFactor = descriptionERP.score(utterance);
 
-		var cgStates = getCGStates(world, cg);
-
-		// factor by speaker
-		var speakerEndorsement = s1ERP({
-			inferenceOpts: inferenceOpts,
-			world: world,
-			qud: qud,
-			cgStates: cgStates,
-			lexicon: lexicon,
-			lambda1: lambda1,
-			stickiness: stickiness,
-			actualUtterance: actualUtterance,
-			utteranceSet: utteranceSet,
-			costPerWord: costPerWord,
-			passErr: true
-		});
-
-		var truthFactor = speakerEndorsement.score(utterance);
-
-		if (passErr) {
-			return {
-				truthFactor: truthFactor,
-				observations: world
-			}
-		} else {
-			factor(truthFactor);
-			return world;
-		}
+		return {
+			observations: obs,
+			truthFactor: descriptionFactor
+		};
 	};
 };
-var listenerERP = cache(function(params) {
-	var inferenceOpts = (
-		params.inferenceOpts ? params.inferenceOpts : defaults.inferenceOpts
-	);
-	return cleanup(Infer(inferenceOpts.listener, listener(params)));
+
+var listenerERP = cache(function(utterance, cost, explanandum, rationalityParam, innerUtterancePriorType, entailmentType) {
+	var entailmentType = entailmentType ? entailmentType : "none";
+	var rationalityParam = rationalityParam ? rationalityParam : 1;
+	return cleanup(Infer(
+		{method: "enumerate"},
+		listener(utterance, cost, explanandum, rationalityParam, innerUtterancePriorType, entailmentType)
+	));
 });
 
 var s2 = function(params) {
+
+
 	var params = params ? params : {};
 
-	// form the utterancePrior based on what was
-	// actually said.
-	var actualUtterance = params.actualUtterance;
-
-	var utteranceSet = (
-		params.utteranceSet ? params.utteranceSet : defaults.utteranceSet
-	);
-
-	// observations can be specified with params.
-	// But in general, 
-	// observations will be taken from the
-	// observations.wppl file in `stories` directory,
-	// defined in the `observations` variable in
-	// `autoexpanded.wppl`.
-	var obs = params.obs ? params.obs : observations;
-
-	var inferenceOpts = (
-		params.inferenceOpts ? params.inferenceOpts : defaults.inferenceOpts
-	);
-	var costPerWord = (
+	var base_utterance = params.actualUtterance;
+	var getExplanandum = function(utterance) {
+		if (utterance) {
+			var words = base_utterance.split(" ");
+			var becauseIndex = words.indexOf("because");
+			var explanandum = words.slice(1,becauseIndex).join(" ");
+			return explanandum;
+		} else {
+			return "thereisnoexplanandumforthisprior";
+		}
+	};
+	var explanandum = getExplanandum(base_utterance);
+	var cost = (
 		params.costPerWord ? params.costPerWord : defaults.costPerWord
 	);
 
-	var passErr = params.passErr ? params.passErr : defaults.passErr;
-
-	var inferQUD = params.inferQUD ? params.inferQUD : defaults.inferQUD;
-	var inferCG = params.inferCG ? params.inferCG : defaults.inferCG;
-	var inferLexicon = (
-		params.inferLexicon ? params.inferLexicon : defaults.inferLexicon
+	var convertPriorType = function(utteranceSet, actualUtterance) {
+		if (utteranceSet == "even_more") {
+			return "all_alternatives"
+		} else if ("yes/no") {
+			return ":" + actualUtterance;
+		} else {
+			display("warning 092834");
+			return utteranceSet;
+		}
+	};
+	var utteranceSet = (
+		params.utteranceSet ? params.utteranceSet : defaults.utteranceSet
 	);
+	var innerUtterancePriorType = convertPriorType(utteranceSet, base_utterance);
 
-	var lambda1 = params.lambda1 ? params.lambda1 : defaults.lambda1;
-	var lambda2 = params.lambda2 ? params.lambda2 : defaults.lambda2;
-	var stickiness = (
-		params.stickiness ? params.stickiness : defaults.stickiness
-	);
+	var lexicon = params.lexicon ? params.lexicon : defaults.lexicon;
+	var convertEntailmentType = function(lexicon) {
+		if(lexicon=="explanandum" || lexicon == "explanans") {
+			return "only_" + lexicon;
+		} else {
+			return lexicon;
+		}
+	};
+	var entailmentType = convertEntailmentType(lexicon);
 
-	var qud = inferQUD ? qudPrior() : (params.qud ? params.qud : defaults.qud);
-	var cg = inferCG ? qudPrior() : (params.cg ? params.cg : defaults.cg);
-	var lexicon = inferLexicon ? qudPrior() : (
-		params.lexicon ? params.lexicon : defaults.lexicon
-	);
 
-	if (params.cg && params.inferCG) { display("warning 72913"); }
-	if (params.qud && params.inferQUD) { display("warning 19482"); }
-	if (params.lexicon && params.inferLexicon) { display("warning 73830427"); }
+	var innerRationalityParam = params.lambda1 ? params.lambda1 : defaults.lambda1;
+	var outerRationalityParam = params.lambda2 ? params.lambda2 : defaults.lambda2;
+
+
+	var entailmentType = entailmentType ? entailmentType : "none";
+	var QUD = params.inferQUD ? params.inferQUD : defaults.inferQUD;
+	var cost = cost ? cost : 0;
+	var obs = observations;
+	// "only_answers_to_why: " + explanandum
+	var innerRationalityParam = innerRationalityParam ? innerRationalityParam : 1;
+	var outerRationalityParam = outerRationalityParam ? outerRationalityParam : 1;
 
 	return function() {
-
-		// utterancePrior for s2 is always "yes/no"
-		var utterancePrior = lookupUtterancePrior({
-			utteranceSet: "yes/no",
-			actualUtterance: actualUtterance
-		});
+		var utterancePrior = possiblePriors(":" + base_utterance, cost, explanandum);
 		var utterance = utterancePrior();
 
-		// factor by interpretation
-		var pragmaticInterpretation = listenerERP({
-			inferenceOpts: inferenceOpts,
-			utterance: utterance,
-			qud: qud,
-			cg: cg,
-			lexicon: lexicon,
-			inferQUD: inferQUD,
-			inferCG: inferCG,
-			inferLexicon: inferLexicon,
-			lambda1: lambda1,
-			stickiness: stickiness,
-			actualUtterance: actualUtterance,
-			costPerWord: costPerWord,
-			utteranceSet: utteranceSet,
-			passErr: true
-		});
-
-		// TO DO
-		// incorporate QUD
-
-		// the speaker makes sure that their
- 		// observations line up with interpretation
-		var interpretationFactor = matchingFactor(
-			pragmaticInterpretation, obs
+		// // the pragmatic listener interprets this
+		// var interpretationERP = (
+		// 	utterance == "" ? 
+		// 	literalERP(utterance) :
+		// 	listenerERP(utterance, innerRationalityParam, innerUtterancePriorType)
+		// );
+		var interpretationERP = (
+			(innerUtterancePriorType=="varies") ? 
+			(utterance=="" ? 
+				literalERP(utterance) :
+				listenerERP(utterance, cost, explanandum, innerRationalityParam, "fixed_explanandum")) :
+			listenerERP(utterance, cost, explanandum, innerRationalityParam, innerUtterancePriorType, entailmentType)
 		);
 
-		var truthFactor = lambda2 * interpretationFactor;
+		var projectedInterpretation = QUD ? marginalize(interpretationERP, QUD) : interpretationERP;
+		var projectedObs = QUD ? projectObs(obs, QUD) : obs;
 
-		if (passErr) {
-			return {
-				truthFactor: truthFactor,
-				observations: utterance
-			}
-		} else {
-			factor(truthFactor);
-			return utterance
-		}
-	}
+		// the speaker makes sure that their
+		// observations line up with interpretation
+		var s = matchingFactor(projectedInterpretation, projectedObs);
+		factor(outerRationalityParam * s);
+
+		// and then they say it
+		return utterance;
+	};
 };
-var s2ERP = cache(function(params) {
-	var inferenceOpts = (
-		params.inferenceOpts ? params.inferenceOpts : defaults.inferenceOpts
-	);
-	return cleanup(Infer(inferenceOpts.s2, s2(params)));
-});
 
 // --------------------------- BDA ---------------------------------------------
 
