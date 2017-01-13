@@ -9,8 +9,8 @@ toc: false
 ```{r global_options, include=FALSE}
 rm(list=ls())
 knitr::opts_chunk$set(
-  echo=F, warning=F, #cache=T, 
-  message=F, #sanitiz =T, 
+  echo=F, warning=F, cache=T, 
+  message=F, sanitiz =T, 
   fig.width = 5, fig.height = 3)
 ```
 
@@ -118,6 +118,69 @@ write.csv(
 design = read.csv("../../data/full-explananations-elicitation-design.csv")
 ```
 
+## Comparing explanations that overlap with initial ratings experiment
+
+We ran a version where the explanans was fixed for each story and we ignored other explanations. Let's look at the subset of the new data that overlaps with that old data and see how they compare. Did the participants in this experiment give different responses on the overlapping explanations?
+
+```{r}
+explanansVariableLookup = c("A", "B", "A", "C", "C", "B")
+old_df = read.csv("../../data/2015-exp4-and-exp5-lkrep.csv") %>%
+  filter(version == "explanation") %>%
+  mutate(story = paste("story", story_index, sep=""),
+         explanandumVariable = variable,
+         explanansVariable = explanansVariableLookup[story_index]) %>%
+  group_by(story, explanandumVariable, explanansVariable) %>%
+  summarise(lk_only = mean(rating),
+            ci.low = ci.low(rating),
+            ci.high = ci.high(rating)) %>% as.data.frame
+compare_subset = aggr_df %>% 
+  rename(full_version = mean_response) %>%
+  merge(., old_df)
+compare_subset %>%
+  ggplot(., aes(x=lk_only, y=full_version,
+                shape=explanandumVariable,
+                colour=story)) +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_point() +
+  geom_errorbar(aes(x=lk_only, ymin=low, ymax=high)) +
+  geom_errorbarh(aes(y=full_version, xmin=ci.low, xmax=ci.high)) +
+  ylim(0,1) + xlim(0,1) +
+  scale_colour_brewer(type="qual", palette=2) +
+  ggtitle("replication of overlapping subset")
+ggsave("replicated-subset.png", width=7, height=4)
+```
+
+Apparently, we replicated our previous experiment perfectly. r=`r with(compare_subset, cor(lk_only, full_version))`
+
+Does that even seem plausible given the split half correlation?
+
+```{r}
+participants = unique(df$workerid)
+half = rbinom(90, 1, 0.5)
+h1 = participants[half==1]
+h2 = participants[half==0]
+d1 = df %>% filter(workerid %in% h1) %>%
+  group_by(story, utterance,
+           explanandumVariable,
+           explanansValue) %>%
+  summarise(mean1 = mean(response))
+d2 = df %>% filter(workerid %in% h2) %>%
+  group_by(story, utterance) %>%
+  summarise(mean2 = mean(response))
+with(merge(d1, d2),
+     cor(mean1, mean2))
+merge(d1, d2) %>%
+  ggplot(., aes(x=mean1, y=mean2,
+                shape=explanandumVariable,
+                colour=story)) +
+  geom_point() +
+  ylim(0,1) + xlim(0,1) +
+  scale_colour_brewer(type="qual", palette=2) +
+  ggtitle("replication of overlapping subset")
+```
+
+Nope.
+
 ## Ratings Results Overview
 
 ```{r observe_data}
@@ -171,6 +234,7 @@ plot_data_for_story("story6")
 knitr::include_graphics("lkstories-graphs/story6.png")
 ```
 
+<!--
 ## Model comparison
 
 ```{r run_models}
@@ -307,6 +371,9 @@ print(rsa_r_causal_uncertainty)
 ggsave("explanations.png")
 ```
 
+
+-->
+
 ## Participants
 
 ### Demographics
@@ -332,3 +399,6 @@ demographics %>% ggplot(., aes(x=language)) +
 print(demographics$comments)
 print(mean(demographics$time_in_minutes))
 ```
+
+## References
+
