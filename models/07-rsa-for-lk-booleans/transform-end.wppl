@@ -10,25 +10,10 @@ var match = function(inferred, observed) {
 };
 
 var reduce_to_matching_keys = function(bigger_object, limiting_object) {
-	var objWithOverlappingKeys = _.object(map(function(k) {
+	var overlappingKeys = _.object(map(function(k) {
 		return [k, bigger_object[k]];
 	}, _.keys(limiting_object)));
-
-	// then for each overlapping key, if its value is also an object,
-	// reduce that, too.
-	var reducedObject = mapObject(function(key, value) {
-		// if it's an object
-		if (value !== null && typeof value === 'object') {
-			var reduced_result = reduce_to_matching_keys(
-				value, limiting_object[key]
-			);
-			return reduced_result;
-		} else {
-			return value;
-		}
-	}, objWithOverlappingKeys);
-
-	return reducedObject;
+	return overlappingKeys;
 };
 
 var matchingFactor = function(interpretationERP, obs) {
@@ -495,37 +480,8 @@ var getScore = function(variable, erp) {
 	return marginal.score(true);
 };
 
-var meaning = function(params) {
-
-	var params = params ? params : {};
-
-	// return a factor (-Infinity, 0]
-	// -Infinity corresponds to false
-	// 0 corresponds to true
-
-	var utterance = params.utterance;
-	var obs = params.world;
-
-	var qud = params.qud ? params.qud : defaults.qud;
-	var lexicon = params.lexicon ? params.lexicon : defaults.lexicon;
-	var stickiness = (
-		params.stickiness ? params.stickiness : defaults.stickiness
-	);
-
-	var actualSampleParams = params.actualSampleParams;
-
-	var getEntailmentType = function(lexicon) {
-		if (lexicon == "explanandum") {
-			return "only_explanandum";
-		} else if (lexicon == "explanans") {
-			return "only_explanans";
-		} else if (lexicon == "both" || lexicon=="none") {
-			return lexicon;
-		} else {
-			display("warning -9382423: " + lexicon);
-		}
-	};
-	var entailmentType = getEntailmentType(lexicon);
+var meaning = function(obs, utterance, actualSampleParams, actualERPs, entailmentType) {
+	var entailmentType = entailmentType ? entailmentType : "none";
 
 	var words = utterance.split(" ");
 	if (utterance=="") {
@@ -552,7 +508,7 @@ var meaning = function(params) {
 		} else if (words.indexOf("because") > -1) {
 			var explanandum = words.slice(0, words.indexOf("because")).join("");
 			var explanans = words.slice(words.indexOf("because")+1).join("");
-			var conditionedOnExplanansFalse = conditionExplanansERP(explanans, obs, actualSampleParams);
+			var conditionedOnExplanansFalse = conditionExplanansERP(explanans, obs, actualSampleParams, actualERPs);
 			var scoreExplanandumFalse = getExplanandumFalseScore(explanandum, conditionedOnExplanansFalse);
 			
 			var explanandumValue = explanandum[0]=="!" ? false : true;
@@ -571,10 +527,10 @@ var meaning = function(params) {
 			} else if (entailmentType == "both") {
 				return scoreExplanandumFalse + explanansScore + explanandumScore;
 			} else {
-				display("error 2349081: " + entailmentType);
+				display("error 2349081");
 			}
 		}
-		display("warning 21391: " + utterance);
+		display("warning 21391")
 		return 0;
 	}
 	display("warning 123");
@@ -586,57 +542,42 @@ var literal = function(params) {
 
 	var utterance = params.utterance;
 
-	var qud = params.qud ? params.qud : defaults.qud;
-	var cg = params.cg ? params.cg : false;
-	if (params.cg && params.cgStates) { display("warning 234098") };
-
-	var obs = params.obs ? params.obs : observations;
-
-	var cgStates = (
-		params.cgStates ? params.cgStates : (
-			cg ? getCGStates(obs, cg) : {}
-		)
-	);
-
 	var lexicon = params.lexicon ? params.lexicon : defaults.lexicon;
-
-	var stickiness = (
-		params.stickiness ? params.stickiness : defaults.stickiness
-	);
-
-	var passErr = params.passErr ? params.passErr : defaults.passErr;
-
-	return function() {
-
-		// sample an actual world
-		// (note that counterfactual sampling happens inside meaning function)
-		var world = (worldModel({}))();
-
-		// condition on common ground
-		var cgFactor = match(world.output, cgStates) ? 0 : -Infinity;
-
-		var qudFn = qudFns[qud];
-
-		// factor by meaning under the QUD
-		var meaningFactor = meaning({
-			utterance: utterance,
-			world: world,
-			qud: qud,
-			lexicon: lexicon,
-			stickiness: stickiness
-		});
-
-		var truthFactor = cgFactor + meaningFactor;
-		if (passErr) {
-			return {
-				truthFactor: truthFactor,
-				observations: qudFn(world)
-			}
+	var getEntailmentType = function(lexicon) {
+		if (lexicon == "explanandum") {
+			return "only_explanandum";
+		} else if (lexicon == "explanans") {
+			return "only_explanans";
+		} else if (lexicon == "both" || lexicon=="none") {
+			return lexicon;
 		} else {
-			factor(truthFactor);
-			return qudFn(world);
+			display("warning -9382423: " + lexicon);
 		}
 	};
+	var entailmentType = getEntailmentType(lexicon);
+
+	return function() {
+		// first sample actualSampleParams
+		var actualSampleParams = sampleParamsPrior();
+		var actualInput = inputPrior();
+		var actualStructureParams = structureParamsPrior();
+		var actualProgram = makeProgram(actualStructureParams);
+		var actualReturnValues = actualProgram(actualInput, actualSampleParams);
+		var actualOutput = actualReturnValues.output;
+		var actualERPs = actualReturnValues.ERPs;
+		var obs = {
+			structureParams: actualStructureParams,
+			input: actualInput,
+			output: actualOutput
+		}
+
+		var truthFactor = meaning(obs, utterance, actualSampleParams, actualERPs, entailmentType);
+
+		return {
+			observations: obs,
+			truthFactor: truthFactor
+		};
+	}
 };
 var literalERP = cache(function(params) {
 	var inferenceOpts = (
