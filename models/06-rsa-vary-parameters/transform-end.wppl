@@ -581,7 +581,6 @@ var speaker = function(priorType, cost, explanandum, entailmentType, QUD, ration
 		// the speaker makes sure that their
 		// observations line up with interpretation
 		var s = matchingFactor(projectedInterpretation, projectedObs);
-		factor(rationalityParam * s);
 
 		// and then they say it
 		return {
