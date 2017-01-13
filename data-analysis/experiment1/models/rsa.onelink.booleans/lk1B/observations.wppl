@@ -1,7 +1,9 @@
 // ------------ observations -------------------
 
 var observations = {
-	structureParams: { cause: false },
+	structureParams: {
+		cause: false
+	},
 	input: {
 		A: true,
 		B: true
