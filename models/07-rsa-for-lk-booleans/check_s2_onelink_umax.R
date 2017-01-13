@@ -19,7 +19,8 @@ s2 = function(program_file, utterance, explanandum) {
   model_var = paste(
     "s2({actualUtterance: '",
     utterance,
-    "', lexicon: 'none', utteranceSet: 'even_more'})",
+    "', lexicon: 'none', ",
+    "utteranceSet: 'even_more'})",
     sep="")
   print(model_var)
   return(webppl(
@@ -83,7 +84,7 @@ runS2 = function(number, explanandumVariable, explanandumValue,
 
 rs2 = design %>%
   # filter(story == "story6" & explanandumVariable=="C") %>%
-  filter(story == "story1" & explanandumVariable=="B") %>%
+  # filter(story == "story1" & explanandumVariable=="B") %>%
   mutate(rating = mapply(runS2, as.numeric(story),
                          char(explanandumVariable),
                          explanandumValue,
@@ -96,7 +97,7 @@ previous_model_results = read.csv(
         sep="")
 ) %>%
   # filter(story == "story6" & explanandumVariable=="C") %>%
-  filter(story == "story1" & explanandumVariable=="B") %>%
+  # filter(story == "story1" & explanandumVariable=="B") %>%
   rename(previous=rating)
 
 all_model_results = merge(rs2, previous_model_results)
@@ -128,6 +129,11 @@ changing_everything = 0.2463893 #(almost the same as target)
 
 target = 0.2483437
 orig = 0.3660331
-changing_s1 = NA
+changing_s1 = 0.2478856
+
+## the difference between these models appears to be in S1
+## Problem solved!! I factored by meaning, AND THEN FACTORED 
+## AGAIN by the same thing. Kind of like increasing the
+## rationality parameter.
 
 all_model_results
