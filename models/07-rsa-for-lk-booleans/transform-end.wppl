@@ -10,25 +10,10 @@ var match = function(inferred, observed) {
 };
 
 var reduce_to_matching_keys = function(bigger_object, limiting_object) {
-	var objWithOverlappingKeys = _.object(map(function(k) {
+	var overlappingKeys = _.object(map(function(k) {
 		return [k, bigger_object[k]];
 	}, _.keys(limiting_object)));
-
-	// then for each overlapping key, if its value is also an object,
-	// reduce that, too.
-	var reducedObject = mapObject(function(key, value) {
-		// if it's an object
-		if (value !== null && typeof value === 'object') {
-			var reduced_result = reduce_to_matching_keys(
-				value, limiting_object[key]
-			);
-			return reduced_result;
-		} else {
-			return value;
-		}
-	}, objWithOverlappingKeys);
-
-	return reducedObject;
+	return overlappingKeys;
 };
 
 var matchingFactor = function(interpretationERP, obs) {
