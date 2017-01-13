@@ -1,165 +1,129 @@
 source("~/Settings/startup.R")
+library(memoise)
 
 design = read.csv("../../data/full-explananations-elicitation-design.csv")
 
-# # s1_cached = list()
-# cacheS1 = function(fn, params) {
-#   if(params %in% names(s1_cached)) {
-#     print(paste("retrieving", params))
-#     return(s1_cached[[params]])
-#   } else {
-#     print(paste("caching", params))
-#     rs = fn(params)
-#     s1_cached[[params]] <<- rs
-#     return(rs)
-#   }
-# }
-# s1 = function(program_file) {
+# webppl(
+#   program_file = paste("rsa.onelink.booleans/lk", number=1,
+#                        explanandum="B",
+#                        "/autoexpanded.wppl", sep=""),
+#   inference_opts = list(method="enumerate"),
+#   model_var = paste(
+#     "s2({actualUtterance: '",
+#     utterance="B because A",
+#     "', lexicon: 'none', utteranceSet: 'even_more'})",
+#     sep="")
+# )
+
+# s2 = function(program_file, utterance, explanandum) {
 #   return(webppl(
 #     program_file = program_file,
 #     inference_opts = list(method="enumerate"),
 #     model_var = paste(
-#       "s1({actualUtterance: false, ",
-#       "lexicon: 'none', ",
-#       "utteranceSet: 'max'})",
+#       "s2({actualUtterance: '",
+#       utterance,
+#       "', lexicon: 'none', utteranceSet: 'even_more'})",
 #       sep="")
 #   ))
 # }
-# 
-# rs = webppl(
-#   program_file = paste("rsa.onelink.booleans/lk", number=1,
-#                        explanandum="A",
-#                        "/autoexpanded.wppl", sep=""),
-#   inference_opts = list(method="enumerate"),
-#   model_var = paste(
-#     "s2({actualUtterance: 'A because B', ",
-#     "lexicon: 'none', ",
-#     "utteranceSet: 'even_more'})",
-#     sep="")
-# )
-# 
-# runS1 = function(number, explanandumVariable, explanandumValue,
-#                  explanansVariable, explanansValue) {
-#   program_file = paste("rsa.onelink.booleans/lk", number,
-#                        explanandum,
-#                        "/autoexpanded.wppl", sep="")
-#   utterance = paste(
-#     ifelse(explanandumValue, "", "! "),
-#     explanandumVariable,
-#     " because ",
-#     ifelse(explanansValue, "", "! "),
-#     explanansVariable, sep="")
-#   rs = cacheS1(s1, program_file)
-#   return(sum((rs %>% filter(support==utterance))$prob))
-# }
-
-# rs1 = design %>%
-#   mutate(rating = mapply(runS1, as.numeric(story),
-#                          explanandumVariable, explanandumValue,
-#                          explanansVariable, explanansValue))
-
-s2 = function(program_file, utterance) {
+s2 = function(program_file, utterance, explanandum) {
+  model_var = paste(
+    "s2(",
+    "'", base_utterance = utterance, "'",
+    ", ",
+    cost = 0,
+    ", ",
+    "'", explanandum = explanandum, "'",
+    ", ",
+    innerUtterancePriorType = "'all_alternatives'",
+    ", ",
+    entailmentType = "'none'",
+    ", ",
+    innerRationalityParam=1,
+    ", ",
+    outerRationalityParam=1,
+    ")",
+    sep="")
+  message(model_var)
+  message(program_file)
   return(webppl(
     program_file = program_file,
     inference_opts = list(method="enumerate"),
-    model_var = paste(
-      "s2({actualUtterance: '",
-      utterance,
-      "', lexicon: 'none', utteranceSet: 'even_more'})",
-      sep="")
+    model_var = model_var
   ))
 }
-# s2_cached = list()
-# cacheS2 = function(fn, prog_file, utterance) {
-#   params = paste(prog_file,utterance)
-#   if(params %in% names(s2_cached)) {
-#     print(paste("retrieving", params))
-#     return(s2_cached[[params]])
-#   } else {
-#     print(paste("caching", params))
-#     rs = fn(prog_file, utterance)
-#     s2_cached[[params]] <<- rs
-#     return(rs)
-#   }
-# }
+memS2 <- memoise(s2)
+
 runS2 = function(number, explanandumVariable, explanandumValue,
                  explanansVariable, explanansValue) {
+  
+  explanandum = paste(ifelse(explanandumValue, "", "! "),
+                      explanandumVariable, sep="")
+  explanans = paste(ifelse(explanansValue, "", "! "),
+                    explanansVariable, sep="")
   program_file = paste("rsa.onelink.booleans/lk", number,
-                       explanandum,
+                       explanandumVariable,
                        "/autoexpanded.wppl", sep="")
+  
   utterance = paste(
-    ifelse(explanandumValue, "", "! "),
-    explanandumVariable,
+    explanandum,
     " because ",
-    ifelse(explanansValue, "", "! "),
-    explanansVariable, sep="")
-  rs = s2(program_file, utterance)
+    explanans, sep="")
+  
+  print(paste(number, utterance))
+  
+  rs = memS2(program_file, utterance, explanandum)
   matches_utterance = rs %>% filter(support==utterance)
-  if (length(matches_utterance) > 1) {print(matches_utterance)}
+  if (nrow(matches_utterance) > 1) {print(matches_utterance)}
   return(sum(matches_utterance$prob))
 }
 
 rs2 = design %>%
+  # filter(story == "story6" & explanandumVariable=="C") %>%
+  filter(story == "story1" & explanandumVariable=="A") %>%
   mutate(rating = mapply(runS2, as.numeric(story),
-                         explanandumVariable, explanandumValue,
-                         explanansVariable, explanansValue))
+                         char(explanandumVariable),
+                         explanandumValue,
+                         char(explanansVariable),
+                         explanansValue))
 
-# write.csv(rs1, "S1-onelink-even_more.csv")
-write.csv(rs2, "S2-onelink-none-even_more.csv")
+previous_model_results = read.csv(
+  paste("../../data-analysis/experiment1/",
+        "models/model_results/rsa_onelink.csv",
+        sep="")
+) %>%
+  # filter(story == "story6" & explanandumVariable=="C") %>%
+  filter(story == "story1" & explanandumVariable=="A") %>%
+  rename(previous=rating)
 
-previously_used_values = read.csv(
-  "../../data-analysis/experiment1/models/model_results/rsa_onelink.csv"
-) %>% rename(previous=rating)
+all_model_results = merge(rs2, previous_model_results)
 
-model_results = rs2 %>% rename(recheck = rating) %>%
-  merge(., previously_used_values)
-model_results$previous == model_results$recheck
-cor(model_results$previous, model_results$recheck)
-
-ggplot(model_results,
-       aes(x=previous, y=recheck,
-           colour=explanandumVariable,
-           shape=explanansVariable)) +
-  geom_abline(intercept=0, slope = 1) +
-  geom_point() +
+all_model_results %>%
+  ggplot(., aes(x=rating, y=previous,
+                colour=explanandumVariable,
+                shape=explanansVariable)) +
   facet_wrap(~story) +
-  ylim(0,1) +
-  xlim(0,1)
+  geom_abline(intercept = 0, slope = 1) +
+  geom_point() + ylim(0,1) + xlim(0,1)
 
-ggplot(model_results %>% filter(explanandumVariable != explanansVariable),
-       aes(x=previous, y=recheck,
-           colour=explanandumVariable,
-           shape=explanansVariable)) +
-  geom_abline(intercept=0, slope = 1) +
-  geom_point() +
-  facet_wrap(~story) +
-  ylim(0,1) +
-  xlim(0,1)
+forget(memS2)
 
-df = read.csv(
-  "../../data/full-explananations-elicitation-aggregate-data.csv"
-) %>% merge(., model_results)
+"B because A"
+target = 0.2483437
+orig = 0.3659193
+changing_utterance_prior = 0.3659193
+also_changing_meaning = 0.3659193
+also_changing_matchingFactor = 0.3659193
+also_changing_reducetomatchingkeys = 0.3659193
+also_changing_literal_and_meaning = 0.3659193
+changing_everything = 0.2463893 #(almost the same as target)
 
-# model_results %>%
-#   filter(story=="story1" &
-#            explanansVariable=="B" &
-#            explanandumVariable=="A")
+## once I figured out that I was running the wrong file,
+## I was able to exactly reproduce the previous model's behavior.
+## then, I kept literal and meaning functions the same
+## but started changing functions higher up the chain.
 
-# df %>% ggplot(., aes(x=previous, y=mean_response,
-#                      colour=explanandumVariable,
-#                      shape=explanansVariable)) +
-#   geom_abline(intercept=0, slope = 1) +
-#   geom_point() +
-#   facet_wrap(~story) +
-#   ylim(0,1) +
-#   xlim(0,1)
+target = 0.2483437
+orig = 0.3659193
 
-# df %>% ggplot(., aes(x=recheck, y=mean_response,
-#                      colour=explanandumVariable,
-#                      shape=explanansVariable)) +
-#   geom_abline(intercept=0, slope = 1) +
-#   geom_point() +
-#   facet_wrap(~story) +
-#   ylim(0,1) +
-#   xlim(0,1)
-
+all_model_results
