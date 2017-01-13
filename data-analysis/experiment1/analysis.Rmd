@@ -150,36 +150,7 @@ compare_subset %>%
 ggsave("replicated-subset.png", width=7, height=4)
 ```
 
-Apparently, we replicated our previous experiment perfectly. r=`r with(compare_subset, cor(lk_only, full_version))`
-
-Does that even seem plausible given the split half correlation?
-
-```{r}
-participants = unique(df$workerid)
-half = rbinom(90, 1, 0.5)
-h1 = participants[half==1]
-h2 = participants[half==0]
-d1 = df %>% filter(workerid %in% h1) %>%
-  group_by(story, utterance,
-           explanandumVariable,
-           explanansValue) %>%
-  summarise(mean1 = mean(response))
-d2 = df %>% filter(workerid %in% h2) %>%
-  group_by(story, utterance) %>%
-  summarise(mean2 = mean(response))
-with(merge(d1, d2),
-     cor(mean1, mean2))
-merge(d1, d2) %>%
-  ggplot(., aes(x=mean1, y=mean2,
-                shape=explanandumVariable,
-                colour=story)) +
-  geom_point() +
-  ylim(0,1) + xlim(0,1) +
-  scale_colour_brewer(type="qual", palette=2) +
-  ggtitle("replication of overlapping subset")
-```
-
-Nope.
+Apparently, we replicated our previous experiment pretty well. r=`r with(compare_subset, cor(lk_only, full_version))`
 
 ## Ratings Results Overview
 
