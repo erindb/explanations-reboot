@@ -512,12 +512,14 @@ var meaning = function(params) {
 	var actualSampleParams = params.actualSampleParams;
 
 	var getEntailmentType = function(lexicon) {
-		if (lexicon == "only_explanandum") {
-			return "explanandum";
-		} else if (lexicon == "only_explanans") {
-			return "explanans";
-		} else (lexicon == "both") {
+		if (lexicon == "explanandum") {
+			return "only_explanandum";
+		} else if (lexicon == "explanans") {
+			return "only_explanans";
+		} else if (lexicon == "both" || lexicon=="none") {
 			return lexicon;
+		} else {
+			display("warning -9382423: " + lexicon);
 		}
 	};
 	var entailmentType = getEntailmentType(lexicon);
@@ -566,10 +568,10 @@ var meaning = function(params) {
 			} else if (entailmentType == "both") {
 				return scoreExplanandumFalse + explanansScore + explanandumScore;
 			} else {
-				display("error 2349081");
+				display("error 2349081: " + entailmentType);
 			}
 		}
-		display("warning 21391")
+		display("warning 21391: " + utterance);
 		return 0;
 	}
 	display("warning 123");
