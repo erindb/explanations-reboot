@@ -31,25 +31,22 @@ var reduce_to_matching_keys = function(bigger_object, limiting_object) {
 	return reducedObject;
 };
 
-var matchingFactor = function(interpretationERP, obs) {
-	if (interpretationERP=="enumeration error") {
+var matchingFactor = function(bigERP, obs) {
+	if (bigERP=="enumeration error") {
 		return -Infinity;
 	} else {
 		// obs.input might have more keys than interpretationERP.input
-		var reducedInterpretationERP = Infer(
+		var reducedERP = Infer(
 			{method: "enumerate"},
 			function() {
-				var result = sample(interpretationERP);
-				return {
-					structureParams: result.structureParams,
-					input: reduce_to_matching_keys(result.input, obs.input),
-					output: result.output
-				}
+				var result = sample(bigERP);
+				var reduced_result = reduce_to_matching_keys(result, obs);
+				return reduced_result;
 			}
 		);
 		// display(obs);
 		// display(reducedInterpretationERP);
-		return reducedInterpretationERP.score(obs);
+		return reducedERP.score(obs);
 	}
 };
 
