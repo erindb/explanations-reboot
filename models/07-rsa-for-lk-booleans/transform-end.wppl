@@ -427,7 +427,73 @@ var lexiconPrior = function() {};
 
 // --------------------------- RSA ---------------------------------------------
 
+var conditionExplanansERP = cache(function(explanans, obs, actualSampleParams) {
+	var explanansFalseVariable = explanans[0]=="!" ? true : false;
+	var explanans = explanans[0]=="!" ? explanans[1] : explanans;
+	return Infer(
+		{method: "enumerate"},
+		function() {
+			// var cfPremise = {};
+			// cfPremise[explanans] = false;
+			// counterfactual(0.53, cfPremise, obs);
+
+			var stickiness = 0.53;
+
+			// now sticky sample cfSampleParams
+			var cfSampleParams = counterfactualizeLatents(
+				sampleParamsPrior,
+				actualSampleParams,
+				stickiness
+			);
+			// and cfInput
+			var cfInput = counterfactualizeLatents(
+				inputPrior,
+				obs.input,
+				stickiness
+			);
+			// and cfStructureParams
+			var cfStructureParams = counterfactualizeLatents(
+				structureParamsPrior,
+				obs.structureParams,
+				stickiness
+			);
+
+			// and calculate corresponding output
+			var cfProgram = makeProgram(cfStructureParams);
+			var cfReturnValues = cfProgram(cfInput, cfSampleParams);
+			var cfOutput = cfReturnValues.output;
+
+			// condition on the explanans variable having the
+			// value that would make the explanans false
+			condition(cfOutput[explanans]==explanansFalseVariable)
+
+			// will the explanandum consequently be false??
+			return cfOutput;
+		}
+	);
+});
+
+var getExplanandumFalseScore = function(explanandum, erp) {
+	var explanandumFalseVariable = explanandum[0]=="!" ? true : false;
+	var explanandumVariable = explanandum[0]=="!" ? explanandum[1] : explanandum;
+
+	var marginal = Infer({method: "enumerate"}, function() {
+		var s = sample(erp);
+		return s[explanandumVariable] == explanandumFalseVariable;
+	});
+	return marginal.score(true);
+};
+
+var getScore = function(variable, erp) {
+	var marginal = Infer({method: "enumerate"}, function() {
+		var s = sample(erp);
+		return s.variable == value;
+	});
+	return marginal.score(true);
+};
+
 var meaning = function(params) {
+
 	var params = params ? params : {};
 
 	// return a factor (-Infinity, 0]
@@ -435,7 +501,7 @@ var meaning = function(params) {
 	// 0 corresponds to true
 
 	var utterance = params.utterance;
-	var world = params.world;
+	var obs = params.world;
 
 	var qud = params.qud ? params.qud : defaults.qud;
 	var lexicon = params.lexicon ? params.lexicon : defaults.lexicon;
@@ -443,125 +509,71 @@ var meaning = function(params) {
 		params.stickiness ? params.stickiness : defaults.stickiness
 	);
 
-	// TO DO add qud
+	var actualSampleParams = params.actualSampleParams;
+
+	var getEntailmentType = function(lexicon) {
+		if (lexicon == "only_explanandum") {
+			return "explanandum";
+		} else if (lexicon == "only_explanans") {
+			return "explanans";
+		} else (lexicon == "both") {
+			return lexicon;
+		}
+	};
+	var entailmentType = getEntailmentType(lexicon);
 
 	var words = utterance.split(" ");
 	if (utterance=="") {
 		return 0;
 	} else if (words.length==1) {
-		// single variable, simply require that variable be true
-		var variable = words[0];
-		return (world.output)[variable] ? 0 : -Infinity;
-	} else if (words.length==2 && words[0]=="!") {
-		// negated variable, simply reqiore that variable be false
-		var variable = words[1];
-		return !(world.output)[variable] ? 0 : -Infinity;
-	} else if (words.indexOf("because") > -1) {
-		// for now assume because utterances only (no and or or)
-		var becauseIndex = words.indexOf("because");
-		var explanandumWords = words.slice(0, becauseIndex);
-		var explanansWords = words.slice(becauseIndex+1);
-		var explanandumVariable = words[becauseIndex-1];
-		var explanansVariable = words[words.length-1];
-		var explanandumValue = explanandumWords[0]!="!";
-		var explanansValue = explanansWords[0]!="!";
-		var explanandum = _.object([[explanandumVariable, explanandumValue]]);
-		var explanans = _.object([[explanansVariable, explanansValue]]);
+		var word = words[0];
+		return (obs.output)[word] ? 0 : -Infinity;
+	} else if (words.length==2 && words[0] == "!") {
+		var word = words[1];
+		return !(obs.output)[word] ? 0 : -Infinity;
+	} else if (words.length>=3) {
+		if (words.indexOf("and") > -1) {
+			var phrase1 = words.slice(0, words.indexOf("and")).join("");
+			var phrase2 = words.slice(words.indexOf("and")+1).join("");
+			var TV1 = phrase1[0]=="!" ? !(obs.output)[phrase1[1]] : (obs.output)[phrase1];
+			var TV2 = phrase2[0]=="!" ? !(obs.output)[phrase2[1]] : (obs.output)[phrase2];
+			return TV1 && TV2 ? 0 : -Infinity;
+		} else if (words.indexOf("or") > -1) {
+			var phrase1 = words.slice(0, words.indexOf("or")).join("");
+			var phrase2 = words.slice(words.indexOf("or")+1).join("");
+			var TV1 = phrase1[0]=="!" ? !(obs.output)[phrase1[1]] : (obs.output)[phrase1];
+			var TV2 = phrase2[0]=="!" ? !(obs.output)[phrase2[1]] : (obs.output)[phrase2];
+			return TV1 || TV2 ? 0 : -Infinity;
+		} else if (words.indexOf("because") > -1) {
+			var explanandum = words.slice(0, words.indexOf("because")).join("");
+			var explanans = words.slice(words.indexOf("because")+1).join("");
+			var conditionedOnExplanansFalse = conditionExplanansERP(explanans, obs, actualSampleParams);
+			var scoreExplanandumFalse = getExplanandumFalseScore(explanandum, conditionedOnExplanansFalse);
+			
+			var explanandumValue = explanandum[0]=="!" ? false : true;
+			var explanandumVariable = explanandum[0]=="!" ? explanandum[1] : explanandum;
+			var explanansValue = explanans[0]=="!" ? false : true;
+			var explanansVariable = explanans[0]=="!" ? explanans[1] : explanans;
+			var explanansScore = (obs.output)[explanansVariable]==explanansValue ? 0 : -Infinity;
+			var explanandumScore = (obs.output)[explanandumVariable]==explanandumValue ? 0 : -Infinity;
 
-		// condition on explanans
-		var entailmentFactorA = (
-			(
-				(lexicon=="explanans" || lexicon=="both") ?
-				match(world.output, explanans) ? 0 : -Infinity :
-				0
-			)
-		);
-
-		// condition on explanandum
-		var entailmentFactorB = (
-			(
-				(lexicon=="explanandum" || lexicon=="both") ?
-				match(world.output, explanandum) ? 0 : -Infinity :
-				0
-			)
-		);
-
-		if (
-			!(
-				lexicon == "explanandum" || lexicon == "explanans" ||
-				lexicon == "both" || lexicon=="none"
-			)
-		) {
-			display("warning 2098-2")
+			if (entailmentType == "none") {
+				return scoreExplanandumFalse;
+			} else if (entailmentType == "only_explanandum") {
+				return scoreExplanandumFalse + explanandumScore;
+			} else if (entailmentType == "only_explanans") {
+				return scoreExplanandumFalse + explanansScore;
+			} else if (entailmentType == "both") {
+				return scoreExplanandumFalse + explanansScore + explanandumScore;
+			} else {
+				display("error 2349081");
+			}
 		}
-
-		var cfPremise = _.object([[explanansVariable, !explanansValue]]);
-		var cfConsequent = _.object([[explanandumVariable, !explanandumValue]]);
-
-		var cfERP = cleanup(Infer({method: "enumerate"}, worldModel({
-			returnCF: true,
-			obs: world,
-			useObs: {
-				structureParams: true,
-				input: true,
-				output: true
-			},
-			cfObs: {
-				output: cfPremise
-			},
-			passErr: true
-		})));
-
-		// display("***")
-		// display("utterance")
-		// display(utterance)
-		// display("cfPremise")
-		// display(cfPremise)
-		// display("explanans")
-		// display(explanans)
-		// display("explanandum")
-		// display(explanandum);
-		// display("cfConsequent")
-		// display(cfConsequent);
-
-		var cfFactor = matchingFactor(cfERP, {cfOutput: cfConsequent});
-
-		return entailmentFactorA + entailmentFactorB + cfFactor;
-	} else if (words.indexOf("and") > -1 || words.indexOf("or") > -1) {
-		var andIndex = words.indexOf("and");
-		var orIndex = words.indexOf("or");
-		var linkWord = andIndex>-1 ? "and" : orIndex>-1 ? "or" : false;
-		if (!linkWord) { display("warning 230918"); }
-		var linkIndex = Math.max(andIndex, orIndex);
-
-		var utterance1 = words.slice(0, linkIndex).join(" ");
-		var utterance2 = words.slice(linkIndex+1).join(" ");
-		var factor1 = meaning({
-			utterance: utterance1,
-			world: world,
-			qud: qud,
-			lexicon: lexicon,
-			stickiness: stickiness
-		});
-		var factor2 = meaning({
-			utterance: utterance2,
-			world: world,
-			qud: qud,
-			lexicon: lexicon,
-			stickiness: stickiness
-		});
-		// assume these are either 0 or -Infinity.
-		// then and corresponds to + and or corresponds to max.
-		if (linkWord == "and") {
-			return factor1 + factor2;
-		} else if (linkWord=="or") {
-			return Math.max(factor1, factor2);
-		} else {
-			display("warning 230981");
-		}
-	} else {
-		display("warning 233340981");
+		display("warning 21391")
+		return 0;
 	}
+	display("warning 123");
+	return 0;
 };
 
 var literal = function(params) {
