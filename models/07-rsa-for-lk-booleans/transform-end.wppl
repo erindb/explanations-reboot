@@ -289,7 +289,7 @@ var worldModel = function(params) {
 
 // --------------------------- utterance prior ---------------------------------
 
-var utterancePriorMaker = function(params) {
+var utterancePriorMaker = var utterancePriorMaker = function(params) {
 	var utteranceSet = params.utteranceSet ? params.utteranceSet : defaults.utteranceSet;
 	var costPerWord = params.costPerWord ? params.costPerWord : defaults.costPerWord;
 	var actualUtterance = params.actualUtterance ? params.actualUtterance : false;
@@ -516,10 +516,8 @@ var meaning = function(params) {
 			return "explanandum";
 		} else if (lexicon == "only_explanans") {
 			return "explanans";
-		} else if (lexicon == "both") {
+		} else (lexicon == "both") {
 			return lexicon;
-		} else {
-			display("warning 0983422354235")
 		}
 	};
 	var entailmentType = getEntailmentType(lexicon);
