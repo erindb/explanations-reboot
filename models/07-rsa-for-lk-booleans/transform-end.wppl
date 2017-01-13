@@ -446,7 +446,7 @@ var meaning = function(params) {
 	// TO DO add qud
 
 	var words = utterance.split(" ");
-	if (utterance=="null") {
+	if (utterance=="") {
 		return 0;
 	} else if (words.length==1) {
 		// single variable, simply require that variable be true
