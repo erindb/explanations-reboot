@@ -133,9 +133,13 @@ old_df = read.csv("../../data/2015-exp4-and-exp5-lkrep.csv") %>%
   summarise(lk_only = mean(rating),
             ci.low = ci.low(rating),
             ci.high = ci.high(rating)) %>% as.data.frame
+tags = read.csv("../../data/explanations-expt-data-with-fixed-explanans.csv") %>% select(story, story.number, variable, premise.variable, tag) %>%
+  mutate(story = paste("story", story.number, sep="")) %>%
+  rename(explanansVariable = premise.variable,
+         explanandumVariable = variable)
 compare_subset = aggr_df %>% 
   rename(full_version = mean_response) %>%
-  merge(., old_df)
+  merge(., merge(tags, old_df))
 compare_subset %>%
   ggplot(., aes(x=lk_only, y=full_version,
                 shape=explanandumVariable,
@@ -148,6 +152,18 @@ compare_subset %>%
   scale_colour_brewer(type="qual", palette=2) +
   ggtitle("replication of overlapping subset")
 ggsave("replicated-subset.png", width=7, height=4)
+
+compare_subset %>%
+  ggplot(., aes(x=lk_only, y=full_version,
+                colour=tag)) +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_point() +
+  geom_errorbar(aes(x=lk_only, ymin=low, ymax=high)) +
+  geom_errorbarh(aes(y=full_version, xmin=ci.low, xmax=ci.high)) +
+  ylim(0,1) + xlim(0,1) +
+  scale_colour_brewer(type="qual", palette=2) +
+  ggtitle("replication with tags")
+ggsave("replicated-subset-with-tags.png", width=7, height=4)
 ```
 
 Apparently, we replicated our previous experiment pretty well. r=`r with(compare_subset, cor(lk_only, full_version))`
@@ -205,14 +221,50 @@ plot_data_for_story("story6")
 knitr::include_graphics("lkstories-graphs/story6.png")
 ```
 
-<!--
-## Model comparison
+## Model
 
 ```{r run_models}
 # setwd("models")
 # source("run_models.R")
 # setwd("..")
 ```
+
+Here's the model I presented in lab meeting plotted against the new data.
+
+```{r}
+model = read.csv("../../data/s2_onelink_uevenmore_noentailments.csv") %>%
+  rename(model_type = model, model = rating)
+data = aggr_df
+modelvdata = merge(model, data)
+modelvdata %>% ggplot(., aes(x=model, y=mean_response,
+                             colour=explanandumVariable,
+                             shape=explanansVariable)) +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_point() +
+  geom_errorbar(aes(x=model, ymin=low, ymax=high)) +
+  facet_wrap(~story)
+```
+
+I'll ignore tautologies for now, because it's obvious why they take the values that they do.
+
+```{r}
+modelvdata %>% 
+  filter(explanansVariable!=explanandumVariable) %>%
+  ggplot(., aes(x=model, y=mean_response,
+                             colour=explanandumVariable,
+                             shape=explanansVariable)) +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_point() +
+  geom_errorbar(aes(x=model, ymin=low, ymax=high)) +
+  facet_wrap(~story)
+```
+
+### Error Analysis
+
+Let's look at story5 first, because it has the widest range of human responses.
+
+<!--
+
 
 ```{r load_model_results}
 model_results = rbind(
@@ -222,6 +274,50 @@ model_results = rbind(
   read.csv("models/model_results/rsa_onelink.csv")) %>%
   mutate(entailmentType = factor(entailmentType)) %>%
   rename(model_rating = rating)
+```
+
+### RSA with causal uncertainty
+
+```{r compare_rsa_model_to_data_causal_uncertainty}
+rsa_comparison_causal_uncertainty = model_results %>%
+  filter(model == "rsa" &
+           uncertainty == "causal") %>%
+  merge(., df)
+rsa_r_causal_uncertainty = with(
+  rsa_comparison_causal_uncertainty,
+  cor(model_rating, response))
+rsa_r_causal_uncertainty_filtered = with(
+  rsa_comparison_causal_uncertainty %>% filter(explanandumVariable != explanansVariable), cor(model_rating, response))
+aggr_rsa_comparison_causal_uncertainty = model_results %>%
+  filter(model == "rsa" & uncertainty == "causal") %>%
+  merge(., aggr_df)
+aggr_rsa_comparison_causal_uncertainty %>%
+  ggplot(., aes(x=model_rating,
+                y=mean_response)) +
+  geom_point(colour="white") +
+  geom_errorbar(aes(x=model_rating,
+                    ymin=low,
+                    ymax=high), width=0, colour="white") +
+  theme_black
+
+ggsave("explanations-aggr.png")
+
+aggr_rsa_comparison_causal_uncertainty %>%
+  ggplot(., aes(x=model_rating,
+                y=mean_response,
+                colour=explanandumVariable,
+                shape=explanansVariable)) +
+  geom_point() +
+  geom_errorbar(aes(x=model_rating,
+                    ymin=low,
+                    ymax=high), width=0) +
+  # geom_text(aes(label = utterance)) +
+  facet_wrap(~story) +
+  scale_colour_brewer(type="qual", palette = 2) +
+  theme_black
+print(rsa_r_causal_uncertainty)
+
+ggsave("explanations.png")
 ```
 
 ### Raw counterfactual probability
@@ -298,52 +394,9 @@ aggr_rsa_comparison %>%
 print(rsa_r)
 ```
 
-### RSA with causal uncertainty
-
-```{r compare_rsa_model_to_data_causal_uncertainty}
-rsa_comparison_causal_uncertainty = model_results %>%
-  filter(model == "rsa" &
-           uncertainty == "causal") %>%
-  merge(., df)
-rsa_r_causal_uncertainty = with(
-  rsa_comparison_causal_uncertainty,
-  cor(model_rating, response))
-rsa_r_causal_uncertainty_filtered = with(
-  rsa_comparison_causal_uncertainty %>% filter(explanandumVariable != explanansVariable), cor(model_rating, response))
-aggr_rsa_comparison_causal_uncertainty = model_results %>%
-  filter(model == "rsa" & uncertainty == "causal") %>%
-  merge(., aggr_df)
-aggr_rsa_comparison_causal_uncertainty %>%
-  ggplot(., aes(x=model_rating,
-                y=mean_response)) +
-  geom_point(colour="white") +
-  geom_errorbar(aes(x=model_rating,
-                    ymin=low,
-                    ymax=high), width=0, colour="white") +
-  theme_black
-
-ggsave("explanations-aggr.png")
-
-aggr_rsa_comparison_causal_uncertainty %>%
-  ggplot(., aes(x=model_rating,
-                y=mean_response,
-                colour=explanandumVariable,
-                shape=explanansVariable)) +
-  geom_point() +
-  geom_errorbar(aes(x=model_rating,
-                    ymin=low,
-                    ymax=high), width=0) +
-  # geom_text(aes(label = utterance)) +
-  facet_wrap(~story) +
-  scale_colour_brewer(type="qual", palette = 2) +
-  theme_black
-print(rsa_r_causal_uncertainty)
-
-ggsave("explanations.png")
-```
-
 
 -->
+
 
 ## Participants
 
