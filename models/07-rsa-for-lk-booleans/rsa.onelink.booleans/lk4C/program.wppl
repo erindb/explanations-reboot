@@ -1,0 +1,27 @@
+// C because C
+// could have been no causal link A->C OR B->C
+
+var program = function(input) {
+
+	var cause = true;
+
+	var A = input.A;
+	var B = input.B;
+	
+	var C = cause ? (A || B) : false;
+	var D = C;
+
+	return {
+		A: A,
+		B: B,
+		C: C,
+		D: D
+	};
+};
+
+var input = {
+	A: false,
+	B: false
+};
+
+program(input);

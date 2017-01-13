@@ -33,7 +33,6 @@ var reduce_to_matching_keys = function(bigger_object, limiting_object) {
 
 var matchingFactor = function(bigERP, obs) {
 	if (bigERP=="enumeration error") {
-		display("bailing")
 		return -Infinity;
 	} else {
 		// obs.input might have more keys than interpretationERP.input
@@ -298,6 +297,7 @@ var utterancePriorMaker = function(params) {
 		params.utteranceSet :
 		defaults.utteranceSet
 	);
+
 	var actualUtterance = (
 		params.actualUtterance ? params.actualUtterance : false
 	);
@@ -308,9 +308,9 @@ var utterancePriorMaker = function(params) {
 
 	// for each base expression
 	// we can say that expression
-	var unaryUtterances = base_utterances.concat(
+	var unaryUtterances = expressions.concat(
 		// or we can negate it
-		map(function(u) {return "! " + u;}, base_utterances)
+		map(function(u) {return "! " + u;}, expressions)
 	);
 
 	var becauseUtterances = reduce(function(u1, acc) {
@@ -350,7 +350,9 @@ var utterancePriorMaker = function(params) {
 	if (utteranceSet == "max") {
 		// no dependence on actualUtterance
 		var maxERP = Infer({method: "enumerate"}, function() {
-			var utterance = uniformDraw(becauseUtterances.concat(["null"]));
+			var utterance = uniformDraw(unaryUtterances.concat(
+				becauseUtterances.concat(["null"])
+			));
 			if (utterance!="null") {
 				factor(- costPerWord * utterance.split(" ").length)
 			}
@@ -358,6 +360,24 @@ var utterancePriorMaker = function(params) {
 		});
 		return function() {
 			sample(maxERP);
+		};
+	} else if (utteranceSet == "even_more") {
+		// no dependence on actualUtterance
+		var evenMoreERP = Infer({method: "enumerate"}, function() {
+			var utterance = uniformDraw(
+				unaryUtterances.concat(
+					andUtterances.concat(orUtterances.concat(
+						becauseUtterances.concat(["null"])
+					))
+				)
+			);
+			if (utterance!="null") {
+				factor(- costPerWord * utterance.split(" ").length)
+			}
+			return utterance;
+		});
+		return function() {
+			sample(evenMoreERP);
 		};
 	} else {
 		if (actualUtterance) {
@@ -394,7 +414,7 @@ var qudFns = {
 };
 var getCGStates = function(world, cg) {
 	var asList = map(
-	  function(variable) {return [variable, world[variable]];},
+	  function(variable) {return [variable, world.output[variable]];},
 	  cg
 	);
 	return _.object(asList);
@@ -507,6 +527,38 @@ var meaning = function(params) {
 		var cfFactor = matchingFactor(cfERP, {cfOutput: cfConsequent});
 
 		return entailmentFactorA + entailmentFactorB + cfFactor;
+	} else if (words.indexOf("and") > -1 || words.indexOf("or") > -1) {
+		var andIndex = words.indexOf("and");
+		var orIndex = words.indexOf("or");
+		var linkWord = andIndex>-1 ? "and" : orIndex>-1 ? "or" : false;
+		if (!linkWord) { display("warning 230918"); }
+		var linkIndex = Math.max(andIndex, orIndex);
+
+		var utterance1 = words.slice(0, linkIndex).join(" ");
+		var utterance2 = words.slice(linkIndex+1).join(" ");
+		var factor1 = meaning({
+			utterance: utterance1,
+			world: world,
+			qud: qud,
+			lexicon: lexicon,
+			stickiness: stickiness
+		});
+		var factor2 = meaning({
+			utterance: utterance2,
+			world: world,
+			qud: qud,
+			lexicon: lexicon,
+			stickiness: stickiness
+		});
+		// assume these are either 0 or -Infinity.
+		// then and corresponds to + and or corresponds to max.
+		if (linkWord == "and") {
+			return factor1 + factor2;
+		} else if (linkWord=="or") {
+			return Math.max(factor1, factor2);
+		} else {
+			display("warning 230981");
+		}
 	} else {
 		display("warning 233340981");
 	}
@@ -518,7 +570,17 @@ var literal = function(params) {
 	var utterance = params.utterance;
 
 	var qud = params.qud ? params.qud : defaults.qud;
-	var cgStates = params.cgStates ? params.cgStates : {};
+	var cg = params.cg ? params.cg : false;
+	if (params.cg && params.cgStates) { display("warning 234098") };
+
+	var obs = params.obs ? params.obs : observations;
+
+	var cgStates = (
+		params.cgStates ? params.cgStates : (
+			cg ? getCGStates(obs, cg) : {}
+		)
+	);
+
 	var lexicon = params.lexicon ? params.lexicon : defaults.lexicon;
 
 	var stickiness = (
@@ -652,6 +714,10 @@ var listener = function(params) {
 		params.inferenceOpts ? params.inferenceOpts : defaults.inferenceOpts
 	);
 
+	var utteranceSet = (
+		params.utteranceSet ? params.utteranceSet : defaults.utteranceSet
+	);
+
 	var lambda1 = params.lambda1 ? params.lambda1 : defaults.lambda1;
 	var stickiness = (
 		params.stickiness ? params.stickiness : defaults.stickiness
@@ -701,6 +767,7 @@ var listener = function(params) {
 			lambda1: lambda1,
 			stickiness: stickiness,
 			actualUtterance: actualUtterance,
+			utteranceSet: utteranceSet,
 			costPerWord: costPerWord,
 			passErr: true
 		});
@@ -722,7 +789,7 @@ var listenerERP = cache(function(params) {
 	var inferenceOpts = (
 		params.inferenceOpts ? params.inferenceOpts : defaults.inferenceOpts
 	);
-	return cleanup(Infer(inferenceOpts, listener(params)));
+	return cleanup(Infer(inferenceOpts.listener, listener(params)));
 });
 
 var s2 = function(params) {
@@ -731,6 +798,10 @@ var s2 = function(params) {
 	// form the utterancePrior based on what was
 	// actually said.
 	var actualUtterance = params.actualUtterance;
+
+	var utteranceSet = (
+		params.utteranceSet ? params.utteranceSet : defaults.utteranceSet
+	);
 
 	// observations can be specified with params.
 	// But in general, 
@@ -794,6 +865,7 @@ var s2 = function(params) {
 			stickiness: stickiness,
 			actualUtterance: actualUtterance,
 			costPerWord: costPerWord,
+			utteranceSet: utteranceSet,
 			passErr: true
 		});
 
