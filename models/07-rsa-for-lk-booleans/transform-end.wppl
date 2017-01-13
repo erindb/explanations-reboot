@@ -1,4 +1,6 @@
 
+var 
+
 // --------------------------- utils -------------------------------------------
 
 var match = function(inferred, observed) {
@@ -628,6 +630,78 @@ var literalERP = cache(function(params) {
 	return cleanup(Infer(inferenceOpts.literal, literal(params)));
 });
 
+var s1 = function(params) {
+
+	var params = params ? params : {};
+
+	// communicate the world, if provided. otherwise communicate
+	// actual observations from experiment
+	var world = params.world ? params.world : observations;
+
+	var inferenceOpts = (
+		params.inferenceOpts ? params.inferenceOpts : defaults.inferenceOpts
+	);
+
+	var qud = params.qud ? params.qud : defaults.qud;
+	var cgStates = params.cgStates ? params.cgStates : {};
+	var lexicon = params.lexicon ? params.lexicon : defaults.lexicon;
+	var utteranceSet = (
+		params.utteranceSet ? params.utteranceSet : defaults.utteranceSet
+	);
+	var costPerWord = (
+		params.costPerWord ? params.costPerWord : defaults.costPerWord
+	);
+
+	var lambda1 = params.lambda1 ? params.lambda1 : defaults.lambda1;
+	var stickiness = (
+		params.stickiness ? params.stickiness : defaults.stickiness
+	);
+	var actualUtterance = (
+		params.actualUtterance ? params.actualUtterance : false
+	);
+
+	var passErr = params.passErr ? params.passErr : defaults.passErr;
+
+	var words = actualUtterance.split(" ");
+	var becauseIndex = words.indexOf("because");
+	var explanandum = words.slice(0, becauseIndex).join(" ");
+
+	var priorType = ;
+	var cost = costPerWord;
+	var entailmentType = ;
+	var QUD = ;
+	var rationalityParam = ;
+	var obs = ;
+
+	// speaker might have observed anything
+	var obs = obs ? obs : observations;
+	var entailmentType = entailmentType ? entailmentType : "none";
+	var rationalityParam = rationalityParam ? rationalityParam : 1;
+
+	return function() {
+
+		// they choose something to say
+		var utterancePrior = possiblePriors(priorType, cost, explanandum);
+		var utterance = utterancePrior();
+
+		// the literal listener interprets this
+		var interpretationERP = literalERP(utterance, entailmentType);
+
+		var projectedInterpretation = QUD ? marginalize(interpretationERP, QUD) : interpretationERP;
+		var projectedObs = QUD ? projectObs(obs, QUD) : obs;
+
+		// the speaker makes sure that their
+		// observations line up with interpretation
+		var s = matchingFactor(projectedInterpretation, projectedObs);
+		factor(rationalityParam * s);
+
+		// and then they say it
+		return {
+			observations: utterance,
+			truthFactor: s
+		};
+	};
+};
 var s1 = function(params) {
 	var params = params ? params : {};
 

@@ -15,43 +15,45 @@ design = read.csv("../../data/full-explananations-elicitation-design.csv")
 #     sep="")
 # )
 
-# s2 = function(program_file, utterance, explanandum) {
-#   return(webppl(
-#     program_file = program_file,
-#     inference_opts = list(method="enumerate"),
-#     model_var = paste(
-#       "s2({actualUtterance: '",
-#       utterance,
-#       "', lexicon: 'none', utteranceSet: 'even_more'})",
-#       sep="")
-#   ))
-# }
 s2 = function(program_file, utterance, explanandum) {
   model_var = paste(
-    "s2(",
-    "'", base_utterance = utterance, "'",
-    ", ",
-    cost = 0,
-    ", ",
-    "'", explanandum = explanandum, "'",
-    ", ",
-    innerUtterancePriorType = "'all_alternatives'",
-    ", ",
-    entailmentType = "'none'",
-    ", ",
-    innerRationalityParam=1,
-    ", ",
-    outerRationalityParam=1,
-    ")",
+    "s2({actualUtterance: '",
+    utterance,
+    "', lexicon: 'none', utteranceSet: 'even_more'})",
     sep="")
-  message(model_var)
-  message(program_file)
+  print(model_var)
   return(webppl(
     program_file = program_file,
     inference_opts = list(method="enumerate"),
     model_var = model_var
   ))
 }
+# s2 = function(program_file, utterance, explanandum) {
+#   model_var = paste(
+#     "s2(",
+#     "'", base_utterance = utterance, "'",
+#     ", ",
+#     cost = 0,
+#     ", ",
+#     "'", explanandum = explanandum, "'",
+#     ", ",
+#     innerUtterancePriorType = "'all_alternatives'",
+#     ", ",
+#     entailmentType = "'none'",
+#     ", ",
+#     innerRationalityParam=1,
+#     ", ",
+#     outerRationalityParam=1,
+#     ")",
+#     sep="")
+#   message(model_var)
+#   message(program_file)
+#   return(webppl(
+#     program_file = program_file,
+#     inference_opts = list(method="enumerate"),
+#     model_var = model_var
+#   ))
+# }
 memS2 <- memoise(s2)
 
 runS2 = function(number, explanandumVariable, explanandumValue,
@@ -71,6 +73,7 @@ runS2 = function(number, explanandumVariable, explanandumValue,
     explanans, sep="")
   
   print(paste(number, utterance))
+  print(program_file)
   
   rs = memS2(program_file, utterance, explanandum)
   matches_utterance = rs %>% filter(support==utterance)
@@ -80,7 +83,7 @@ runS2 = function(number, explanandumVariable, explanandumValue,
 
 rs2 = design %>%
   # filter(story == "story6" & explanandumVariable=="C") %>%
-  filter(story == "story1" & explanandumVariable=="A") %>%
+  filter(story == "story1" & explanandumVariable=="B") %>%
   mutate(rating = mapply(runS2, as.numeric(story),
                          char(explanandumVariable),
                          explanandumValue,
@@ -93,7 +96,7 @@ previous_model_results = read.csv(
         sep="")
 ) %>%
   # filter(story == "story6" & explanandumVariable=="C") %>%
-  filter(story == "story1" & explanandumVariable=="A") %>%
+  filter(story == "story1" & explanandumVariable=="B") %>%
   rename(previous=rating)
 
 all_model_results = merge(rs2, previous_model_results)
@@ -124,6 +127,7 @@ changing_everything = 0.2463893 #(almost the same as target)
 ## but started changing functions higher up the chain.
 
 target = 0.2483437
-orig = 0.3659193
+orig = 0.3660331
+changing_s1 = NA
 
 all_model_results
