@@ -585,18 +585,18 @@ rsa_onelink_s2_cost10 = expl %>%
 ```
 
 ```{r plot_rsa_onelink_s2_cost10_model}
-plot.expl(rsa_onelink_s2_cost10, "rsa-onelink-s2.png")
+plot.expl(rsa_onelink_s2_cost10, "rsa-onelink-s2-cost10.png")
 ```
 
 ```{r plot_rsa_onelink_s2_cost10_model_filtered_stories}
 plot.expl.with.stories(
   rsa_onelink_s2_cost10 %>%
     filter(char(variable) != char(premise.variable)),
-  "rsa-onelink-s2-filteredstories.png")
+  "rsa-onelink-s2-cost10-filteredstories.png")
 ```
 
 ```{r plot_rsa_onelink_s2_cost10_model_stories}
-plot.expl.with.stories(rsa_onelink_s2_cost10, "rsa-onelink-s2-stories.png")
+plot.expl.with.stories(rsa_onelink_s2_cost10, "rsa-onelink-s2-cost10-stories.png")
 ```
 
 # Testing / Debugging
