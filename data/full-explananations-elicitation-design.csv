@@ -1,64 +1,64 @@
-"story","explanansVariable","explanansValue","explanandumVariable","explanandumValue"
-"story1","B",TRUE,"A",TRUE
-"story1","A",TRUE,"B",TRUE
-"story1","B",TRUE,"B",TRUE
-"story1","A",TRUE,"A",TRUE
-"story4","A",FALSE,"C",FALSE
-"story4","C",FALSE,"B",FALSE
-"story4","D",FALSE,"A",FALSE
-"story4","D",FALSE,"C",FALSE
-"story4","D",FALSE,"B",FALSE
-"story4","B",FALSE,"B",FALSE
-"story4","A",FALSE,"B",FALSE
-"story4","B",FALSE,"C",FALSE
-"story4","C",FALSE,"C",FALSE
-"story4","A",FALSE,"A",FALSE
-"story4","D",FALSE,"D",FALSE
-"story4","A",FALSE,"D",FALSE
-"story4","C",FALSE,"A",FALSE
-"story4","B",FALSE,"A",FALSE
-"story4","C",FALSE,"D",FALSE
-"story4","B",FALSE,"D",FALSE
-"story6","B",FALSE,"A",FALSE
-"story6","A",FALSE,"A",FALSE
-"story6","B",FALSE,"B",FALSE
-"story6","B",FALSE,"C",TRUE
-"story6","A",FALSE,"B",FALSE
-"story6","C",TRUE,"B",FALSE
-"story6","A",FALSE,"C",TRUE
-"story6","C",TRUE,"C",TRUE
-"story6","C",TRUE,"A",FALSE
-"story3","A",TRUE,"C",FALSE
-"story3","B",TRUE,"A",TRUE
-"story3","C",FALSE,"A",TRUE
-"story3","A",TRUE,"A",TRUE
-"story3","A",TRUE,"B",TRUE
-"story3","C",FALSE,"C",FALSE
-"story3","B",TRUE,"C",FALSE
-"story3","B",TRUE,"B",TRUE
-"story3","C",FALSE,"B",TRUE
-"story2","C",TRUE,"A",TRUE
-"story2","B",TRUE,"B",TRUE
-"story2","B",TRUE,"C",TRUE
-"story2","B",TRUE,"A",TRUE
-"story2","A",TRUE,"C",TRUE
-"story2","A",TRUE,"A",TRUE
-"story2","A",TRUE,"B",TRUE
-"story2","C",TRUE,"C",TRUE
-"story2","C",TRUE,"B",TRUE
-"story5","D",TRUE,"D",TRUE
-"story5","C",TRUE,"B",TRUE
-"story5","C",TRUE,"D",TRUE
-"story5","B",TRUE,"D",TRUE
-"story5","A",TRUE,"C",TRUE
-"story5","C",TRUE,"C",TRUE
-"story5","B",TRUE,"B",TRUE
-"story5","A",TRUE,"D",TRUE
-"story5","C",TRUE,"A",TRUE
-"story5","D",TRUE,"A",TRUE
-"story5","D",TRUE,"B",TRUE
-"story5","A",TRUE,"A",TRUE
-"story5","B",TRUE,"A",TRUE
-"story5","A",TRUE,"B",TRUE
-"story5","D",TRUE,"C",TRUE
-"story5","B",TRUE,"C",TRUE
+"story","explanansVariable","explanansValue","explanandumVariable","explanandumValue","utterance"
+"story5","D",TRUE,"C",TRUE,"C because D"
+"story5","C",TRUE,"D",TRUE,"D because C"
+"story5","D",TRUE,"A",TRUE,"A because D"
+"story5","B",TRUE,"A",TRUE,"A because B"
+"story5","C",TRUE,"B",TRUE,"B because C"
+"story5","B",TRUE,"D",TRUE,"D because B"
+"story5","C",TRUE,"C",TRUE,"C because C"
+"story5","A",TRUE,"D",TRUE,"D because A"
+"story5","D",TRUE,"B",TRUE,"B because D"
+"story5","A",TRUE,"C",TRUE,"C because A"
+"story5","A",TRUE,"A",TRUE,"A because A"
+"story5","B",TRUE,"B",TRUE,"B because B"
+"story5","C",TRUE,"A",TRUE,"A because C"
+"story5","B",TRUE,"C",TRUE,"C because B"
+"story5","A",TRUE,"B",TRUE,"B because A"
+"story5","D",TRUE,"D",TRUE,"D because D"
+"story2","C",TRUE,"B",TRUE,"B because C"
+"story2","A",TRUE,"B",TRUE,"B because A"
+"story2","B",TRUE,"B",TRUE,"B because B"
+"story2","B",TRUE,"A",TRUE,"A because B"
+"story2","C",TRUE,"A",TRUE,"A because C"
+"story2","B",TRUE,"C",TRUE,"C because B"
+"story2","A",TRUE,"C",TRUE,"C because A"
+"story2","C",TRUE,"C",TRUE,"C because C"
+"story2","A",TRUE,"A",TRUE,"A because A"
+"story6","A",FALSE,"A",FALSE,"! A because ! A"
+"story6","C",TRUE,"C",TRUE,"C because C"
+"story6","B",FALSE,"B",FALSE,"! B because ! B"
+"story6","B",FALSE,"A",FALSE,"! A because ! B"
+"story6","A",FALSE,"C",TRUE,"C because ! A"
+"story6","C",TRUE,"A",FALSE,"! A because C"
+"story6","A",FALSE,"B",FALSE,"! B because ! A"
+"story6","B",FALSE,"C",TRUE,"C because ! B"
+"story6","C",TRUE,"B",FALSE,"! B because C"
+"story4","B",FALSE,"D",FALSE,"! D because ! B"
+"story4","B",FALSE,"B",FALSE,"! B because ! B"
+"story4","D",FALSE,"D",FALSE,"! D because ! D"
+"story4","C",FALSE,"B",FALSE,"! B because ! C"
+"story4","C",FALSE,"D",FALSE,"! D because ! C"
+"story4","B",FALSE,"C",FALSE,"! C because ! B"
+"story4","A",FALSE,"C",FALSE,"! C because ! A"
+"story4","D",FALSE,"B",FALSE,"! B because ! D"
+"story4","C",FALSE,"C",FALSE,"! C because ! C"
+"story4","A",FALSE,"B",FALSE,"! B because ! A"
+"story4","A",FALSE,"D",FALSE,"! D because ! A"
+"story4","B",FALSE,"A",FALSE,"! A because ! B"
+"story4","A",FALSE,"A",FALSE,"! A because ! A"
+"story4","D",FALSE,"A",FALSE,"! A because ! D"
+"story4","D",FALSE,"C",FALSE,"! C because ! D"
+"story4","C",FALSE,"A",FALSE,"! A because ! C"
+"story3","C",FALSE,"C",FALSE,"! C because ! C"
+"story3","B",TRUE,"C",FALSE,"! C because B"
+"story3","C",FALSE,"A",TRUE,"A because ! C"
+"story3","A",TRUE,"A",TRUE,"A because A"
+"story3","B",TRUE,"A",TRUE,"A because B"
+"story3","C",FALSE,"B",TRUE,"B because ! C"
+"story3","A",TRUE,"B",TRUE,"B because A"
+"story3","B",TRUE,"B",TRUE,"B because B"
+"story3","A",TRUE,"C",FALSE,"! C because A"
+"story1","B",TRUE,"B",TRUE,"B because B"
+"story1","A",TRUE,"A",TRUE,"A because A"
+"story1","B",TRUE,"A",TRUE,"A because B"
+"story1","A",TRUE,"B",TRUE,"B because A"
