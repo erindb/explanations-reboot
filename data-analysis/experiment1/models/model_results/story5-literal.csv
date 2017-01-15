@@ -1,0 +1,13 @@
+"story","explanansVariable","explanansValue","explanandumVariable","explanandumValue","utterance","posterior","prior"
+"story5","D",TRUE,"C",TRUE,"C because D",0.253125,0.253125
+"story5","C",TRUE,"D",TRUE,"D because C",0.253125,0.253125
+"story5","D",TRUE,"A",TRUE,"A because D",0.234562138233277,0.253125
+"story5","B",TRUE,"A",TRUE,"A because B",0.11896875,0.253125
+"story5","C",TRUE,"B",TRUE,"B because C",0.227701509204962,0.253125
+"story5","B",TRUE,"D",TRUE,"D because B",0.11896875,0.253125
+"story5","A",TRUE,"D",TRUE,"D because A",0.123819014423077,0.253125
+"story5","D",TRUE,"B",TRUE,"B because D",0.227701509204962,0.253125
+"story5","A",TRUE,"C",TRUE,"C because A",0.123819014423077,0.253125
+"story5","C",TRUE,"A",TRUE,"A because C",0.234562138233277,0.253125
+"story5","B",TRUE,"C",TRUE,"C because B",0.11896875,0.253125
+"story5","A",TRUE,"B",TRUE,"B because A",0.11896875,0.253125

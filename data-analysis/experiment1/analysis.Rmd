@@ -353,6 +353,69 @@ modelvdata %>%
 ggsave("taggedfordir_s2_onelink_improveduncertainty_uevenmore_noentailments.png", width=6, height=4)
 ```
 
+Let's start with story 5.
+
+```{r, fig.width=4, fig.height=2}
+modelvdata %>%
+  filter(story == "story5") %>%
+  mutate(variables = mapply(function(a, b) {
+           return(paste(sort(c(a, b)), collapse=""))
+         }, char(explanandumVariable), char(explanansVariable))) %>%
+  ggplot(., aes(x=model,
+                y=mean_response,
+                colour=dir,
+                shape=variables)) +
+  geom_abline(intercept = 0, slope = 1, colour="lightgray") +
+  geom_point() +
+  geom_errorbar(aes(x=model, ymin=low, ymax=high)) +
+  ylim(0,1) + xlim(0,1)
+knitr::include_graphics("lkstories-graphs/story5.png")
+```
+
+Let's plot the literal listener's probability of the actual world given each of the utterances, and given the null utterance.
+
+```{r}
+modelvdata = modelvdata %>%
+  mutate(discrepency = mean_response - model)
+new_levels = with(modelvdata %>%
+                    filter(story=="story5") %>%
+                    mutate(utterance = char(utterance)) %>%
+                    group_by(utterance) %>%
+                    summarise(discrepency = discrepency[1]),
+                  utterance[order(discrepency)])
+story5literal = read.csv("models/model_results/story5-literal.csv") %>%
+  mutate(utterance = factor(utterance, levels = new_levels))
+story5literal %>%
+  gather("model", "prob", c(prior, posterior)) %>%
+  ggplot(., aes(x=utterance, y=prob, fill=model)) +
+  geom_bar(stat="identity", position="dodge") +
+  theme(axis.text.x=element_text(angle=-45, hjust=0)) +
+  ylim(0,1) + ylab("prob of actual world")
+```
+
+This seems wrong. Why is the actual world less probable under the posterior than under the prior for every explanation?
+
+<!--
+Here are the explanations people like more than the model predicts (in the order of magnitude of discrepency):
+
+* C because B
+* C because A
+* D because C
+* D because A
+* D because B
+
+Here are the explanations people like less than the model predicts:
+
+* C because D
+* B because C
+* A because C
+* B becuase D
+* A because C
+* B because A
+* A because B
+
+Let's first look at the explanations that people think are better than the model predicts.
+-->
 
 ## Participants
 
