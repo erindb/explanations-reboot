@@ -246,6 +246,12 @@ model = read.csv("models/model_results/rsa_onelink_s2_explanansdependent_noentai
   rename(model = rating)
 data = aggr_df
 modelvdata = merge(model, data)
+modelvdata %>% ggplot(., aes(x=model, y=mean_response)) +
+  geom_abline(intercept = 0, slope = 1, colour="lightgray") +
+  geom_point() +
+  geom_errorbar(aes(x=model, ymin=low, ymax=high)) +
+  ylim(0,1) + xlim(0,1)
+ggsave("s2_onelink_incorrectuncertainty_uevenmore_noentailments.png", width=6, height=4)
 modelvdata %>% ggplot(., aes(x=model, y=mean_response,
                              colour=explanandumVariable,
                              shape=explanansVariable)) +
@@ -296,7 +302,55 @@ Making that improvement actually raises the model correlation with the LK subset
 And here's the model fit against all the data with the correct causal uncertainty for each utterance.
 
 ```{r}
+model = read.csv("models/model_results/rsa_onelink_s2_improveduncertainty_noentailments_uevenmore") %>%
+  rename(model = rating)
+data = aggr_df
+modelvdata = merge(model, data)
+modelvdata %>% ggplot(., aes(x=model, y=mean_response)) +
+  geom_abline(intercept = 0, slope = 1, colour="lightgray") +
+  geom_point() +
+  geom_errorbar(aes(x=model, ymin=low, ymax=high)) +
+  ylim(0,1) + xlim(0,1)
+ggsave("s2_onelink_improveduncertainty_uevenmore_noentailments.png", width=6, height=4)
+modelvdata %>% ggplot(., aes(x=model, y=mean_response,
+                             colour=explanandumVariable,
+                             shape=explanansVariable)) +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_point() +
+  geom_errorbar(aes(x=model, ymin=low, ymax=high)) +
+  facet_wrap(~story) + ylim(0,1) + xlim(0,1)
+with(modelvdata, cor(model, mean_response))
+```
 
+Direction may be a big deal here. When a causal link existed, I didn't entertain the possibility that it could have been in the opposite direction. So when A causes B, "A because B" might seem better to the model than to people, since it establishes the existence of the causal link a little bit. If this is a major factor, then the model should systematically prefer "A because B" more than people do and systematically prefer "B because A" less than people do.
+
+```{r}
+# modelvdata %>% write.csv("modelvdatatoannotate.csv", row.names=F)
+modelvdata = read.csv("modelvdataannotated.csv")
+modelvdata %>%
+  mutate(variables = mapply(function(a, b) {
+           return(paste(sort(c(a, b)), collapse=""))
+         }, char(explanandumVariable), char(explanansVariable))) %>%
+  ggplot(., aes(x=model,
+                y=mean_response,
+                colour=dir,
+                shape=variables)) +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_point() +
+  geom_errorbar(aes(x=model, ymin=low, ymax=high)) +
+  facet_wrap(~story) + ylim(0,1) + xlim(0,1)
+modelvdata %>%
+  mutate(variables = mapply(function(a, b) {
+           return(paste(sort(c(a, b)), collapse=""))
+         }, char(explanandumVariable), char(explanansVariable))) %>%
+  ggplot(., aes(x=model,
+                y=mean_response,
+                colour=dir)) +
+  geom_abline(intercept = 0, slope = 1, colour="lightgray") +
+  geom_point() +
+  geom_errorbar(aes(x=model, ymin=low, ymax=high)) +
+  ylim(0,1) + xlim(0,1)
+ggsave("taggedfordir_s2_onelink_improveduncertainty_uevenmore_noentailments.png", width=6, height=4)
 ```
 
 
