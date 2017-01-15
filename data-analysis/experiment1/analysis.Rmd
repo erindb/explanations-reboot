@@ -9,8 +9,8 @@ toc: false
 ```{r global_options, include=FALSE}
 rm(list=ls())
 knitr::opts_chunk$set(
-  echo=F, warning=F, cache=T, 
-  message=F, sanitiz =T, 
+  echo=F, warning=F, #cache=T, 
+  message=F, #sanitiz =T, 
   fig.width = 5, fig.height = 3)
 ```
 
@@ -98,23 +98,30 @@ aggr_df = df %>%
   as.data.frame()
 ```
 
-```{r save_and_load_data}
-write.csv(
-  df,
-  "../../data/full-explanations-elicitation-parsed-data.csv",
-  row.names=F)
-write.csv(
-  aggr_df,
-  "../../data/full-explananations-elicitation-aggregate-data.csv",
-  row.names=F)
+```{r save_data}
+# write.csv(
+#   df,
+#   "../../data/full-explanations-elicitation-parsed-data.csv",
+#   row.names=F)
+# write.csv(
+#   aggr_df,
+#   "../../data/full-explananations-elicitation-aggregate-data.csv",
+#   row.names=F)
 ```
-
 
 ```{r save_and_load_design}
 # df %>% filter(workerid==1) %>%
 #   select(story, explanansVariable, explanansValue,
 #          explanandumVariable, explanandumValue) %>%
-#   write.csv("../../data/full-explananations-elicitation-design.csv", row.names = F)
+#   mutate(
+#     utterance = paste(
+#       ifelse(explanandumValue, "", "! "),
+#       explanandumVariable,
+#       " because ",
+#       ifelse(explanansValue, "", "! "),
+#       explanansVariable,
+#       sep="")) %>%
+# write.csv("../../data/full-explananations-elicitation-design.csv", row.names = F)
 design = read.csv("../../data/full-explananations-elicitation-design.csv")
 ```
 
@@ -122,7 +129,7 @@ design = read.csv("../../data/full-explananations-elicitation-design.csv")
 
 We ran a version where the explanans was fixed for each story and we ignored other explanations. Let's look at the subset of the new data that overlaps with that old data and see how they compare. Did the participants in this experiment give different responses on the overlapping explanations?
 
-```{r}
+```{r replication_plot}
 explanansVariableLookup = c("A", "B", "A", "C", "C", "B")
 old_df = read.csv("../../data/2015-exp4-and-exp5-lkrep.csv") %>%
   filter(version == "explanation") %>%
@@ -140,6 +147,9 @@ tags = read.csv("../../data/explanations-expt-data-with-fixed-explanans.csv") %>
 compare_subset = aggr_df %>% 
   rename(full_version = mean_response) %>%
   merge(., merge(tags, old_df))
+compare_subset %>% select(story, explanandumVariable, explanansVariable,
+                          utterance, tag, story.number) %>%
+  write.csv(., "../../data/lk-explanations-design.csv", row.names=F)
 compare_subset %>%
   ggplot(., aes(x=lk_only, y=full_version,
                 shape=explanandumVariable,
@@ -232,8 +242,8 @@ knitr::include_graphics("lkstories-graphs/story6.png")
 Here's the model I presented in lab meeting plotted against the new data.
 
 ```{r}
-model = read.csv("../../data/s2_onelink_uevenmore_noentailments.csv") %>%
-  rename(model_type = model, model = rating)
+model = read.csv("models/model_results/rsa_onelink_s2_explanansdependent_noentailments_uevenmore.csv") %>%
+  rename(model = rating)
 data = aggr_df
 modelvdata = merge(model, data)
 modelvdata %>% ggplot(., aes(x=model, y=mean_response,
@@ -245,157 +255,49 @@ modelvdata %>% ggplot(., aes(x=model, y=mean_response,
   facet_wrap(~story)
 ```
 
-I'll ignore tautologies for now, because it's obvious why they take the values that they do.
+But when I implemented this model for lab meeting, I actually made a few mistakes in creating the alternative causal structure for each utterance.
+
+Here's what I currently consider a good algorithm for generating onelink causal uncertainty:
+
+* if variables are not causally connected:
+	* introduce causal link (p=0.5) before them in the direction indicated by the explanation.
+	* new link is deterministic.
+* if variables are directly causally connected:
+	* reduce causal link probability to p=0.5.
+	* when no cause, downstream variable deterministically takes its actual value
+* if variables are indirectly causally connected:
+	* reduce each causal link connecting them to p=0.5.
+	* when no cause, downstream variable deterministically takes its actual value
+
+Things I noticed were wrong with previous choice of causal uncertainty:
+
+* The state of a variable whose parents have been disconnected from it should be its actual state. That wasn't the case in story 2 or 3.
+* In story 3, C is an `xor` function of its two parents. I think I should have treated this as a single causal link rather than as 2 seperate ones. It makes the choice of what state C in the absense of its causal parent(s) much easier.
+
+Using the above algorithm for generating causal uncertainty for each utterance, this is what the subset of the data that overlaps with the counterfactuals experiment look like for non-tautological explanations:
 
 ```{r}
-modelvdata %>% 
-  filter(explanansVariable!=explanandumVariable) %>%
-  ggplot(., aes(x=model, y=mean_response,
-                             colour=explanandumVariable,
-                             shape=explanansVariable)) +
+improved_subset_model = read.csv("models/model_results/rsa-onelink-lksubset-improveduncertainty.csv") %>%
+  rename(model = rating)
+improved_subset_modelvdata = merge(improved_subset_model, data)
+improved_subset_modelvdata %>% ggplot(., aes(x=model, y=mean_response,
+                             colour=story,
+                             shape=explanandumVariable)) +
   geom_abline(intercept = 0, slope = 1) +
   geom_point() +
   geom_errorbar(aes(x=model, ymin=low, ymax=high)) +
-  facet_wrap(~story)
+  ylim(0,1) + xlim(0,1)
+improved_subset_model_cor = with(improved_subset_modelvdata, cor(model, mean_response))
+orig_subset_model_cor = with(modelvdata %>% filter(explanansVariable!=explanandumVariable), cor(model, mean_response))
 ```
 
-### Error Analysis
+Making that improvement actually raises the model correlation with the LK subset of the data *without tautologies* from `r orig_subset_model_cor` to `r improved_subset_model_cor`.
 
-Let's look at story5 first, because it has the widest range of human responses.
+And here's the model fit against all the data with the correct causal uncertainty for each utterance.
 
-<!--
+```{r}
 
-
-```{r load_model_results}
-model_results = rbind(
-  read.csv("models/model_results/cf_base.csv"),
-  read.csv("models/model_results/cf_onelink.csv"),
-  read.csv("models/model_results/rsa_base.csv"),
-  read.csv("models/model_results/rsa_onelink.csv")) %>%
-  mutate(entailmentType = factor(entailmentType)) %>%
-  rename(model_rating = rating)
 ```
-
-### RSA with causal uncertainty
-
-```{r compare_rsa_model_to_data_causal_uncertainty}
-rsa_comparison_causal_uncertainty = model_results %>%
-  filter(model == "rsa" &
-           uncertainty == "causal") %>%
-  merge(., df)
-rsa_r_causal_uncertainty = with(
-  rsa_comparison_causal_uncertainty,
-  cor(model_rating, response))
-rsa_r_causal_uncertainty_filtered = with(
-  rsa_comparison_causal_uncertainty %>% filter(explanandumVariable != explanansVariable), cor(model_rating, response))
-aggr_rsa_comparison_causal_uncertainty = model_results %>%
-  filter(model == "rsa" & uncertainty == "causal") %>%
-  merge(., aggr_df)
-aggr_rsa_comparison_causal_uncertainty %>%
-  ggplot(., aes(x=model_rating,
-                y=mean_response)) +
-  geom_point(colour="white") +
-  geom_errorbar(aes(x=model_rating,
-                    ymin=low,
-                    ymax=high), width=0, colour="white") +
-  theme_black
-
-ggsave("explanations-aggr.png")
-
-aggr_rsa_comparison_causal_uncertainty %>%
-  ggplot(., aes(x=model_rating,
-                y=mean_response,
-                colour=explanandumVariable,
-                shape=explanansVariable)) +
-  geom_point() +
-  geom_errorbar(aes(x=model_rating,
-                    ymin=low,
-                    ymax=high), width=0) +
-  # geom_text(aes(label = utterance)) +
-  facet_wrap(~story) +
-  scale_colour_brewer(type="qual", palette = 2) +
-  theme_black
-print(rsa_r_causal_uncertainty)
-
-ggsave("explanations.png")
-```
-
-### Raw counterfactual probability
-
-```{r compare_cf_model_to_data}
-cf_comparison = model_results %>%
-  filter(model == "cf" & uncertainty == "state_only") %>%
-  merge(., df)
-cf_r = with(cf_comparison, cor(model_rating, response))
-cf_r_filtered = with(
-  cf_comparison %>% filter(explanandumVariable != explanansVariable), cor(model_rating, response))
-aggr_cf_comparison = model_results %>%
-  filter(model == "cf" & uncertainty == "state_only") %>%
-  merge(., aggr_df)
-aggr_cf_comparison %>%
-  ggplot(., aes(x=model_rating,
-                y=mean_response)) +
-  geom_point(colour = "white") +
-  geom_errorbar(aes(x=model_rating,
-                    ymin=low,
-                    ymax=high), width=0, colour = "white") +
-  theme_black
-ggsave("cfprob.png", width = 4, height=3)
-aggr_cf_comparison %>%
-  ggplot(., aes(x=model_rating,
-                y=mean_response,
-                colour=explanandumVariable,
-                shape=explanansVariable)) +
-  geom_point() +
-  geom_errorbar(aes(x=model_rating,
-                    ymin=low,
-                    ymax=high), width=0) +
-  # geom_text(aes(label = utterance)) +
-  facet_wrap(~story) +
-  scale_colour_brewer(type="qual", palette = 2)
-print(cf_r)
-```
-
-### RSA with state uncertainty only
-
-```{r compare_rsa_model_to_data}
-rsa_comparison = model_results %>%
-  filter(model == "rsa" &
-           uncertainty == "state_only") %>%
-  merge(., df)
-rsa_r = with(rsa_comparison, cor(model_rating, response))
-rsa_r_filtered = with(
-  rsa_comparison %>% filter(explanandumVariable != explanansVariable), cor(model_rating, response))
-aggr_rsa_comparison = model_results %>%
-  filter(model == "rsa" & uncertainty == "state_only") %>%
-  merge(., aggr_df)
-aggr_rsa_comparison %>%
-  ggplot(., aes(x=model_rating,
-                y=mean_response)) +
-  geom_point(colour = "white") +
-  geom_errorbar(aes(x=model_rating,
-                    ymin=low,
-                    ymax=high), width=0, colour = "white") +
-  theme_black
-ggsave("rsa_base.png", width = 4, height=3)
-
-aggr_rsa_comparison %>%
-  ggplot(., aes(x=model_rating,
-                y=mean_response,
-                colour=explanandumVariable,
-                shape=explanansVariable)) +
-  geom_point() +
-  geom_errorbar(aes(x=model_rating,
-                    ymin=low,
-                    ymax=high), width=0) +
-  # geom_text(aes(label = utterance)) +
-  facet_wrap(~story) +
-  scale_colour_brewer(type="qual", palette = 2)
-print(rsa_r)
-```
-
-
--->
 
 
 ## Participants
@@ -425,4 +327,3 @@ print(mean(demographics$time_in_minutes))
 ```
 
 ## References
-

@@ -1,0 +1,40 @@
+// A because B
+// could have been no causal link A->C OR B->C
+
+var program = function(input) {
+
+	var causeAC = true;
+	var causeBC = true;
+
+	var A = input.A;
+	var B = input.B;
+
+	var ac = true;
+	var bc = input.bc;
+
+	var C = (
+		(causeAC & causeBC) ? ((A&&ac)?true:(B&&bc)) : (
+			(causeAC & !causeBC) ? (A&&ac) : (
+				(!causeAC & causeBC) ? (B&&bc) :
+				// otherwise no causal parents
+				true
+			)
+		)
+	);
+	var D = C;
+
+	return {
+		A: A,
+		B: B,
+		C: C,
+		D: D
+	};
+};
+
+var input = {
+	A: true,
+	B: true,
+	bc: true
+};
+
+program(input);
