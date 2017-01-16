@@ -4,7 +4,7 @@
 var program = function(input) {
 
 	var causeBC = true;
-	var cuaseCD = true;
+	var causeCD = true;
 
 	var A = input.A;
 	var B = input.B;
