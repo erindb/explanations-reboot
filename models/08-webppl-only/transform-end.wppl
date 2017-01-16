@@ -600,7 +600,7 @@ var literal = function(params) {
 
 		// sample an actual world
 		// (note that counterfactual sampling happens inside meaning function)
-		var world = sample((worldModelERP({}));
+		var world = sample(worldModelERP({passErr: true}));
 
 		// condition on common ground
 		var cgFactor = match(world.output, cgStates) ? 0 : -Infinity;
@@ -759,7 +759,8 @@ var listener = function(params) {
 		// sample a world
 		// note that counterfactual sampling happens inside meaning function
 		var world = sample(worldModelERP({
-			returnCF: false
+			returnCF: false,
+			passErr: true
 		}));
 
 		var cgStates = getCGStates(world, cg);
