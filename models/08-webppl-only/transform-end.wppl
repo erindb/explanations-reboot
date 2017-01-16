@@ -100,7 +100,8 @@ var defaults = {
 		literal: {method: "enumerate"},
 		s1: {method: "enumerate"},
 		listener: {method: "enumerate"},
-		s2: {method: "enumerate"}
+		s2: {method: "enumerate"},
+		worldModel: {method: "enumerate"}
 	},
 	interlocuter: "s1",
 	costPerWord: 0,
@@ -286,6 +287,12 @@ var worldModel = function(params) {
 		// values.
 	};
 };
+var worldModelERP = cache(function(params) {
+	var inferenceOpts = (
+		params.inferenceOpts ? params.inferenceOpts : defaults.inferenceOpts
+	);
+	return cleanup(Infer(inferenceOpts.worldModel, worldModel(params)));
+});
 
 // --------------------------- utterance prior ---------------------------------
 
@@ -427,7 +434,7 @@ var lexiconPrior = function() {};
 
 // --------------------------- RSA ---------------------------------------------
 
-var meaning = function(params) {
+var meaning = cache(function(params) {
 	var params = params ? params : {};
 
 	// return a factor (-Infinity, 0]
@@ -498,7 +505,7 @@ var meaning = function(params) {
 		var cfPremise = _.object([[explanansVariable, !explanansValue]]);
 		var cfConsequent = _.object([[explanandumVariable, !explanandumValue]]);
 
-		var cfERP = cleanup(Infer({method: "enumerate"}, worldModel({
+		var cfERP = worldModelERP({
 			returnCF: true,
 			obs: world,
 			useObs: {
@@ -510,7 +517,7 @@ var meaning = function(params) {
 				output: cfPremise
 			},
 			passErr: true
-		})));
+		});
 
 		// display("***")
 		// display("utterance")
@@ -562,7 +569,7 @@ var meaning = function(params) {
 	} else {
 		display("warning 233340981");
 	}
-};
+});
 
 var literal = function(params) {
 	var params = params ? params : {};
@@ -593,7 +600,7 @@ var literal = function(params) {
 
 		// sample an actual world
 		// (note that counterfactual sampling happens inside meaning function)
-		var world = (worldModel({}))();
+		var world = sample((worldModelERP({}));
 
 		// condition on common ground
 		var cgFactor = match(world.output, cgStates) ? 0 : -Infinity;
@@ -751,9 +758,9 @@ var listener = function(params) {
 
 		// sample a world
 		// note that counterfactual sampling happens inside meaning function
-		var world = (worldModel({
+		var world = sample(worldModelERP({
 			returnCF: false
-		}))();
+		}));
 
 		var cgStates = getCGStates(world, cg);
 
