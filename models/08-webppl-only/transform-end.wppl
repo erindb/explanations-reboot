@@ -434,7 +434,7 @@ var lexiconPrior = function() {};
 
 // --------------------------- RSA ---------------------------------------------
 
-var meaning = cache(function(params) {
+var meaningUncached = function(params) {
 	var params = params ? params : {};
 
 	// return a factor (-Infinity, 0]
@@ -543,14 +543,14 @@ var meaning = cache(function(params) {
 
 		var utterance1 = words.slice(0, linkIndex).join(" ");
 		var utterance2 = words.slice(linkIndex+1).join(" ");
-		var factor1 = meaning({
+		var factor1 = meaningUncached({
 			utterance: utterance1,
 			world: world,
 			qud: qud,
 			lexicon: lexicon,
 			stickiness: stickiness
 		});
-		var factor2 = meaning({
+		var factor2 = meaningUncached({
 			utterance: utterance2,
 			world: world,
 			qud: qud,
@@ -569,7 +569,8 @@ var meaning = cache(function(params) {
 	} else {
 		display("warning 233340981");
 	}
-});
+};
+var meaning = cache(meaningUncached);
 
 var literal = function(params) {
 	var params = params ? params : {};
@@ -1028,3 +1029,4 @@ var model = function(params) {
 };
 
 "finished"
+
