@@ -33,6 +33,6 @@ echo $program_file
 echo $output_file
 echo $utterance
 cat $program_file > $tmp_file
-echo "var rs = Infer({method:'enumerate'}, s2({ lexicon: 'none', actualUtterance: '"$utterance"' }))" >> $tmp_file
+echo "var rs = Infer({method:'enumerate'}, s2({ lexicon: 'none', utteranceSet: 'even_more', actualUtterance: '"$utterance"' }))" >> $tmp_file
 echo "Math.exp(rs.score('"$utterance"'))" >> $tmp_file
 webppl $tmp_file > $output_file

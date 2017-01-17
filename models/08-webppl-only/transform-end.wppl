@@ -988,7 +988,8 @@ var model = function(params) {
 			lambda1: lambda1,
 			stickiness: stickiness,
 			actualUtterance: actualUtterance,
-			costPerWord: costPerWord
+			costPerWord: costPerWord,
+			utteranceSet: utteranceSet
 		});
 	} else if (interlocuter == "listener") {
 		return listener({
@@ -1003,7 +1004,8 @@ var model = function(params) {
 			lambda1: lambda1,
 			stickiness: stickiness,
 			actualUtterance: actualUtterance,
-			costPerWord: costPerWord
+			costPerWord: costPerWord,
+			utteranceSet: utteranceSet
 		})
 	} else if (interlocuter == "s2") {
 		return s2({
@@ -1019,7 +1021,8 @@ var model = function(params) {
 			lambda2: lambda2,
 			stickiness: stickiness,
 			actualUtterance: actualUtterance,
-			costPerWord: costPerWord
+			costPerWord: costPerWord,
+			utteranceSet: utteranceSet
 		});
 	}
 };
