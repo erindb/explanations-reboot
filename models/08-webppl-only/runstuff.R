@@ -30,7 +30,7 @@ model_var = paste(
   "s2({",
   "lexicon: ", lexicon = "'none'",
   ", actualUtterance: '", actualUtterance = utterance, "'",
-  # ", utteranceSet: ", utteranceSet = "'even_more'",
+  ", utteranceSet: ", utteranceSet = "'even_more'",
   "})",
   sep="")
 message(model_var)

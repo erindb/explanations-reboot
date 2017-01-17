@@ -353,69 +353,71 @@ modelvdata %>%
 ggsave("taggedfordir_s2_onelink_improveduncertainty_uevenmore_noentailments.png", width=6, height=4)
 ```
 
-Let's start with story 5.
+### Oops.
 
-```{r, fig.width=4, fig.height=2}
+I entered the observations in incorrectly. Let's see what the model predictions should actually be.
+
+```{r}
+model.tags = read.csv("modelvdataannotated.csv") %>%
+  select(story, explanandumVariable, explanansVariable, dir)
+model = read.csv("models/model_results/results_s2_onelink_noentailments_umax.csv") %>%
+  rename(model = rating)
+data = aggr_df
+modelvdata = merge(merge(model, data), model.tags)
+modelvdata %>% ggplot(., aes(x=model, y=mean_response)) +
+  geom_abline(intercept = 0, slope = 1, colour="lightgray") +
+  geom_point() +
+  geom_errorbar(aes(x=model, ymin=low, ymax=high)) +
+  ylim(0,1) + xlim(0,1)
+# ggsave("s2_onelink_improveduncertainty_uevenmore_noentailments.png", width=6, height=4)
 modelvdata %>%
-  filter(story == "story5") %>%
   mutate(variables = mapply(function(a, b) {
            return(paste(sort(c(a, b)), collapse=""))
          }, char(explanandumVariable), char(explanansVariable))) %>%
   ggplot(., aes(x=model,
                 y=mean_response,
-                colour=dir,
-                shape=variables)) +
+                colour=dir)) +
   geom_abline(intercept = 0, slope = 1, colour="lightgray") +
   geom_point() +
   geom_errorbar(aes(x=model, ymin=low, ymax=high)) +
   ylim(0,1) + xlim(0,1)
-knitr::include_graphics("lkstories-graphs/story5.png")
+modelvdata %>% ggplot(., aes(x=model, y=mean_response,
+                             colour=explanandumVariable,
+                             shape=explanansVariable)) +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_point() +
+  geom_errorbar(aes(x=model, ymin=low, ymax=high)) +
+  facet_wrap(~story) + ylim(0,1) + xlim(0,1)
+r = with(modelvdata, cor(model, mean_response))
 ```
 
-Let's plot the literal listener's probability of the actual world given each of the utterances, and given the null utterance.
+Oops, that was with the wrong utteranceSet ($U_{max}$)...
+
+First, let's get it running in parallel without getting the data all shuffled up:
 
 ```{r}
-modelvdata = modelvdata %>%
-  mutate(discrepency = mean_response - model)
-new_levels = with(modelvdata %>%
-                    filter(story=="story5") %>%
-                    mutate(utterance = char(utterance)) %>%
-                    group_by(utterance) %>%
-                    summarise(discrepency = discrepency[1]),
-                  utterance[order(discrepency)])
-story5literal = read.csv("models/model_results/story5-literal.csv") %>%
-  mutate(utterance = factor(utterance, levels = new_levels))
-story5literal %>%
-  gather("model", "prob", c(prior, posterior)) %>%
-  ggplot(., aes(x=utterance, y=prob, fill=model)) +
-  geom_bar(stat="identity", position="dodge") +
-  theme(axis.text.x=element_text(angle=-45, hjust=0)) +
-  ylim(0,1) + ylab("prob of actual world")
+model = read.csv("../../models/08-webppl-only/results_s2_onelink_noentailments_umax.csv") %>%
+  rename(model = rating) %>%
+  mutate(story = paste("story", story_number, sep=""))
+data = aggr_df %>% filter(explanansVariable != explanandumVariable)
+modelvdata = merge(merge(model, data), model.tags)
+modelvdata = merge(model, data)
+modelvdata %>% ggplot(., aes(x=model, y=mean_response)) +
+  geom_abline(intercept = 0, slope = 1, colour="lightgray") +
+  geom_point() +
+  geom_errorbar(aes(x=model, ymin=low, ymax=high)) +
+  ylim(0,1) + xlim(0,1)
+modelvdata %>% ggplot(., aes(x=model, y=mean_response,
+                             colour=explanandumVariable,
+                             shape=explanansVariable)) +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_point() +
+  geom_errorbar(aes(x=model, ymin=low, ymax=high)) +
+  facet_wrap(~story) + ylim(0,1) + xlim(0,1)
+r = with(modelvdata, cor(model, mean_response))
 ```
 
-This seems wrong. Why is the actual world less probable under the posterior than under the prior for every explanation?
-
-<!--
-Here are the explanations people like more than the model predicts (in the order of magnitude of discrepency):
-
-* C because B
-* C because A
-* D because C
-* D because A
-* D because B
-
-Here are the explanations people like less than the model predicts:
-
-* C because D
-* B because C
-* A because C
-* B becuase D
-* A because C
-* B because A
-* A because B
-
-Let's first look at the explanations that people think are better than the model predicts.
--->
+Then let's run with the correct utterance!
 
 ## Participants
 
