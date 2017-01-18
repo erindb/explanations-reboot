@@ -1,4 +1,3 @@
-
 // --------------------------- utils -------------------------------------------
 
 var match = function(inferred, observed) {
@@ -468,6 +467,8 @@ var meaningUncached = function(params) {
 	var utterance = params.utterance;
 	var world = params.world;
 
+	var inferenceOpts = params.inferenceOpts ? params.inferenceOpts : defaults.inferenceOpts;
+
 	var qud = params.qud ? params.qud : defaults.qud;
 	var lexicon = params.lexicon ? params.lexicon : defaults.lexicon;
 	var stickiness = (
@@ -537,6 +538,7 @@ var meaningUncached = function(params) {
 				input: true,
 				output: true
 			},
+			inferenceOpts: inferenceOpts,
 			cfObs: {
 				output: cfPremise
 			},
@@ -572,14 +574,16 @@ var meaningUncached = function(params) {
 			world: world,
 			qud: qud,
 			lexicon: lexicon,
-			stickiness: stickiness
+			stickiness: stickiness,
+			inferenceOpts: inferenceOpts
 		});
 		var factor2 = meaningUncached({
 			utterance: utterance2,
 			world: world,
 			qud: qud,
 			lexicon: lexicon,
-			stickiness: stickiness
+			stickiness: stickiness,
+			inferenceOpts: inferenceOpts
 		});
 		// assume these are either 0 or -Infinity.
 		// then and corresponds to + and or corresponds to max.
@@ -629,7 +633,10 @@ var literal = function(params) {
 
 		// sample an actual world
 		// (note that counterfactual sampling happens inside meaning function)
-		var world = sample(worldModelERP({passErr: true}));
+		var world = sample(worldModelERP({
+			passErr: true,
+			inferenceOpts: inferenceOpts
+		}));
 
 		// condition on common ground
 		var cgFactor = match(world.output, cgStates) ? 0 : -Infinity;
@@ -642,7 +649,8 @@ var literal = function(params) {
 			world: world,
 			qud: qud,
 			lexicon: lexicon,
-			stickiness: stickiness
+			stickiness: stickiness,
+			inferenceOpts: inferenceOpts
 		});
 
 		var truthFactor = cgFactor + meaningFactor;
@@ -798,7 +806,8 @@ var listener = function(params) {
 		// note that counterfactual sampling happens inside meaning function
 		var world = sample(worldModelERP({
 			returnCF: false,
-			passErr: true
+			passErr: true, 
+			inferenceOpts: inferenceOpts
 		}));
 
 		var cgStates = getCGStates(world, cg);
@@ -1071,58 +1080,3 @@ var model = function(params) {
 };
 
 "finished"
-
-// literalERP({
-// 	utterance: "A because B",
-// 	lexicon: "none",
-// 	utteranceSet: "even_more",
-// 	inferenceOpts: {
-// 		literal: {method: "MCMC", samples: 100000},
-// 		s1: {method: "enumerate"},
-// 		listener: {method: "enumerate"},
-// 		s2: {method: "enumerate"},
-// 		worldModel: {method: "MCMC", samples: 100000}
-// 	}
-// });
-
-// s1ERP({
-// 	actualUtterance: "A because B",
-// 	lexicon: "none",
-// 	utteranceSet: "even_more",
-// 	inferenceOpts: {
-// 		literal: {method: "MCMC", samples: 10000},
-// 		s1: {method: "enumerate"},
-// 		listener: {method: "enumerate"},
-// 		s2: {method: "enumerate"},
-// 		worldModel: {method: "MCMC", samples: 10000}
-// 	},
-// 	passErr: true
-// });
-
-// listenerERP({
-// 	inferenceOpts: {
-// 		literal: {method: "MCMC", samples: 10000},
-// 		s1: {method: "enumerate"},
-// 		listener: {method: "MCMC", samples: 10000},
-// 		s2: {method: "enumerate"},
-// 		worldModel: {method: "MCMC", samples: 10000}
-// 	},
-// 	utterance: "B because A",
-// 	lexicon: "none",
-// 	actualUtterance: "B because A",
-// 	utteranceSet: "even_more"
-// });
-
-// s2ERP({
-// 	actualUtterance: "A because B",
-// 	lexicon: "none",
-// 	utteranceSet: "even_more",
-// 	inferenceOpts: {
-// 		literal: {method: "MCMC", samples: 10000},
-// 		s1: {method: "enumerate"},
-// 		listener: {method: "MCMC", samples: 10000},
-// 		s2: {method: "enumerate"},
-// 		worldModel: {method: "MCMC", samples: 10000}
-// 	},
-// 	passErr: true
-// });

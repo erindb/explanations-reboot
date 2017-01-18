@@ -24,7 +24,13 @@ prog_file = directory + "program.wppl"
 expressions_file = directory + "expressions.json"
 obs_file = directory + "observations.wppl"
 expanded_file = directory + "autoexpanded.wppl"
-main_calls_data_file = directory + "maincallsdata.txt"
+main_calls_file = directory + "maincalls.wppl"
+
+def replace_uniformDraw(exogenized_prog):
+	print "warning 02934: uniformDraw not implemented"
+	pattern = "(var ([a-zA-Z0-9]+) ?= ?)uniformDraw\((.*)\);?"
+	m = re.findall(re.compile(pattern), exogenized_prog)
+	return exogenized_prog
 
 def transform_program(prog_file, cfprior_file, expressions_file):
 	# for each structure VARNAME with a cfprior,
@@ -55,6 +61,7 @@ def transform_program(prog_file, cfprior_file, expressions_file):
 			origERP: origERPs ? serializeDist(origERPs["\1"]) : null
 		});
 		var \1 = \1Sampler(sampleParams["\1"]);""", prog_maker)
+	exogenized_prog = replace_uniformDraw(exogenized_prog)
 	warnings.warn("ERP samples other than flip not implemented", Warning)
 
 	sampledVars = re.findall(r"var ([a-zA-Z0-9]+) ?= ?flip\(.*\);", orig_prog);
@@ -114,24 +121,14 @@ def write_expressions(expressions_file):
 	return "// ------------ expressions -------------------------\n\n" + \
 	"var expressions = [\n\t" + ",\n\t".join(map(lambda x: "\"" + x + "\"", expressions_lst)) + "\n];"
 
-def write_main_calls(main_calls_data_file):
-	if os.path.isfile(main_calls_data_file):
-		main_calls_data = "".join(open(main_calls_data_file).readlines())
-		return """
-display(map(function(utterance) {
-	var rs = s2ERP({
-		lexicon: "none",
-		actualUtterance: utterance,
-		utteranceSet: "even_more",
-		passErr: true
-	});
-	return Math.exp(rs.score(utterance));
-}, """ + main_calls_data +  """));
-"""
+def write_main_calls(main_calls_file):
+	if os.path.isfile(main_calls_file):
+		main_calls = "".join(open(main_calls_file).readlines())
+		return main_calls
 	else:
 		return ""
 
-def expand_program(prog_file, cfprior_file, expressions_file, obs_file, main_calls_data_file):
+def expand_program(prog_file, cfprior_file, expressions_file, obs_file, main_calls_file):
 	start_prog = open("transform-start.wppl").read()
 	end_prog = open("transform-end.wppl").read()
 	cf_comment = "// ------------ CF prior -------------------\n"
@@ -141,7 +138,7 @@ def expand_program(prog_file, cfprior_file, expressions_file, obs_file, main_cal
 	obs_comment = "\n"
 	obs_content = write_observations(obs_file)
 	expressions = write_expressions(expressions_file)
-	main_calls = write_main_calls(main_calls_data_file)
+	main_calls = write_main_calls(main_calls_file)
 	return "\n".join([
 		start_prog,
 		cf_comment,
@@ -156,5 +153,5 @@ def expand_program(prog_file, cfprior_file, expressions_file, obs_file, main_cal
 	])
 
 open(expanded_file, "w").write(
-	expand_program(prog_file, cfprior_file, expressions_file, obs_file, main_calls_data_file) 
+	expand_program(prog_file, cfprior_file, expressions_file, obs_file, main_calls_file) 
 )
