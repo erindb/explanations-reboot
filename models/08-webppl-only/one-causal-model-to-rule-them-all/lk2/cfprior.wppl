@@ -1,0 +1,22 @@
+var structureParamsPrior = function() {
+	return {
+		causeAB: flip(0.5),
+		causeBC: flip(0.5),
+		dirAB: flip(0.5),
+		dirBC: flip(0.5)
+	};
+};
+
+var inputPrior = function() {
+	return {
+		A: flip(0.1),
+		B: flip(0.1),
+		C: flip(0.1),
+		ab: flip(0.75),
+		bc: flip(0.75),
+		ba: flip(0.75),
+		cb: flip(0.75)
+	};
+};
+
+"cfprior"

@@ -1,0 +1,31 @@
+var program = function(input) {
+
+	var causeAB = false;
+
+	// placeholder
+	// when `dirAB` is true, the alphabetically
+	// earlier variable is causally upstream of
+	// the other.
+	var dirAB = false;
+
+	var pA = input.A;
+	var pB = input.B;
+
+	var valuesAB = getTwoVariables({
+		var1: "A",
+		var2: "B",
+		cause: causeAB,
+		dir: dirAB,
+		p1: pA,
+		p2: pB,
+		actual12: true, // cause is deterministic
+		actual21: true // cause is deterministic
+	});
+	var A = valuesAB.A;
+	var B = valuesAB.B;
+
+	return {
+		A: A,
+		B: B
+	};
+};

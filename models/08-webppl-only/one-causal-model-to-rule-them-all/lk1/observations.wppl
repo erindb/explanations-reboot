@@ -1,0 +1,21 @@
+// ------------ observations -------------------
+
+var observations = {
+	structureParams: {
+		causeAB: false
+		// dirAB is unobserved, since causeAB
+		// is actually false
+	},
+	input: {
+		// both priors are observed,
+		// since causeAB is false
+		A: true,
+		B: true
+	},
+	output: {
+		A: true,
+		B: true
+	}
+};
+
+observations

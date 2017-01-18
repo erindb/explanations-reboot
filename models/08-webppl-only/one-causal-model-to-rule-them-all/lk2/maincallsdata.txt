@@ -1,0 +1,5 @@
+[
+	"A because B"//, "B because A",
+	//"A because C", "C because A",
+	//"B because C", "C because B"
+]
