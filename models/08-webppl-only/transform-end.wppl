@@ -482,11 +482,11 @@ var meaningUncached = function(params) {
 	} else if (words.length==1) {
 		// single variable, simply require that variable be true
 		var variable = words[0];
-		return (world.output)[variable] ? 0 : -Infinity;
+		return (world.output)[variable] ? 0 : -100;
 	} else if (words.length==2 && words[0]=="!") {
 		// negated variable, simply reqiore that variable be false
 		var variable = words[1];
-		return !(world.output)[variable] ? 0 : -Infinity;
+		return !(world.output)[variable] ? 0 : -100;
 	} else if (words.indexOf("because") > -1) {
 		// for now assume because utterances only (no and or or)
 		var becauseIndex = words.indexOf("because");
@@ -503,7 +503,7 @@ var meaningUncached = function(params) {
 		var entailmentFactorA = (
 			(
 				(lexicon=="explanans" || lexicon=="both") ?
-				match(world.output, explanans) ? 0 : -Infinity :
+				match(world.output, explanans) ? 0 : -100 :
 				0
 			)
 		);
@@ -512,7 +512,7 @@ var meaningUncached = function(params) {
 		var entailmentFactorB = (
 			(
 				(lexicon=="explanandum" || lexicon=="both") ?
-				match(world.output, explanandum) ? 0 : -Infinity :
+				match(world.output, explanandum) ? 0 : -100 :
 				0
 			)
 		);
@@ -707,7 +707,7 @@ var s1 = function(params) {
 			costPerWord: costPerWord
 		});
 		var utterance = utterancePrior();
-		// display("s1-utterance: " + utterance);
+		display("s1-utterance: " + utterance);
 
 		// factor by interpretation
 		var literalInterpretation = literalERP({
