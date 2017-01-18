@@ -15,7 +15,7 @@ var program = function(input) {
 		((A&&ac)?true:(B&&bc)) :
 		(B&&bc)
 	);
-	var D = (C && input.cd);
+	var D = C;
 
 	return {
 		A: A,

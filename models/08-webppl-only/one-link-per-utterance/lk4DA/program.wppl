@@ -10,7 +10,7 @@ var program = function(input) {
 	var B = input.B;
 	
 	var C = causeAC ? (A || B) : B;
-	var D = causeCD ? (C && input.cd) : false;
+	var D = causeCD ? C : false;
 
 	return {
 		A: A,

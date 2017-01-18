@@ -11,8 +11,7 @@ var inputPrior = function() {
 	return {
 		A: flip(0.75),
 		B: flip(0.75),
-		bc: flip(0.9),
-		cd: flip(0.99999)
+		bc: flip(0.9)
 	};
 };
 

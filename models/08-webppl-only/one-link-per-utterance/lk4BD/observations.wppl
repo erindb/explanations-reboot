@@ -7,8 +7,7 @@ var observations = {
 	},
 	input: {
 		A: false,
-		B: false,
-		cd: true
+		B: false
 	},
 	output: {
 		A: false,

@@ -10,8 +10,7 @@ var structureParamsPrior = function() {
 var inputPrior = function() {
 	return {
 		A: flip(0.9),
-		B: flip(0.9),
-		cd: flip(0.99999)
+		B: flip(0.9)
 	};
 };
 
