@@ -56,8 +56,5 @@ df = design[i,] %>%
   explanandumVariable = explanandumVariable,
   utterance = as.character(utterance)))
 
-write.csv(df, paste("results/lk", story_number,
-                    explanandumVariable, explanansVariable,
-                    ".csv",
-                    sep=""), row.names=F)
+write.csv(df, paste("results/", i, ".csv", sep=""), row.names=F)
 
