@@ -12,7 +12,7 @@ var program = function(input) {
 	var bc = input.bc;
 
 	var C = (A && ac) ? true : (B && bc);
-	var D = cause ? C : true;
+	var D = cause ? (C && input.cd) : true;
 
 	return {
 		A: A,

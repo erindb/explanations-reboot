@@ -12,7 +12,7 @@ var program = function(input) {
 	var C = (
 		causeAC ? (A || B) : (causeBC ? B : false)
 	);
-	var D = C;
+	var D = C && input.cd;
 
 	return {
 		A: A,
