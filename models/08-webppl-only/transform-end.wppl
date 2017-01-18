@@ -124,6 +124,10 @@ var counterfactualizeLatents = function(model, actual, stickiness) {
 var worldModel = function(params) {
 	var params = params ? params : {};
 
+	var inferenceOpts = (
+		params.inferenceOpts ? params.inferenceOpts : defaults.inferenceOpts
+	);
+
 	// forwardSample can sample both actual AND
 	// counterfactual worlds. by default, it only
 	// samples actual worlds.
@@ -271,7 +275,7 @@ var worldModel = function(params) {
 				input: input,
 				output: output,
 			};
-			if (passErr) {
+			if (inferenceOpts.worldModel.method=="enumerate" && passErr) {
 				return {
 					truthFactor: truthFactor,
 					observations: result
@@ -291,7 +295,11 @@ var worldModelERP = cache(function(params) {
 	var inferenceOpts = (
 		params.inferenceOpts ? params.inferenceOpts : defaults.inferenceOpts
 	);
-	return cleanup(Infer(inferenceOpts.worldModel, worldModel(params)));
+	if (inferenceOpts.worldModel.method == "enumerate") {
+		return cleanup(Infer(inferenceOpts.worldModel, worldModel(params)));
+	} else {
+		return Infer(inferenceOpts.worldModel, worldModel(params));
+	}
 });
 
 // --------------------------- utterance prior ---------------------------------
@@ -323,9 +331,15 @@ var utterancePriorMaker = function(params) {
 	var becauseUtterances = reduce(function(u1, acc) {
 		return acc.concat(
 			// because
-			map(function (u2) {
-				return u1 + " because " + u2;
-			}, unaryUtterances))
+			reduce(function (u2, acc) {
+				if ("! "+u1==u2 || "! "+u2==u1) {
+					// that will yield a contradiction
+					return acc;
+				} else {
+					return acc.concat([u1 + " because " + u2]);
+				}
+			}, [], unaryUtterances)
+		);
 	}, [], unaryUtterances);
 
 	// logic for generating and and or sentences
@@ -333,18 +347,28 @@ var utterancePriorMaker = function(params) {
 	var andUtterances = reduce(function(u1, acc) {
 		return acc.concat(
 			// and
-			map(function (u2) {
-				return u1 + " and " + u2;
-			}, unaryUtterances)
+			reduce(function (u2, acc) {
+				if ("! "+u1==u2 || "! "+u2==u1) {
+					// that will yield a contradiction
+					return acc;
+				} else {
+					return acc.concat([u1 + " and " + u2]);
+				}
+			}, [], unaryUtterances)
 		);
 	}, [], unaryUtterances);
 
 	var orUtterances = reduce(function(u1, acc) {
 		return acc.concat(
 			// and
-			map(function (u2) {
-				return u1 + " or " + u2;
-			}, unaryUtterances)
+			reduce(function (u2, acc) {
+				if ("! "+u1==u2 || "! "+u2==u1) {
+					// that is trivially true
+					return acc;
+				} else {
+					return acc.concat([u1 + " or " + u2]);
+				}
+			}, [], unaryUtterances)
 		);
 	}, [], unaryUtterances);
 
@@ -575,6 +599,10 @@ var meaning = cache(meaningUncached);
 var literal = function(params) {
 	var params = params ? params : {};
 
+	var inferenceOpts = (
+		params.inferenceOpts ? params.inferenceOpts : defaults.inferenceOpts
+	);
+
 	var utterance = params.utterance;
 
 	var qud = params.qud ? params.qud : defaults.qud;
@@ -618,7 +646,7 @@ var literal = function(params) {
 		});
 
 		var truthFactor = cgFactor + meaningFactor;
-		if (passErr) {
+		if (inferenceOpts.literal.method=="enumerate" && passErr) {
 			return {
 				truthFactor: truthFactor,
 				observations: qudFn(world)
@@ -633,7 +661,11 @@ var literalERP = cache(function(params) {
 	var inferenceOpts = (
 		params.inferenceOpts ? params.inferenceOpts : defaults.inferenceOpts
 	);
-	return cleanup(Infer(inferenceOpts.literal, literal(params)));
+	if (inferenceOpts.literal.method == "enumerate") {
+		return cleanup(Infer(inferenceOpts.literal, literal(params)));
+	} else {
+		return Infer(inferenceOpts.literal, literal(params));
+	}
 });
 
 var s1 = function(params) {
@@ -675,6 +707,7 @@ var s1 = function(params) {
 			costPerWord: costPerWord
 		});
 		var utterance = utterancePrior();
+		// display("s1-utterance: " + utterance);
 
 		// factor by interpretation
 		var literalInterpretation = literalERP({
@@ -695,7 +728,7 @@ var s1 = function(params) {
 
 		var truthFactor = lambda1 * interpretationFactor;
 		
-		if (passErr) {
+		if (inferenceOpts.s1.method=="enumerate" && passErr) {
 			return {
 				truthFactor:truthFactor,
 				observations: utterance
@@ -710,7 +743,11 @@ var s1ERP = cache(function(params) {
 	var inferenceOpts = (
 		params.inferenceOpts ? params.inferenceOpts : defaults.inferenceOpts
 	);
-	return cleanup(Infer(inferenceOpts.s1, s1(params)));
+	if (inferenceOpts.s1.method == "enumerate") {
+		return cleanup(Infer(inferenceOpts.s1, s1(params)));
+	} else {
+		return Infer(inferenceOpts.s1, s1(params));
+	}
 });
 
 var listener = function(params) {
@@ -783,11 +820,11 @@ var listener = function(params) {
 
 		var truthFactor = speakerEndorsement.score(utterance);
 
-		if (passErr) {
+		if (inferenceOpts.listener.method=="enumerate" && passErr) {
 			return {
-				truthFactor: truthFactor,
+				truthFactor:truthFactor,
 				observations: world
-			}
+			};
 		} else {
 			factor(truthFactor);
 			return world;
@@ -798,7 +835,11 @@ var listenerERP = cache(function(params) {
 	var inferenceOpts = (
 		params.inferenceOpts ? params.inferenceOpts : defaults.inferenceOpts
 	);
-	return cleanup(Infer(inferenceOpts.listener, listener(params)));
+	if (inferenceOpts.listener.method == "enumerate") {
+		return cleanup(Infer(inferenceOpts.listener, listener(params)));
+	} else {
+		return Infer(inferenceOpts.listener, listener(params));
+	}
 });
 
 var s2 = function(params) {
@@ -859,6 +900,7 @@ var s2 = function(params) {
 			actualUtterance: actualUtterance
 		});
 		var utterance = utterancePrior();
+		display(utterance);
 
 		// factor by interpretation
 		var pragmaticInterpretation = listenerERP({
@@ -875,7 +917,7 @@ var s2 = function(params) {
 			actualUtterance: actualUtterance,
 			costPerWord: costPerWord,
 			utteranceSet: utteranceSet,
-			passErr: true
+			passErr: passErr
 		});
 
 		// TO DO
@@ -888,15 +930,15 @@ var s2 = function(params) {
 		);
 
 		var truthFactor = lambda2 * interpretationFactor;
-
-		if (passErr) {
+		
+		if (inferenceOpts.s2.method=="enumerate" && passErr) {
 			return {
-				truthFactor: truthFactor,
+				truthFactor:truthFactor,
 				observations: utterance
-			}
+			};
 		} else {
 			factor(truthFactor);
-			return utterance
+			return utterance;
 		}
 	}
 };
@@ -1030,3 +1072,57 @@ var model = function(params) {
 
 "finished"
 
+// literalERP({
+// 	utterance: "A because B",
+// 	lexicon: "none",
+// 	utteranceSet: "even_more",
+// 	inferenceOpts: {
+// 		literal: {method: "MCMC", samples: 100000},
+// 		s1: {method: "enumerate"},
+// 		listener: {method: "enumerate"},
+// 		s2: {method: "enumerate"},
+// 		worldModel: {method: "MCMC", samples: 100000}
+// 	}
+// });
+
+// s1ERP({
+// 	actualUtterance: "A because B",
+// 	lexicon: "none",
+// 	utteranceSet: "even_more",
+// 	inferenceOpts: {
+// 		literal: {method: "MCMC", samples: 10000},
+// 		s1: {method: "enumerate"},
+// 		listener: {method: "enumerate"},
+// 		s2: {method: "enumerate"},
+// 		worldModel: {method: "MCMC", samples: 10000}
+// 	},
+// 	passErr: true
+// });
+
+// listenerERP({
+// 	inferenceOpts: {
+// 		literal: {method: "MCMC", samples: 10000},
+// 		s1: {method: "enumerate"},
+// 		listener: {method: "MCMC", samples: 10000},
+// 		s2: {method: "enumerate"},
+// 		worldModel: {method: "MCMC", samples: 10000}
+// 	},
+// 	utterance: "B because A",
+// 	lexicon: "none",
+// 	actualUtterance: "B because A",
+// 	utteranceSet: "even_more"
+// });
+
+// s2ERP({
+// 	actualUtterance: "A because B",
+// 	lexicon: "none",
+// 	utteranceSet: "even_more",
+// 	inferenceOpts: {
+// 		literal: {method: "MCMC", samples: 10000},
+// 		s1: {method: "enumerate"},
+// 		listener: {method: "MCMC", samples: 10000},
+// 		s2: {method: "enumerate"},
+// 		worldModel: {method: "MCMC", samples: 10000}
+// 	},
+// 	passErr: true
+// });
