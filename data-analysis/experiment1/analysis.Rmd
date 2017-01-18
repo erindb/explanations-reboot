@@ -417,7 +417,54 @@ modelvdata %>% ggplot(., aes(x=model, y=mean_response,
 r = with(modelvdata, cor(model, mean_response))
 ```
 
-Then let's run with the correct utterance!
+Then let's run with the correct utterance set!
+
+```{r}
+model = read.csv("../../models/08-webppl-only/results_s2_onelink_noentailments_uevenmore.csv") %>%
+  rename(model = rating) %>%
+  mutate(story = paste("story", story_number, sep=""))
+data = aggr_df %>% filter(explanansVariable != explanandumVariable)
+modelvdata = merge(merge(model, data), model.tags)
+modelvdata = merge(model, data)
+modelvdata %>% ggplot(., aes(x=model, y=mean_response)) +
+  geom_abline(intercept = 0, slope = 1, colour="lightgray") +
+  geom_point() +
+  geom_errorbar(aes(x=model, ymin=low, ymax=high)) +
+  ylim(0,1) + xlim(0,1)
+modelvdata %>% ggplot(., aes(x=model, y=mean_response,
+                             colour=explanandumVariable,
+                             shape=explanansVariable)) +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_point() +
+  geom_errorbar(aes(x=model, ymin=low, ymax=high)) +
+  facet_wrap(~story) + ylim(0,1) + xlim(0,1)
+r = with(modelvdata, cor(model, mean_response))
+```
+
+Apparently, it doesn't make much of a difference, but it moves all of the model ratings a bit lower when there are equally costly alternative utterances. (r=`r r` without tautologies)
+
+This is really slow. So let's try MCMC and see if we get wildly different results or (I hope) pretty close to the same results...
+
+```{r}
+enumeration = read.csv("../../models/08-webppl-only/results_s2_onelink_noentailments_uevenmore.csv") %>%
+  rename(enumeration = rating) %>%
+  mutate(story = paste("story", story_number, sep=""),
+         story = factor(story),
+         explanansVariable = factor(explanansVariable),
+         explanandumVariable = factor(explanandumVariable))
+mcmc = read.csv("../../models/08-webppl-only/s2_onelink_noentailments_uevenmore_MCMC40K40K200K.csv") %>%
+  rename(mcmc = rating) %>%
+  mutate(story = factor(story),
+         explanansVariable = factor(explanansVariable),
+         explanandumVariable = factor(explanandumVariable))
+compareMCMC = merge(enumeration, mcmc)
+compareMCMC %>% ggplot(., aes(x=enumeration, y=mcmc)) +
+  geom_point()
+with(compareMCMC, cor(enumeration, mcmc))
+```
+
+It matches pretty well. I'm going to go with this and use MCMC on more complicated models.
+
 
 ## Participants
 
