@@ -72,8 +72,14 @@ def transform_program(prog_file, cfprior_file, expressions_file):
 	expressions_lst = expressions_json["expressions"]
 	expressions = ",\n\t\t\t\t".join(map(lambda expr: '"' + expr + '": ' + expr, expressions_lst))
 
+	m = re.search(r"var unobservables = ", exogenized_prog);
+	if (m):
+		unobservables = "unobservables: unobservables,"
+	else:
+		unobservables = ""
+
 	new_prog = re.sub(r"\n\t*return ({(?:[^}]*\n?)[^}]*})\;", r"""
-		return {
+		return {""" + unobservables + """
 			ERPs: {
 				""" + erps + """
 			},

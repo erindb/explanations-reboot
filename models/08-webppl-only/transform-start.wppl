@@ -130,4 +130,24 @@ var twoParents = cache(function(params) {
 	]);
 });
 
+var debug = function(string) {
+	display(string);
+};
 
+var round = function(x){
+  return Math.round(x*10)/10
+};
+
+var distProbs = function(dist, supp) {
+  return map(function(s) {
+    return Math.exp(dist.score(s))
+  }, supp)
+};
+
+var KL = function(p, q, supp) {
+  var P = distProbs(p, supp), Q = distProbs(q, supp);
+  var diverge = function(xp,xq) {
+    return xp == 0 ? 0 : (xp * Math.log(xp / xq) );
+  };
+  return sum(map2(diverge,P,Q));
+};

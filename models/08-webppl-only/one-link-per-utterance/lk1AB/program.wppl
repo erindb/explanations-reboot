@@ -5,8 +5,15 @@ var program = function(input) {
 
 	var cause = false;
 
+	var ignored = false;
+
 	var B = input.B;
 	var A = cause ? B : input.A;
+
+	var unobservables = {
+		structureParams: ["ignored"],
+		input: []
+	};
 
 	return {
 		A: A,

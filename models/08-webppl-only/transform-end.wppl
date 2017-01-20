@@ -1,11 +1,18 @@
 // --------------------------- utils -------------------------------------------
 
-var match = function(inferred, observed) {
-	var overlappingKeys = _.object(map(function(k) {
-		return [k, inferred[k]];
-	}, _.keys(observed)));
+var epsilon = 1;
 
-	return _.isEqual(overlappingKeys, observed);
+var close = function(a, b) {
+	if (typeof(a)==="number" && typeof(b)==="number") {
+		return Math.abs(a-b) < epsilon;
+	} else {
+		return a==b;
+	};
+};
+
+var match = function(inferred, observed) {
+	var overlapping = reduce_to_matching_keys(inferred, observed);
+	return _.isEqual(overlapping, observed);
 };
 
 var reduce_to_matching_keys = function(bigger_object, limiting_object) {
@@ -17,11 +24,19 @@ var reduce_to_matching_keys = function(bigger_object, limiting_object) {
 	// reduce that, too.
 	var reducedObject = mapObject(function(key, value) {
 		// if it's an object
+		var limiting_object_value = limiting_object[key];
 		if (value !== null && typeof value === 'object') {
 			var reduced_result = reduce_to_matching_keys(
-				value, limiting_object[key]
+				value, limiting_object_value
 			);
 			return reduced_result;
+		} else if (close(value, limiting_object_value)) {
+			// if we've got a number embedded in the bigger object,
+			// then check if the number is close to that of the 
+			// limiting object. if it is, give the reduced object
+			// a chance to equal the limiting object (replace the
+			// actual value with that of the limiting object)
+			return limiting_object_value;
 		} else {
 			return value;
 		}
@@ -43,8 +58,6 @@ var matchingFactor = function(bigERP, obs) {
 				return reduced_result;
 			}
 		);
-		// display(obs);
-		// display(reducedInterpretationERP);
 		return reducedERP.score(obs);
 	}
 };
@@ -78,6 +91,30 @@ var marginalize = function(erp, variable) {
 		return Infer({method: "enumerate"}, function() {
 			return (sample(erp))[variable];
 		});
+	}
+};
+
+var removeKeys = function(object, keys) {
+	return _.object(filter(function(pair) {
+		return keys.indexOf(pair[0])<0;
+	}, _.pairs(object)));
+};
+
+var removeUnobservables = function(world) {
+	if (world.unobservables) {
+		return {
+			structureParams: removeKeys(
+				world.structureParams,
+				world.unobservables.structureParams
+			),
+			input: removeKeys(
+				world.input,
+				world.unobservables.input
+			),
+			output: world.output
+		}
+	} else {
+		return world;
 	}
 };
 
@@ -125,6 +162,13 @@ var worldModel = function(params) {
 
 	var inferenceOpts = (
 		params.inferenceOpts ? params.inferenceOpts : defaults.inferenceOpts
+	);
+
+	// sometimes, we want to pass through a list of
+	// which variables in the world can't actually be observed
+	// (e.g. when listener decides what the speaker observed)
+	var returnUnobservables = (
+		params.returnUnobservables ? params.returnUnobservables : false
 	);
 
 	// forwardSample can sample both actual AND
@@ -181,6 +225,7 @@ var worldModel = function(params) {
 		var returnValues = program(input, sampleParams);
 		var output = returnValues.output;
 		var actualERPs = returnValues.ERPs;
+		var unobservables = returnValues.unobservables;
 
 		var structFactor = (
 			useObs.structureParams ?
@@ -226,7 +271,7 @@ var worldModel = function(params) {
 			var cfProgram = makeProgram(cfStructureParams, actualERPs);
 			var cfReturnValues = cfProgram(cfInput, cfSampleParams);
 			var cfOutput = cfReturnValues.output;
-
+			// cf unobservables don't really matter
 
 			// condition on any counterfactual premises
 			// (found in cfObs)
@@ -249,7 +294,15 @@ var worldModel = function(params) {
 
 			var truthFactor = (structFactor + inputFactor + outputFactor +
 				cfStructFactor + cfInputFactor + cfOutputFactor);
-			var result = {
+			var result = returnUnobservables ? {
+				structureParams: structureParams,
+				input: input,
+				output: output,
+				cfStructureParams: cfStructureParams,
+				cfInput: cfInput,
+				cfOutput: cfOutput,
+				unobservables: unobservables
+			} : {
 				structureParams: structureParams,
 				input: input,
 				output: output,
@@ -258,7 +311,7 @@ var worldModel = function(params) {
 				cfOutput: cfOutput
 			};
 
-			if (passErr) {
+			if (inferenceOpts.worldModel.method=="enumerate" && passErr) {
 				return {
 					truthFactor: truthFactor,
 					observations: result
@@ -269,10 +322,15 @@ var worldModel = function(params) {
 			}
 		} else {
 			var truthFactor = (structFactor + inputFactor + outputFactor);
-			var result = {
+			var result = returnUnobservables ? {
 				structureParams: structureParams,
 				input: input,
 				output: output,
+				unobservables: unobservables
+			} : {
+				structureParams: structureParams,
+				input: input,
+				output: output
 			};
 			if (inferenceOpts.worldModel.method=="enumerate" && passErr) {
 				return {
@@ -545,18 +603,6 @@ var meaningUncached = function(params) {
 			passErr: true
 		});
 
-		// display("***")
-		// display("utterance")
-		// display(utterance)
-		// display("cfPremise")
-		// display(cfPremise)
-		// display("explanans")
-		// display(explanans)
-		// display("explanandum")
-		// display(explanandum);
-		// display("cfConsequent")
-		// display(cfConsequent);
-
 		var cfFactor = matchingFactor(cfERP, {cfOutput: cfConsequent});
 
 		return entailmentFactorA + entailmentFactorB + cfFactor;
@@ -679,9 +725,7 @@ var literalERP = cache(function(params) {
 var s1 = function(params) {
 	var params = params ? params : {};
 
-	// communicate the world, if provided. otherwise communicate
-	// actual observations from experiment
-	var world = params.world ? params.world : observations;
+	var obs = params.obs ? params.obs : observations;
 
 	var inferenceOpts = (
 		params.inferenceOpts ? params.inferenceOpts : defaults.inferenceOpts
@@ -715,7 +759,20 @@ var s1 = function(params) {
 			costPerWord: costPerWord
 		});
 		var utterance = utterancePrior();
-		display("s1-utterance: " + utterance);
+		debug("s1-utterance: " + utterance);
+
+		// speaker forms beliefs based on the
+		// observations
+		var beliefs = worldModelERP({
+			obs: obs,
+			useObs: {
+				structureParams: true,
+				input: true,
+				output: true
+			},
+			inferenceOpts: inferenceOpts,
+			passErr: true
+		});
 
 		// factor by interpretation
 		var literalInterpretation = literalERP({
@@ -728,13 +785,18 @@ var s1 = function(params) {
 			passErr: true
 		});
 
-		// the speaker makes sure that their
- 		// observations line up with interpretation
-		var interpretationFactor = matchingFactor(
-			literalInterpretation, world
+		// minimize KL between speaker's inferences
+		// (including about unobserved stuff
+		// like direction when cause is false)
+		var interpretationFactor = - KL(
+			beliefs,
+			literalInterpretation,
+			// beliefs and pragmaticInterpretation have the
+			// same support
+			beliefs.support()
 		);
-
 		var truthFactor = lambda1 * interpretationFactor;
+		debug("s1-KL: " + truthFactor);
 		
 		if (inferenceOpts.s1.method=="enumerate" && passErr) {
 			return {
@@ -807,15 +869,24 @@ var listener = function(params) {
 		var world = sample(worldModelERP({
 			returnCF: false,
 			passErr: true, 
-			inferenceOpts: inferenceOpts
+			inferenceOpts: inferenceOpts,
+			// we want to know which variables don't matter
+			// given the state of the actual world
+			returnUnobservables: true
 		}));
+
+		// this may include a list of variables that
+		// are unobservable (structural parameters that don't
+		// matter and should marginalize out given the values of
+		// other parameters)
+		var obs = removeUnobservables(world);
 
 		var cgStates = getCGStates(world, cg);
 
 		// factor by speaker
 		var speakerEndorsement = s1ERP({
 			inferenceOpts: inferenceOpts,
-			world: world,
+			obs: obs, // including unobservables
 			qud: qud,
 			cgStates: cgStates,
 			lexicon: lexicon,
@@ -909,7 +980,20 @@ var s2 = function(params) {
 			actualUtterance: actualUtterance
 		});
 		var utterance = utterancePrior();
-		display(utterance);
+
+		// speaker forms beliefs based on the
+		// observations
+		var beliefs = worldModelERP({
+			obs: obs,
+			useObs: {
+				structureParams: true,
+				input: true,
+				output: true
+			},
+			inferenceOpts: inferenceOpts,
+			passErr: true,
+			returnUnobservables: true
+		});
 
 		// factor by interpretation
 		var pragmaticInterpretation = listenerERP({
@@ -929,17 +1013,20 @@ var s2 = function(params) {
 			passErr: passErr
 		});
 
-		// TO DO
-		// incorporate QUD
-
-		// the speaker makes sure that their
- 		// observations line up with interpretation
-		var interpretationFactor = matchingFactor(
-			pragmaticInterpretation, obs
+		// minimize KL between speaker's inferences
+		// (including about unobserved stuff
+		// like direction when cause is false)
+		var interpretationFactor = - KL(
+			beliefs,
+			pragmaticInterpretation,
+			// beliefs and pragmaticInterpretation have the
+			// same support
+			beliefs.support()
 		);
 
 		var truthFactor = lambda2 * interpretationFactor;
-		
+		debug("s2-KL: " + truthFactor);
+
 		if (inferenceOpts.s2.method=="enumerate" && passErr) {
 			return {
 				truthFactor:truthFactor,
