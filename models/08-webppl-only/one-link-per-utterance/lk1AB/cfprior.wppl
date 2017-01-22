@@ -1,7 +1,6 @@
 var structureParamsPrior = function() {
 	return {
-		cause: flip(0.5),
-		ignored: flip(0.5)
+		cause: flip(0.5)
 	};
 };
 

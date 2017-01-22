@@ -35,7 +35,7 @@ df = design[i,] %>%
         "s1: {method: 'enumerate'},",
         "listener: {method: 'MCMC', samples: 40000},",
         "s2: {method: 'enumerate'},",
-        "worldModel: {method: 'MCMC', samples: 200000}}",
+        "worldModel: {method: 'MCMC', samples: 40000}}",
         sep=""
       ),
       ", utteranceSet: ", utteranceSet = "'even_more'",

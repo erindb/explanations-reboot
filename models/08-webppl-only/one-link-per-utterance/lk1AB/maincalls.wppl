@@ -9,7 +9,7 @@ var myModel = function(utterance) {
 			s1: {method: 'enumerate'},
 			listener: {method: 'MCMC', samples: 40000},
 			s2: {method: 'enumerate'},
-			worldModel: {method: 'MCMC', samples: 200000}
+			worldModel: {method: 'MCMC', samples: 40000}
 		}
 	});
 	return Math.exp(rs.score(utterance));
