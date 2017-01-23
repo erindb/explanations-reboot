@@ -5,11 +5,11 @@
 // 		utteranceSet: "even_more",
 // 		passErr: true,
 // 		inferenceOpts: {
-// 			literal: {method: 'MCMC', samples: 100000},
+// 			literal: {method: 'MCMC', samples: 40000},
 // 			s1: {method: 'enumerate'},
-// 			listener: {method: 'MCMC', samples: 100000},
+// 			listener: {method: 'MCMC', samples: 40000},
 // 			s2: {method: 'enumerate'},
-// 			worldModel: {method: 'MCMC', samples: 100000}
+// 			worldModel: {method: 'MCMC', samples: 40000}
 // 		}
 // 	});
 // 	return Math.exp(rs.score(utterance));
