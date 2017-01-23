@@ -1,0 +1,45 @@
+"story","explanansVariable","explanansValue","explanandumVariable","explanandumValue","utterance","rating"
+"story5","D",TRUE,"C",TRUE,"C because D",0.5
+"story5","C",TRUE,"D",TRUE,"D because C",0.640287920319725
+"story5","D",TRUE,"A",TRUE,"A because D",0.530198914127106
+"story5","B",TRUE,"A",TRUE,"A because B",0.393434550677062
+"story5","C",TRUE,"B",TRUE,"B because C",0.526523612296861
+"story5","B",TRUE,"D",TRUE,"D because B",0.526060918334369
+"story5","A",TRUE,"D",TRUE,"D because A",0.51787491648621
+"story5","D",TRUE,"B",TRUE,"B because D",0.526523612296861
+"story5","A",TRUE,"C",TRUE,"C because A",0.383434520795229
+"story5","C",TRUE,"A",TRUE,"A because C",0.530198914127106
+"story5","B",TRUE,"C",TRUE,"C because B",0.393434550677062
+"story5","A",TRUE,"B",TRUE,"B because A",0.393434550677062
+"story2","C",TRUE,"B",TRUE,"B because C",0.47765922247866
+"story2","A",TRUE,"B",TRUE,"B because A",0.640287920319725
+"story2","B",TRUE,"A",TRUE,"A because B",0.472240085696242
+"story2","C",TRUE,"A",TRUE,"A because C",0.446283813302782
+"story2","B",TRUE,"C",TRUE,"C because B",0.640287920319726
+"story2","A",TRUE,"C",TRUE,"C because A",0.707915170232184
+"story6","B",FALSE,"A",FALSE,"! A because ! B",0.514673551544934
+"story6","A",FALSE,"C",TRUE,"C because ! A",0.655908270607366
+"story6","C",TRUE,"A",FALSE,"! A because C",0.536079076733768
+"story6","A",FALSE,"B",FALSE,"! B because ! A",0.657439122358687
+"story6","B",FALSE,"C",TRUE,"C because ! B",0.942250738592309
+"story6","C",TRUE,"B",FALSE,"! B because C",0.875798557147626
+"story4","B",FALSE,"D",FALSE,"! D because ! B",0.61949210042209
+"story4","C",FALSE,"B",FALSE,"! B because ! C",0.403406122033617
+"story4","C",FALSE,"D",FALSE,"! D because ! C",0.640287920319725
+"story4","B",FALSE,"C",FALSE,"! C because ! B",0.477903463099577
+"story4","A",FALSE,"C",FALSE,"! C because ! A",0.477903463099577
+"story4","D",FALSE,"B",FALSE,"! B because ! D",0.403406122033617
+"story4","A",FALSE,"B",FALSE,"! B because ! A",0.324230559051052
+"story4","A",FALSE,"D",FALSE,"! D because ! A",0.61949210042209
+"story4","B",FALSE,"A",FALSE,"! A because ! B",0.324230559051052
+"story4","D",FALSE,"A",FALSE,"! A because ! D",0.403406122033617
+"story4","D",FALSE,"C",FALSE,"! C because ! D",0.5
+"story4","C",FALSE,"A",FALSE,"! A because ! C",0.403406122033617
+"story3","B",TRUE,"C",FALSE,"! C because B",0.859484946689409
+"story3","C",FALSE,"A",TRUE,"A because ! C",0.676324764408509
+"story3","B",TRUE,"A",TRUE,"A because B",0.332593218639431
+"story3","C",FALSE,"B",TRUE,"B because ! C",0.454734863991077
+"story3","A",TRUE,"B",TRUE,"B because A",0.324230559051052
+"story3","A",TRUE,"C",FALSE,"! C because A",0.942250738592309
+"story1","B",TRUE,"A",TRUE,"A because B",0.371669691876078
+"story1","A",TRUE,"B",TRUE,"B because A",0.371669691876078

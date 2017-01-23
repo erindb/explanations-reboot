@@ -1,0 +1,22 @@
+"story","explanandumVariable","explanansVariable","utterance","tag","story.number"
+"story1","A","A","A because A","hit",1
+"story1","B","A","B because A","hit",1
+"story2","A","B","A because B","hit",2
+"story2","B","B","B because B","higher",2
+"story2","C","B","C because B","hit",2
+"story3","A","A","A because A","hit",3
+"story3","A","A","A because A","hit",3
+"story3","B","A","B because A","lower",3
+"story3","C","A","! C because A","hit",3
+"story3","C","A","! C because A","hit",3
+"story4","A","C","! A because ! C","unsure",4
+"story4","B","C","! B because ! C","unsure",4
+"story4","C","C","! C because ! C","higher",4
+"story4","D","C","! D because ! C","hit",4
+"story5","A","C","A because C","unsure",5
+"story5","B","C","B because C","hit",5
+"story5","C","C","C because C","higher",5
+"story5","D","C","D because C","hit",5
+"story6","A","B","! A because ! B","lower",6
+"story6","B","B","! B because ! B","higher",6
+"story6","C","B","C because ! B","lower",6

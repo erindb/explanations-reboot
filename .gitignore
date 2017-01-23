@@ -17,3 +17,6 @@ notes
 *.RData
 *node_modules
 *.html
+models/06-rsa-vary-parameters
+models/05-examples
+models/07-rsa-for-lk-booleans
