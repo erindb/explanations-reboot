@@ -16,3 +16,4 @@ notes
 *.DS_Store
 *.RData
 *node_modules
+*.html
