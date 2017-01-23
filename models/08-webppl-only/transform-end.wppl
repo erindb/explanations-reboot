@@ -389,10 +389,10 @@ var utterancePriorMaker = function(params) {
 		if ("! "+u1==u2 || "! "+u2==u1) {
 			return true;
 		}
-		if ((u1=="C" && u2=="!D") ||
-			(u1=="!C" && u2=="D") ||
-			(u1=="D" && u2=="!C") ||
-			(u1=="!D" && u2=="C")) {
+		if ((u1=="C" && u2=="! D") ||
+			(u1=="! C" && u2=="D") ||
+			(u1=="D" && u2=="! C") ||
+			(u1=="! D" && u2=="C")) {
 			return true;
 		}
 		return false;
