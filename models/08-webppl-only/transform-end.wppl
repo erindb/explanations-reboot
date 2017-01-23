@@ -761,19 +761,6 @@ var s1 = function(params) {
 		var utterance = utterancePrior();
 		debug("s1-utterance: " + utterance);
 
-		// speaker forms beliefs based on the
-		// observations
-		var beliefs = worldModelERP({
-			obs: obs,
-			useObs: {
-				structureParams: true,
-				input: true,
-				output: true
-			},
-			inferenceOpts: inferenceOpts,
-			passErr: true
-		});
-
 		// factor by interpretation
 		var literalInterpretation = literalERP({
 			inferenceOpts: inferenceOpts,
@@ -785,18 +772,11 @@ var s1 = function(params) {
 			passErr: true
 		});
 
-		// minimize KL between speaker's inferences
-		// (including about unobserved stuff
-		// like direction when cause is false)
-		var interpretationFactor = - KL(
-			beliefs,
-			literalInterpretation,
-			// beliefs and pragmaticInterpretation have the
-			// same support
-			beliefs.support()
+		var interpretationFactor = literalInterpretation.score(
+			obs
 		);
+
 		var truthFactor = lambda1 * interpretationFactor;
-		debug("s1-KL: " + truthFactor);
 		
 		if (inferenceOpts.s1.method=="enumerate" && passErr) {
 			return {
@@ -981,20 +961,6 @@ var s2 = function(params) {
 		});
 		var utterance = utterancePrior();
 
-		// speaker forms beliefs based on the
-		// observations
-		var beliefs = worldModelERP({
-			obs: obs,
-			useObs: {
-				structureParams: true,
-				input: true,
-				output: true
-			},
-			inferenceOpts: inferenceOpts,
-			passErr: true,
-			returnUnobservables: true
-		});
-
 		// factor by interpretation
 		var pragmaticInterpretation = listenerERP({
 			inferenceOpts: inferenceOpts,
@@ -1013,19 +979,11 @@ var s2 = function(params) {
 			passErr: passErr
 		});
 
-		// minimize KL between speaker's inferences
-		// (including about unobserved stuff
-		// like direction when cause is false)
-		var interpretationFactor = - KL(
-			beliefs,
-			pragmaticInterpretation,
-			// beliefs and pragmaticInterpretation have the
-			// same support
-			beliefs.support()
+		var interpretationFactor = pragmaticInterpretation.score(
+			obs
 		);
 
 		var truthFactor = lambda2 * interpretationFactor;
-		debug("s2-KL: " + truthFactor);
 
 		if (inferenceOpts.s2.method=="enumerate" && passErr) {
 			return {
