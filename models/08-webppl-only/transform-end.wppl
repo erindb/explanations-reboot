@@ -679,10 +679,7 @@ var literal = function(params) {
 
 		// sample an actual world
 		// (note that counterfactual sampling happens inside meaning function)
-		var world = sample(worldModelERP({
-			passErr: true,
-			inferenceOpts: inferenceOpts
-		}));
+		var world = (worldModel({}))();
 
 		// condition on common ground
 		var cgFactor = match(world.output, cgStates) ? 0 : -Infinity;
@@ -846,14 +843,12 @@ var listener = function(params) {
 
 		// sample a world
 		// note that counterfactual sampling happens inside meaning function
-		var world = sample(worldModelERP({
+		var world = (worldModel({
 			returnCF: false,
-			passErr: true, 
-			inferenceOpts: inferenceOpts,
 			// we want to know which variables don't matter
 			// given the state of the actual world
 			returnUnobservables: true
-		}));
+		}))();
 
 		// this may include a list of variables that
 		// are unobservable (structural parameters that don't
