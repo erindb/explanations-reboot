@@ -1,0 +1,54 @@
+// var myModel = function(utterance) {
+// 	var rs = s2ERP({
+// 		lexicon: "none",
+// 		actualUtterance: utterance,
+// 		utteranceSet: "even_more",
+// 		passErr: true,
+// 		inferenceOpts: {
+// 			literal: {method: 'MCMC', samples: 400},
+// 			s1: {method: 'enumerate'},
+// 			listener: {method: 'MCMC', samples: 400},
+// 			s2: {method: 'enumerate'},
+// 			worldModel: {method: 'MCMC', samples: 2000}
+// 		}
+// 	});
+// 	return Math.exp(rs.score(utterance));
+// };
+// var myUtterances = [
+// 	"A because B"//, "B because A",
+// 	// "A because C", "C because A",
+// 	// "B because C", "C because B"
+// ];
+// var results = map(myModel, myUtterances);
+// display(results);
+
+// var program = makeProgram({
+// 	nCausalLinks: 0,
+// 	permutations2: "ABC",
+// 	permutations1: "ABC",
+// 	priorA: 0.1,
+// 	priorB: 0.1,
+// 	priorC: 0.1
+// });
+// var results = program({
+// 	ab: true,
+// 	ba: true,
+// 	ac: true,
+// 	ca: true,
+// 	bc: true,
+// 	cb: true
+// }, {backgroundA: 0.5, backgroundB: 0.5, backgroundC: 0.5});
+// display(results);
+
+literalERP({
+	utterance: "A because B",
+	lexicon: "none",
+	utteranceSet: "even_more",
+	inferenceOpts: {
+		literal: {method: "MCMC", samples: 2000},
+		s1: {method: "enumerate"},
+		listener: {method: "MCMC", samples: 400},
+		s2: {method: "enumerate"},
+		worldModel: {method: "MCMC", samples: 400}
+	}
+});

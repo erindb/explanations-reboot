@@ -1,0 +1,13 @@
+display(map(function(utterance) {
+	var rs = s2ERP({
+		lexicon: "none",
+		actualUtterance: utterance,
+		utteranceSet: "even_more",
+		passErr: true
+	});
+	return Math.exp(rs.score(utterance));
+}, [
+	"A because B"//, "B because A",
+	//"A because C", "C because A",
+	//"B because C", "C because B"
+]))

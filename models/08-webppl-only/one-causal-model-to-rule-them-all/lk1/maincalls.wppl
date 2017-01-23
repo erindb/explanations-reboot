@@ -1,0 +1,19 @@
+// var myModel = function(utterance) {
+// 	var rs = s2ERP({
+// 		lexicon: "none",
+// 		actualUtterance: utterance,
+// 		utteranceSet: "even_more",
+// 		passErr: true,
+// 		inferenceOpts: {
+// 			literal: {method: 'MCMC', samples: 4000},
+// 			s1: {method: 'enumerate'},
+// 			listener: {method: 'MCMC', samples: 4000},
+// 			s2: {method: 'enumerate'},
+// 			worldModel: {method: 'MCMC', samples: 20000}
+// 		}
+// 	});
+// 	return Math.exp(rs.score(utterance));
+// };
+// var myUtterances = ["A because B", "B because A"];
+// var results = map(myModel, myUtterances);
+// display(results);

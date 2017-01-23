@@ -1,99 +1,86 @@
 var program = function(input) {
 
-	var causeAB = true;
-	var causeBC = true;
+	var nCausalLinks = 2;
+	var permutations1 = "ABC"; // placeholder
+	var permutations2 = "ABC";
+	var priorA = 0.1;
+	var priorB = 0.1; // placeholder
+	var priorC = 0.1; // placeholder
 
-	// when `dirAB` is true, the alphabetically
-	// earlier variable is causally upstream of
-	// the other.
-	var dirAB = true;
-	var dirBC = true;
+	var backgroundA = flip(priorA);
+	var backgroundB = flip(priorB);
+	var backgroundC = flip(priorC);
 
-	// `enabledAB` says whether the cause was
-	// enabled, this is an "actual cause"
-	// variable, for when causal power is
-	// less than 1
-	var actualAB = input.ab;
-	var actualBC = input.bc;
+	var backgrounds = {
+		A: backgroundA,
+		B: backgroundB,
+		C: backgroundC
+	};
 
-	// placeholders
-	var actualBA = input.ba;
-	var actualCB = input.cb;
+	var ab = input.ab;
+	var ba = input.ba; // placeholder
+	var ac = input.ac; // placeholder
+	var ca = input.ca; // placeholder
+	var bc = input.bc; // placeholder
+	var cb = input.cb; // placeholder
+	var enabled = {
+		AB: ab, BA: ba,
+		AC: ac, CA: ca,
+		BC: bc, CB: cb
+	};
 
-	// priors when no causal parents
-	var pA = input.A;
-	// placeholders
-	var pB = input.B;
-	var pC = input.C;
+	var noCauseFn = function() {
+		return backgrounds;
+	};
+	var oneCauseFn = function() {
+		var variables = permutations1.split("");
+		var first2Values = simpleCause({
+			var1: variables[0],
+			var2: variables[1],
+			background: backgrounds[variables[0]],
+			actualCause: enabled[variables[0] + variables[1]]
+		});
+		var otherValue = backgrounds[variables[2]];
+		return _.object([
+			[variables[0], first2Values[variables[0]]],
+			[variables[1], first2Values[variables[1]]],
+			[variables[2], otherValue]
+		]);
+	};
+	var twoCauseFn = function() {
+		var variables = permutations2.split("");
+		var first2Values = simpleCause({
+			var1: variables[0],
+			var2: variables[1],
+			background: backgrounds[variables[0]],
+			actualCause: enabled[variables[0] + variables[1]]
+		});
+		var otherValue = simpleNext({
+			parentState: first2Values[variables[1]],
+			actualCause: enabled[variables[1] + variables[2]]
+		});
+		return _.object([
+			[variables[0], first2Values[variables[0]]],
+			[variables[1], first2Values[variables[1]]],
+			[variables[2], otherValue]
+		]);
+	};
 
-	var valuesABC = (function() {
-		if (causeBC && !dirBC) {
-			if (causeAB && dirAB) {
-				// in this situation, B is a function
-				// of both A and B
-				var valuesABC = twoParents({
-					parentVar1: "A",
-					parentVar2: "C",
-					childVar: "B",
-					// both causes are enabled
-					// directions are determined
-					actual1: actualAB,
-					actual2: actualCB,
-					parentP1: pA,
-					parentP2: pC
-				});
-				return valuesABC;
-			} else {
-				var valuesBC = getTwoVariables({
-					var1: "B",
-					var2: "C",
-					cause: causeBC,
-					dir: dirBC,
-					p1: pB,
-					p2: pC,
-					actual12: actualBC, // cause is deterministic
-					actual21: actualCB // cause is deterministic
-				});
-				var valueA = getNextVariable({
-					parent: valuesBC.B,
-					cause: causeAB,
-					p: pA,
-					actualCause: actualBA
-				});
-				return {
-					A: valueA,
-					B: valuesBC.B,
-					C: valuesBC.C
-				}
-			}
+	var values = (function() {
+		if (nCausalLinks==0) {
+			return noCauseFn();
+		} else if (nCausalLinks==1) {
+			return oneCauseFn();
+		} else if (nCausalLinks==2) {
+			return twoCauseFn();
 		} else {
-			var valuesAB = getTwoVariables({
-				var1: "A",
-				var2: "B",
-				cause: causeAB,
-				dir: dirAB,
-				p1: pA,
-				p2: pB,
-				actual12: actualAB, // cause is deterministic
-				actual21: actualBA // cause is deterministic
-			});
-			var valueC = getNextVariable({
-				parent: valuesAB.B,
-				cause: causeBC,
-				p: pC,
-				actualCause: actualBC
-			});
-			return {
-				A: valuesAB.A,
-				B: valuesAB.B,
-				C: valueC
-			}
+			display("warning 09-2834");
 		}
 	})();
 
-	var A = valuesABC.A;
-	var B = valuesABC.B;
-	var C = valuesABC.C;
+	var A = values.A;
+	var B = values.B;
+	var C = values.C;
 
 	return {
 		A: A,

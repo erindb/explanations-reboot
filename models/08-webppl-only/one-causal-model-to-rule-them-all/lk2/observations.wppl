@@ -2,15 +2,12 @@
 
 var observations = {
 	structureParams: {
-		causeAB: true,
-		causeBC: true,
-		dirAB: true,
-		dirBC: true
+		nCausalLinks: 2,
+		permutations2: "ABC",
+		priorA: 0.1
 	},
 	input: {
-		A: true,
-		ab: true,
-		bc: true
+		ab: true
 	},
 	output: {
 		A: true,
