@@ -385,11 +385,24 @@ var utterancePriorMaker = function(params) {
 		map(function(u) {return "! " + u;}, expressions)
 	);
 
+	var contradiction = function(u1, u2) {
+		if ("! "+u1==u2 || "! "+u2==u1) {
+			return true;
+		}
+		if ((u1=="C" && u2=="!D") ||
+			(u1=="!C" && u2=="D") ||
+			(u1=="D" && u2=="!C") ||
+			(u1=="!D" && u2=="C")) {
+			return true;
+		}
+		return false;
+	};
+
 	var becauseUtterances = reduce(function(u1, acc) {
 		return acc.concat(
 			// because
 			reduce(function (u2, acc) {
-				if ("! "+u1==u2 || "! "+u2==u1) {
+				if (contradiction(u1, u2)) {
 					// that will yield a contradiction
 					return acc;
 				} else {
@@ -405,7 +418,7 @@ var utterancePriorMaker = function(params) {
 		return acc.concat(
 			// and
 			reduce(function (u2, acc) {
-				if ("! "+u1==u2 || "! "+u2==u1) {
+				if (contradiction(u1, u2)) {
 					// that will yield a contradiction
 					return acc;
 				} else {
@@ -419,7 +432,7 @@ var utterancePriorMaker = function(params) {
 		return acc.concat(
 			// and
 			reduce(function (u2, acc) {
-				if ("! "+u1==u2 || "! "+u2==u1) {
+				if (contradiction(u1, u2)) {
 					// that is trivially true
 					return acc;
 				} else {
