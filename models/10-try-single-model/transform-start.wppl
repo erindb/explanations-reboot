@@ -1,0 +1,153 @@
+// ------------ explanation-related utils ----------
+
+// none of these functions defined in transform-start.wppl
+// are actually used for the lk-like explanations rating
+// stories. but there here anyway, in case we want to add
+// them in later.
+
+var stickySampler = cache(function(args) {
+	var erp = args.erp;
+	var origERP = args.origERP ? args.origERP : null;
+	var erpLabel = args.erpLabel;
+
+	return jsUtils.makeStickySamplingFunction(erp, origERP, erpLabel);
+});
+
+var discreteUniformERP = Infer(
+	{method: "enumerate"},
+	function() {
+		return uniformDraw(
+			_.range(0, 1, 0.05)
+		);
+	}
+);
+
+// var myUniform = function() {return uniform(0, 1)};
+var myUniform = function() {return sample(discreteUniformERP);};
+
+var getTwoVariables = cache(function(params) {
+	var var1 = params.var1; //"A"
+	var var2 = params.var2; //"B"
+	var cause = params.cause; //causeAB
+	var dir = params.dir; //dirAB
+	var priors = _.object([
+		[var1, params.p1],
+		[var2, params.p2]
+	]);
+	var actualCause = _.object([
+		[var1+var2, params.actual12],
+		[var2+var1, params.actual21]
+	]);
+
+	var directed = function(vars) {
+		var vAlpha = vars[0];
+		var vBeta = vars[1];
+		var alpha = priors[vAlpha];
+		var beta = (
+			alpha && 
+			actualCause[vAlpha+vBeta]
+		);
+		return _.object([
+			[vAlpha, alpha],
+			[vBeta, beta]
+		]);
+	};
+
+	var undirected = function(vars) {
+		var vAlpha = vars[0];
+		var vBeta = vars[1];
+		var alpha = priors[vAlpha];
+		var beta = priors[vBeta];
+		return _.object([
+			[vAlpha, alpha],
+			[vBeta, beta]
+		]);
+	};
+
+	var fn = cause ? directed : undirected;
+	var vars = dir ? [var1, var2] : [var2, var1];
+
+	var values = fn(vars);
+
+	return(values);
+});
+
+var simpleCause = cache(function(params) {
+	var var1 = params.var1; //"A"
+	var var2 = params.var2; //"B"
+	var background = params.background;
+	var actualCause = params.actualCause;
+
+	var var1State = background;
+	var var2State = (
+		var1State && 
+		actualCause
+	);
+	return _.object([
+		[var1, var1State],
+		[var2, var2State]
+	]);
+});
+
+var simpleNext = cache(function(params) {
+	var parentState = params.parentState; //valuesAB.B
+	var actualCause = params.actualCause; //actualBC
+	return parentState && actualCause;
+});
+
+var getNextVariable = cache(function(params) {
+	var parent = params.parent; //valuesAB.B
+	var cause = params.cause; //causeBC
+	var p = params.p; //pC
+	var actualCause = params.actualCause; //actualBC
+
+	if (cause) {
+		return parent && actualCause;
+	} else {
+		return p;
+	}
+});
+
+var twoParents = cache(function(params) {
+	var parentVar1 = params.parentVar1; // "A"
+	var parentVar2 = params.parentVar2; // "C"
+	var childVar = params.childVar; // "B"
+	var actual1 = params.actual1; // actualAB
+	var actual2 = params.actual2; // actualCB
+
+	var parent1 = params.parentP1; // pA
+	var parent2 = params.parentP2; // pC
+
+	var child = (
+		(parent1 && actual1) ||
+		(parent2 && actual2)
+	);
+
+	return _.object([
+		[parentVar1, parent1],
+		[parentVar2, parent2],
+		[childVar, child]
+	]);
+});
+
+var debug = function(string) {
+	display(string);
+};
+
+var round = function(x){
+  return Math.round(x*10)/10
+};
+
+var distProbs = function(dist, supp) {
+  return map(function(s) {
+    return Math.exp(dist.score(s))
+  }, supp)
+};
+
+var KL = function(p, q, supp) {
+  var P = distProbs(p, supp), Q = distProbs(q, supp);
+  var diverge = function(xp,xq) {
+    return xp == 0 ? 0 : (xp * Math.log(xp / xq) );
+  };
+  return sum(map2(diverge,P,Q));
+};

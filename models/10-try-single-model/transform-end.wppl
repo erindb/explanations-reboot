@@ -1,0 +1,1135 @@
+// --------------------------- utils -------------------------------------------
+
+var epsilon = 1;
+
+var close = function(a, b) {
+	if (typeof(a)==="number" && typeof(b)==="number") {
+		return Math.abs(a-b) < epsilon;
+	} else {
+		return a==b;
+	};
+};
+
+var match = function(inferred, observed) {
+	var overlapping = reduce_to_matching_keys(inferred, observed);
+	return _.isEqual(overlapping, observed);
+};
+
+var reduce_to_matching_keys = function(bigger_object, limiting_object) {
+	var objWithOverlappingKeys = _.object(map(function(k) {
+		return [k, bigger_object[k]];
+	}, _.keys(limiting_object)));
+
+	// then for each overlapping key, if its value is also an object,
+	// reduce that, too.
+	var reducedObject = mapObject(function(key, value) {
+		// if it's an object
+		var limiting_object_value = limiting_object[key];
+		if (value !== null && typeof value === 'object') {
+			var reduced_result = reduce_to_matching_keys(
+				value, limiting_object_value
+			);
+			return reduced_result;
+		} else if (close(value, limiting_object_value)) {
+			// if we've got a number embedded in the bigger object,
+			// then check if the number is close to that of the 
+			// limiting object. if it is, give the reduced object
+			// a chance to equal the limiting object (replace the
+			// actual value with that of the limiting object)
+			return limiting_object_value;
+		} else {
+			return value;
+		}
+	}, objWithOverlappingKeys);
+
+	return reducedObject;
+};
+
+var matchingFactor = function(bigERP, obs) {
+	if (bigERP=="enumeration error") {
+		return -Infinity;
+	} else {
+		// obs.input might have more keys than interpretationERP.input
+		var reducedERP = Infer(
+			{method: "enumerate"},
+			function() {
+				var result = sample(bigERP);
+				var reduced_result = reduce_to_matching_keys(result, obs);
+				return reduced_result;
+			}
+		);
+		return reducedERP.score(obs);
+	}
+};
+
+var cleanup = function(erp) {
+	var all_false = reduce(
+		function(s, acc) {
+			var stillFalse = s.truthFactor == -Infinity;
+			return acc && stillFalse;
+		},
+		true,
+		erp.support()
+	);
+	if (all_false) {
+		return "enumeration error";
+	} 
+	return Infer(
+		{method: "enumerate"},
+		function() {
+			var s = sample(erp);
+			factor(s.truthFactor);
+			return s.observations;
+		}
+	);
+};
+
+var marginalize = function(erp, variable) {
+	if (erp=="enumeration error") {
+		return erp;
+	} else {
+		return Infer({method: "enumerate"}, function() {
+			return (sample(erp))[variable];
+		});
+	}
+};
+
+var removeKeys = function(object, keys) {
+	return _.object(filter(function(pair) {
+		return keys.indexOf(pair[0])<0;
+	}, _.pairs(object)));
+};
+
+var removeUnobservables = function(world) {
+	if (world.unobservables) {
+		return {
+			structureParams: removeKeys(
+				world.structureParams,
+				world.unobservables.structureParams
+			),
+			input: removeKeys(
+				world.input,
+				world.unobservables.input
+			),
+			output: world.output
+		}
+	} else {
+		return world;
+	}
+};
+
+// --------------------------- defaults ----------------------------------------
+
+var defaults = {
+	lambda1: 1,
+	lambda2: 1,
+	stickiness: 0.53,
+	inferQUD: false,
+	qud: "max",
+	inferCG: false,
+	cg: [],
+	cgStates: {},
+	inferLexicon: false,
+	lexicon: "explanandum",
+	utteranceSet: "yes/no", // for s1
+	inferenceOpts: {
+		literal: {method: "enumerate"},
+		s1: {method: "enumerate"},
+		listener: {method: "enumerate"},
+		s2: {method: "enumerate"},
+		worldModel: {method: "enumerate"}
+	},
+	interlocuter: "s1",
+	costPerWord: 0,
+	passErr: false // default is crash instead of passing the error up the chain
+};
+
+// --------------------------- counterfactuals logic ---------------------------
+
+var counterfactualizeLatents = function(model, actual, stickiness) {
+	var s = stickiness ? stickiness : 0.53;
+	var totallyDifferent = model();
+
+	return mapObject(function(key, value) {
+		return flip(s) ? actual[key] : totallyDifferent[key];
+	}, actual);
+};
+
+// --------------------------- forward sample ----------------------------------
+
+var worldModel = function(params) {
+	var params = params ? params : {};
+
+	var inferenceOpts = (
+		params.inferenceOpts ? params.inferenceOpts : defaults.inferenceOpts
+	);
+
+	// sometimes, we want to pass through a list of
+	// which variables in the world can't actually be observed
+	// (e.g. when listener decides what the speaker observed)
+	var returnUnobservables = (
+		params.returnUnobservables ? params.returnUnobservables : false
+	);
+
+	// forwardSample can sample both actual AND
+	// counterfactual worlds. by default, it only
+	// samples actual worlds.
+	var returnCF = params.returnCF ? params.returnCF : false;
+
+	// if we do return counterfactuals, we need to
+	// decide on a stickiness parameter
+	var stickiness = (
+		params.stickiness ? params.stickiness : defaults.stickiness
+	);
+
+	var passErr = params.passErr ? params.passErr : defaults.passErr;
+
+	// by default, forward sample samples from the prior
+	// and ignores all observations.
+	// we can choose to condition on the observed
+	// structureParams, input, and/or output.
+	var useObs = params.useObs ? params.useObs : {
+		structureParams: false,
+		input: false,
+		output: false
+	};
+
+	// observations can be specified for a specific
+	// call to forwardSample. But in general, 
+	// observations will be taken from the
+	// observations.wppl file in `stories` directory,
+	// defined in the `observations` variable in
+	// `autoexpanded.wppl`.
+	var obs = params.obs ? params.obs : observations;
+
+	if (params.obs) {
+		if (params.obs.structureParams && !useObs.structureParams) {
+			display("warning 2340910928")
+		}
+		if (params.obs.input && !useObs.input) { display("warning 234013") }
+		if (params.obs.input && !useObs.input) { display("warning 59834872") }
+	}
+
+	// we can also include counterfactual premises for
+	// this function.
+	var cfObs = params.cfObs ? params.cfObs : {};
+	if (params.cfObs && !params.returnCF) { display("warning 2394810") }
+
+	return function() {
+
+		var structureParams = structureParamsPrior();
+		var input = inputPrior();
+		var sampleParams = sampleParamsPrior();
+
+		var program = makeProgram(structureParams);
+		var returnValues = program(input, sampleParams);
+		var output = returnValues.output;
+		var actualERPs = returnValues.ERPs;
+		var unobservables = returnValues.unobservables;
+
+		var structFactor = (
+			useObs.structureParams ?
+			(match(structureParams, obs.structureParams) ? 0 : -Infinity) :
+			0
+		);
+		var inputFactor = (
+			useObs.input ?
+			(match(input, obs.input) ? 0 : -Infinity) :
+			0
+		);
+		var outputFactor = (
+			useObs.output ?
+			(match(output, obs.output) ? 0 : -Infinity) :
+			0
+		);
+
+		// return a world
+
+		// only counterfactualize if we have to,
+		// because it can be costly.
+		if (returnCF) {
+
+			// then sticky sample cfSampleParams
+			var cfSampleParams = counterfactualizeLatents(
+				sampleParamsPrior,
+				sampleParams,
+				stickiness
+			);
+			// and cfInput
+			var cfInput = counterfactualizeLatents(
+				inputPrior,
+				input,
+				stickiness
+			);
+			// and cfStructureParams
+			var cfStructureParams = counterfactualizeLatents(
+				structureParamsPrior,
+				structureParams,
+				stickiness
+			);
+			// and calculate corresponding output
+			var cfProgram = makeProgram(cfStructureParams, actualERPs);
+			var cfReturnValues = cfProgram(cfInput, cfSampleParams);
+			var cfOutput = cfReturnValues.output;
+			// cf unobservables don't really matter
+
+			// condition on any counterfactual premises
+			// (found in cfObs)
+
+			var cfStructFactor = (
+				cfObs.structureParams ?
+				(match(cfStructureParams, cfObs.structureParams) ? 0 : -Infinity) :
+				0
+			);
+			var cfInputFactor = (
+				cfObs.input ?
+				(match(cfInput, cfObs.input) ? 0 : -Infinity) :
+				0
+			);
+			var cfOutputFactor = (
+				cfObs.output ?
+				(match(cfOutput, cfObs.output) ? 0 : -Infinity) :
+				0
+			);
+
+			var truthFactor = (structFactor + inputFactor + outputFactor +
+				cfStructFactor + cfInputFactor + cfOutputFactor);
+			var result = returnUnobservables ? {
+				structureParams: structureParams,
+				input: input,
+				output: output,
+				cfStructureParams: cfStructureParams,
+				cfInput: cfInput,
+				cfOutput: cfOutput,
+				unobservables: unobservables
+			} : {
+				structureParams: structureParams,
+				input: input,
+				output: output,
+				cfStructureParams: cfStructureParams,
+				cfInput: cfInput,
+				cfOutput: cfOutput
+			};
+
+			if (inferenceOpts.worldModel.method=="enumerate" && passErr) {
+				return {
+					truthFactor: truthFactor,
+					observations: result
+				}
+			} else {
+				factor(truthFactor);
+				return result;
+			}
+		} else {
+			var truthFactor = (structFactor + inputFactor + outputFactor);
+			var result = returnUnobservables ? {
+				structureParams: structureParams,
+				input: input,
+				output: output,
+				unobservables: unobservables
+			} : {
+				structureParams: structureParams,
+				input: input,
+				output: output
+			};
+			if (inferenceOpts.worldModel.method=="enumerate" && passErr) {
+				return {
+					truthFactor: truthFactor,
+					observations: result
+				}
+			} else {
+				factor(truthFactor);
+				return result;
+			}
+		}
+
+		// TO DO: when sampleParams are relevant,
+		// we might want to infer them and look at their
+		// values.
+	};
+};
+var worldModelERP = cache(function(params) {
+	var inferenceOpts = (
+		params.inferenceOpts ? params.inferenceOpts : defaults.inferenceOpts
+	);
+	if (inferenceOpts.worldModel.method == "enumerate") {
+		return cleanup(Infer(inferenceOpts.worldModel, worldModel(params)));
+	} else {
+		return Infer(inferenceOpts.worldModel, worldModel(params));
+	}
+});
+
+// --------------------------- utterance prior ---------------------------------
+
+var utterancePriorMaker = function(params) {
+	var params = params ? params : {};
+
+	var utteranceSet = (
+		params.utteranceSet ?
+		params.utteranceSet :
+		defaults.utteranceSet
+	);
+
+	var actualUtterance = (
+		params.actualUtterance ? params.actualUtterance : false
+	);
+
+	var costPerWord = (
+		params.costPerWord ? params.costPerWord : defaults.costPerWord
+	);
+
+	// for each base expression
+	// we can say that expression
+	var unaryUtterances = expressions.concat(
+		// or we can negate it
+		map(function(u) {return "! " + u;}, expressions)
+	);
+
+	var contradiction = function(u1, u2) {
+		if ("! "+u1==u2 || "! "+u2==u1) {
+			return true;
+		}
+		if ((u1=="C" && u2=="! D") ||
+			(u1=="! C" && u2=="D") ||
+			(u1=="D" && u2=="! C") ||
+			(u1=="! D" && u2=="C")) {
+			return true;
+		}
+		return false;
+	};
+
+	var becauseUtterances = reduce(function(u1, acc) {
+		return acc.concat(
+			// because
+			reduce(function (u2, acc) {
+				if (contradiction(u1, u2)) {
+					// that will yield a contradiction
+					return acc;
+				} else {
+					return acc.concat([u1 + " because " + u2]);
+				}
+			}, [], unaryUtterances)
+		);
+	}, [], unaryUtterances);
+
+	// logic for generating and and or sentences
+	// not currently in use.
+	var andUtterances = reduce(function(u1, acc) {
+		return acc.concat(
+			// and
+			reduce(function (u2, acc) {
+				if (contradiction(u1, u2)) {
+					// that will yield a contradiction
+					return acc;
+				} else {
+					return acc.concat([u1 + " and " + u2]);
+				}
+			}, [], unaryUtterances)
+		);
+	}, [], unaryUtterances);
+
+	var orUtterances = reduce(function(u1, acc) {
+		return acc.concat(
+			// and
+			reduce(function (u2, acc) {
+				if (contradiction(u1, u2)) {
+					// that is trivially true
+					return acc;
+				} else {
+					return acc.concat([u1 + " or " + u2]);
+				}
+			}, [], unaryUtterances)
+		);
+	}, [], unaryUtterances);
+
+	// for each pair of unary expressions
+	// we can say "and", "or", or "because"
+	var binaryUtterances = becauseUtterances.concat(
+		andUtterances.concat(orUtterances)
+	);
+
+	if (utteranceSet == "max") {
+		// no dependence on actualUtterance
+		var maxERP = Infer({method: "enumerate"}, function() {
+			var utterance = uniformDraw(unaryUtterances.concat(
+				becauseUtterances.concat(["null"])
+			));
+			if (utterance!="null") {
+				factor(- costPerWord * utterance.split(" ").length)
+			}
+			return utterance;
+		});
+		return function() {
+			sample(maxERP);
+		};
+	} else if (utteranceSet == "even_more") {
+		// no dependence on actualUtterance
+		var evenMoreERP = Infer({method: "enumerate"}, function() {
+			var utterance = uniformDraw(
+				unaryUtterances.concat(
+					andUtterances.concat(orUtterances.concat(
+						becauseUtterances.concat(["null"])
+					))
+				)
+			);
+			if (utterance!="null") {
+				factor(- costPerWord * utterance.split(" ").length)
+			}
+			return utterance;
+		});
+		return function() {
+			sample(evenMoreERP);
+		};
+	} else {
+		if (actualUtterance) {
+			if (utteranceSet == "yes/no") {
+				var yesnoERP = Infer({method: "enumerate"}, function() {
+					var utterance = uniformDraw(["null", actualUtterance]);
+					// for ":" prior type, that's yes/no and they're equally costly
+					if (utterance!="null") {
+						factor(- costPerWord * utterance.split(" ").length)
+					}
+					return utterance;
+				});
+				return function() {
+					return sample(yesnoERP);
+				};
+			} else {
+				display("warning 12341234")
+			}
+		} else {
+			display("warning 2852")
+		}
+	}
+};
+
+var lookupUtterancePrior = cache(function(params) {
+	return utterancePriorMaker(params);
+});
+
+// --------------------------- other priors ------------------------------------
+
+var qudFns = {
+	max: function(world) {return world}
+	// TO DO other QUDs
+};
+var getCGStates = function(world, cg) {
+	var asList = map(
+	  function(variable) {return [variable, world.output[variable]];},
+	  cg
+	);
+	return _.object(asList);
+};
+
+// TO DO
+var qudPrior = function() {};
+var cgPrior = function() {};
+var lexiconPrior = function() {};
+
+// --------------------------- RSA ---------------------------------------------
+
+var meaningUncached = function(params) {
+	var params = params ? params : {};
+
+	// return a factor (-Infinity, 0]
+	// -Infinity corresponds to false
+	// 0 corresponds to true
+
+	var utterance = params.utterance;
+	var world = params.world;
+
+	var inferenceOpts = params.inferenceOpts ? params.inferenceOpts : defaults.inferenceOpts;
+
+	var qud = params.qud ? params.qud : defaults.qud;
+	var lexicon = params.lexicon ? params.lexicon : defaults.lexicon;
+	var stickiness = (
+		params.stickiness ? params.stickiness : defaults.stickiness
+	);
+
+	// TO DO add qud
+
+	var words = utterance.split(" ");
+	if (utterance=="null") {
+		return 0;
+	} else if (words.length==1) {
+		// single variable, simply require that variable be true
+		var variable = words[0];
+		return (world.output)[variable] ? 0 : -100;
+	} else if (words.length==2 && words[0]=="!") {
+		// negated variable, simply reqiore that variable be false
+		var variable = words[1];
+		return !(world.output)[variable] ? 0 : -100;
+	} else if (words.indexOf("because") > -1) {
+		// for now assume because utterances only (no and or or)
+		var becauseIndex = words.indexOf("because");
+		var explanandumWords = words.slice(0, becauseIndex);
+		var explanansWords = words.slice(becauseIndex+1);
+		var explanandumVariable = words[becauseIndex-1];
+		var explanansVariable = words[words.length-1];
+		var explanandumValue = explanandumWords[0]!="!";
+		var explanansValue = explanansWords[0]!="!";
+		var explanandum = _.object([[explanandumVariable, explanandumValue]]);
+		var explanans = _.object([[explanansVariable, explanansValue]]);
+
+		// condition on explanans
+		var entailmentFactorA = (
+			(
+				(lexicon=="explanans" || lexicon=="both") ?
+				match(world.output, explanans) ? 0 : -100 :
+				0
+			)
+		);
+
+		// condition on explanandum
+		var entailmentFactorB = (
+			(
+				(lexicon=="explanandum" || lexicon=="both") ?
+				match(world.output, explanandum) ? 0 : -100 :
+				0
+			)
+		);
+
+		if (
+			!(
+				lexicon == "explanandum" || lexicon == "explanans" ||
+				lexicon == "both" || lexicon=="none"
+			)
+		) {
+			display("warning 2098-2")
+		}
+
+		var cfPremise = _.object([[explanansVariable, !explanansValue]]);
+		var cfConsequent = _.object([[explanandumVariable, !explanandumValue]]);
+
+		var cfERP = worldModelERP({
+			returnCF: true,
+			obs: world,
+			useObs: {
+				structureParams: true,
+				input: true,
+				output: true
+			},
+			inferenceOpts: inferenceOpts,
+			cfObs: {
+				output: cfPremise
+			},
+			passErr: true
+		});
+
+		var cfFactor = matchingFactor(cfERP, {cfOutput: cfConsequent});
+
+		return entailmentFactorA + entailmentFactorB + cfFactor;
+	} else if (words.indexOf("and") > -1 || words.indexOf("or") > -1) {
+		var andIndex = words.indexOf("and");
+		var orIndex = words.indexOf("or");
+		var linkWord = andIndex>-1 ? "and" : orIndex>-1 ? "or" : false;
+		if (!linkWord) { display("warning 230918"); }
+		var linkIndex = Math.max(andIndex, orIndex);
+
+		var utterance1 = words.slice(0, linkIndex).join(" ");
+		var utterance2 = words.slice(linkIndex+1).join(" ");
+		var factor1 = meaningUncached({
+			utterance: utterance1,
+			world: world,
+			qud: qud,
+			lexicon: lexicon,
+			stickiness: stickiness,
+			inferenceOpts: inferenceOpts
+		});
+		var factor2 = meaningUncached({
+			utterance: utterance2,
+			world: world,
+			qud: qud,
+			lexicon: lexicon,
+			stickiness: stickiness,
+			inferenceOpts: inferenceOpts
+		});
+		// assume these are either 0 or -Infinity.
+		// then and corresponds to + and or corresponds to max.
+		if (linkWord == "and") {
+			return factor1 + factor2;
+		} else if (linkWord=="or") {
+			return Math.max(factor1, factor2);
+		} else {
+			display("warning 230981");
+		}
+	} else {
+		display("warning 233340981");
+	}
+};
+var meaning = cache(meaningUncached);
+
+var literal = function(params) {
+	var params = params ? params : {};
+
+	var inferenceOpts = (
+		params.inferenceOpts ? params.inferenceOpts : defaults.inferenceOpts
+	);
+
+	var utterance = params.utterance;
+
+	var qud = params.qud ? params.qud : defaults.qud;
+	var cg = params.cg ? params.cg : false;
+	if (params.cg && params.cgStates) { display("warning 234098") };
+
+	var obs = params.obs ? params.obs : observations;
+
+	var cgStates = (
+		params.cgStates ? params.cgStates : (
+			cg ? getCGStates(obs, cg) : {}
+		)
+	);
+
+	var lexicon = params.lexicon ? params.lexicon : defaults.lexicon;
+
+	var stickiness = (
+		params.stickiness ? params.stickiness : defaults.stickiness
+	);
+
+	var passErr = params.passErr ? params.passErr : defaults.passErr;
+
+	return function() {
+
+		// sample an actual world
+		// (note that counterfactual sampling happens inside meaning function)
+		var world = (worldModel({}))();
+
+		// condition on common ground
+		var cgFactor = match(world.output, cgStates) ? 0 : -Infinity;
+
+		var qudFn = qudFns[qud];
+
+		// factor by meaning under the QUD
+		var meaningFactor = meaning({
+			utterance: utterance,
+			world: world,
+			qud: qud,
+			lexicon: lexicon,
+			stickiness: stickiness,
+			inferenceOpts: inferenceOpts
+		});
+
+		var truthFactor = cgFactor + meaningFactor;
+		if (inferenceOpts.literal.method=="enumerate" && passErr) {
+			return {
+				truthFactor: truthFactor,
+				observations: qudFn(world)
+			}
+		} else {
+			factor(truthFactor);
+			return qudFn(world);
+		}
+	};
+};
+var literalERP = cache(function(params) {
+	var inferenceOpts = (
+		params.inferenceOpts ? params.inferenceOpts : defaults.inferenceOpts
+	);
+	if (inferenceOpts.literal.method == "enumerate") {
+		return cleanup(Infer(inferenceOpts.literal, literal(params)));
+	} else {
+		return Infer(inferenceOpts.literal, literal(params));
+	}
+});
+
+var s1 = function(params) {
+	var params = params ? params : {};
+
+	var obs = params.obs ? params.obs : observations;
+
+	var inferenceOpts = (
+		params.inferenceOpts ? params.inferenceOpts : defaults.inferenceOpts
+	);
+
+	var qud = params.qud ? params.qud : defaults.qud;
+	var cgStates = params.cgStates ? params.cgStates : {};
+	var lexicon = params.lexicon ? params.lexicon : defaults.lexicon;
+	var utteranceSet = (
+		params.utteranceSet ? params.utteranceSet : defaults.utteranceSet
+	);
+	var costPerWord = (
+		params.costPerWord ? params.costPerWord : defaults.costPerWord
+	);
+
+	var lambda1 = params.lambda1 ? params.lambda1 : defaults.lambda1;
+	var stickiness = (
+		params.stickiness ? params.stickiness : defaults.stickiness
+	);
+	var actualUtterance = (
+		params.actualUtterance ? params.actualUtterance : false
+	);
+
+	var passErr = params.passErr ? params.passErr : defaults.passErr;
+
+	return function() {
+
+		var utterancePrior = lookupUtterancePrior({
+			utteranceSet: utteranceSet,
+			actualUtterance: actualUtterance,
+			costPerWord: costPerWord
+		});
+		var utterance = utterancePrior();
+		debug("s1-utterance: " + utterance);
+
+		// factor by interpretation
+		var literalInterpretation = literalERP({
+			inferenceOpts: inferenceOpts,
+			utterance: utterance,
+			qud: qud,
+			cgStates: cgStates,
+			lexicon: lexicon,
+			stickiness: stickiness,
+			passErr: true
+		});
+
+		var interpretationFactor = literalInterpretation.score(
+			obs
+		);
+
+		var truthFactor = lambda1 * interpretationFactor;
+		
+		if (inferenceOpts.s1.method=="enumerate" && passErr) {
+			return {
+				truthFactor:truthFactor,
+				observations: utterance
+			};
+		} else {
+			factor(truthFactor);
+			return utterance;
+		}
+	};
+};
+var s1ERP = cache(function(params) {
+	var inferenceOpts = (
+		params.inferenceOpts ? params.inferenceOpts : defaults.inferenceOpts
+	);
+	if (inferenceOpts.s1.method == "enumerate") {
+		return cleanup(Infer(inferenceOpts.s1, s1(params)));
+	} else {
+		return Infer(inferenceOpts.s1, s1(params));
+	}
+});
+
+var listener = function(params) {
+	var params = params ? params : {};
+
+	var utterance = params.utterance;
+
+	var inferenceOpts = (
+		params.inferenceOpts ? params.inferenceOpts : defaults.inferenceOpts
+	);
+
+	var utteranceSet = (
+		params.utteranceSet ? params.utteranceSet : defaults.utteranceSet
+	);
+
+	var lambda1 = params.lambda1 ? params.lambda1 : defaults.lambda1;
+	var stickiness = (
+		params.stickiness ? params.stickiness : defaults.stickiness
+	);
+	var actualUtterance = (
+		params.actualUtterance ? params.actualUtterance : false
+	);
+	var costPerWord = (
+		params.costPerWord ? params.costPerWord : defaults.costPerWord
+	);
+
+	var passErr = params.passErr ? params.passErr : defaults.passErr;
+
+	var inferQUD = params.inferQUD ? params.inferQUD : defaults.inferQUD;
+	var inferCG = params.inferCG ? params.inferCG : defaults.inferCG;
+	var inferLexicon = (
+		params.inferLexicon ? params.inferLexicon : defaults.inferLexicon
+	);
+
+	var qud = inferQUD ? qudPrior() : (params.qud ? params.qud : defaults.qud);
+	var cg = inferCG ? qudPrior() : (params.cg ? params.cg : defaults.cg);
+	var lexicon = inferLexicon ? qudPrior() : (
+		params.lexicon ? params.lexicon : defaults.lexicon
+	);
+
+	if (params.cg && params.inferCG) { display("warning 72913"); }
+	if (params.qud && params.inferQUD) { display("warning 19482"); }
+	if (params.lexicon && params.inferLexicon) { display("warning 73830427"); }
+
+	return function() {
+
+		// sample a world
+		// note that counterfactual sampling happens inside meaning function
+		var world = (worldModel({
+			returnCF: false,
+			// we want to know which variables don't matter
+			// given the state of the actual world
+			returnUnobservables: true
+		}))();
+
+		// this may include a list of variables that
+		// are unobservable (structural parameters that don't
+		// matter and should marginalize out given the values of
+		// other parameters)
+		var obs = removeUnobservables(world);
+
+		var cgStates = getCGStates(world, cg);
+
+		// factor by speaker
+		var speakerEndorsement = s1ERP({
+			inferenceOpts: inferenceOpts,
+			obs: obs, // including unobservables
+			qud: qud,
+			cgStates: cgStates,
+			lexicon: lexicon,
+			lambda1: lambda1,
+			stickiness: stickiness,
+			actualUtterance: actualUtterance,
+			utteranceSet: utteranceSet,
+			costPerWord: costPerWord,
+			passErr: true
+		});
+
+		var truthFactor = speakerEndorsement.score(utterance);
+
+		if (inferenceOpts.listener.method=="enumerate" && passErr) {
+			return {
+				truthFactor:truthFactor,
+				observations: world
+			};
+		} else {
+			factor(truthFactor);
+			return world;
+		}
+	};
+};
+var listenerERP = cache(function(params) {
+	var inferenceOpts = (
+		params.inferenceOpts ? params.inferenceOpts : defaults.inferenceOpts
+	);
+	if (inferenceOpts.listener.method == "enumerate") {
+		return cleanup(Infer(inferenceOpts.listener, listener(params)));
+	} else {
+		return Infer(inferenceOpts.listener, listener(params));
+	}
+});
+
+var s2 = function(params) {
+	var params = params ? params : {};
+
+	// form the utterancePrior based on what was
+	// actually said.
+	var actualUtterance = params.actualUtterance;
+
+	var utteranceSet = (
+		params.utteranceSet ? params.utteranceSet : defaults.utteranceSet
+	);
+
+	// observations can be specified with params.
+	// But in general, 
+	// observations will be taken from the
+	// observations.wppl file in `stories` directory,
+	// defined in the `observations` variable in
+	// `autoexpanded.wppl`.
+	var obs = params.obs ? params.obs : observations;
+
+	var inferenceOpts = (
+		params.inferenceOpts ? params.inferenceOpts : defaults.inferenceOpts
+	);
+	var costPerWord = (
+		params.costPerWord ? params.costPerWord : defaults.costPerWord
+	);
+
+	var passErr = params.passErr ? params.passErr : defaults.passErr;
+
+	var inferQUD = params.inferQUD ? params.inferQUD : defaults.inferQUD;
+	var inferCG = params.inferCG ? params.inferCG : defaults.inferCG;
+	var inferLexicon = (
+		params.inferLexicon ? params.inferLexicon : defaults.inferLexicon
+	);
+
+	var lambda1 = params.lambda1 ? params.lambda1 : defaults.lambda1;
+	var lambda2 = params.lambda2 ? params.lambda2 : defaults.lambda2;
+	var stickiness = (
+		params.stickiness ? params.stickiness : defaults.stickiness
+	);
+
+	var qud = inferQUD ? qudPrior() : (params.qud ? params.qud : defaults.qud);
+	var cg = inferCG ? qudPrior() : (params.cg ? params.cg : defaults.cg);
+	var lexicon = inferLexicon ? qudPrior() : (
+		params.lexicon ? params.lexicon : defaults.lexicon
+	);
+
+	if (params.cg && params.inferCG) { display("warning 72913"); }
+	if (params.qud && params.inferQUD) { display("warning 19482"); }
+	if (params.lexicon && params.inferLexicon) { display("warning 73830427"); }
+
+	return function() {
+
+		// utterancePrior for s2 is always "yes/no"
+		var utterancePrior = lookupUtterancePrior({
+			utteranceSet: "yes/no",
+			actualUtterance: actualUtterance
+		});
+		var utterance = utterancePrior();
+
+		// factor by interpretation
+		var pragmaticInterpretation = listenerERP({
+			inferenceOpts: inferenceOpts,
+			utterance: utterance,
+			qud: qud,
+			cg: cg,
+			lexicon: lexicon,
+			inferQUD: inferQUD,
+			inferCG: inferCG,
+			inferLexicon: inferLexicon,
+			lambda1: lambda1,
+			stickiness: stickiness,
+			actualUtterance: actualUtterance,
+			costPerWord: costPerWord,
+			utteranceSet: utteranceSet,
+			passErr: passErr
+		});
+
+		var interpretationFactor = pragmaticInterpretation.score(
+			obs
+		);
+
+		var truthFactor = lambda2 * interpretationFactor;
+
+		if (inferenceOpts.s2.method=="enumerate" && passErr) {
+			return {
+				truthFactor:truthFactor,
+				observations: utterance
+			};
+		} else {
+			factor(truthFactor);
+			return utterance;
+		}
+	}
+};
+var s2ERP = cache(function(params) {
+	var inferenceOpts = (
+		params.inferenceOpts ? params.inferenceOpts : defaults.inferenceOpts
+	);
+	return cleanup(Infer(inferenceOpts.s2, s2(params)));
+});
+
+// --------------------------- BDA ---------------------------------------------
+
+var lambda1Prior = function() {
+	// see Tessler & Goodman 2016
+	return uniform(0, 20);
+};
+var lambda2Prior = function() {
+	// see Tessler & Goodman 2016
+	return uniform(0, 5);
+};
+var stickinessPrior = function() {
+	// uninformative prior between 0 and 1
+	return uniform(0, 1);
+};
+var costPrior = function() {
+	// TO DO
+	// not sure what this should be
+	return uniform(0, 10);
+};
+var model = function(params) {
+	var params = params ? params : {};
+
+	// specifies which listener/speaker model to run
+	var interlocuter = (
+		params.interlocuter ? params.interlocuter : defaults.interlocuter
+	);
+	var interlocuterLevel = [
+		"literal", "s1", "listener", "s2"
+	].indexOf(interlocuter);
+	if (interlocuterLevel < 0) { display("warning 23409834") };
+
+	// fixed parameters
+	var inferenceOpts = (
+		params.inferenceOpts ? params.inferenceOpts : defaults.inferenceOpts
+	);
+	var utteranceSet = (
+		params.utteranceSet ? params.utteranceSet : defaults.utteranceSet
+	);
+	var qud = params.qud ? params.qud : defaults.qud;
+	var cgStates = params.cgStates ? params.cgStates : defaults.cgStates;
+	var lexicon = params.lexicon ? params.lexicon : defaults.lexicon;
+	var inferQUD = params.inferQUD ? params.inferQUD : defaults.inferQUD;
+	var inferCG = params.inferCG ? params.inferCG : defaults.inferCG;
+	var inferLexicon = (
+		params.inferLexicon ? params.inferLexicon : defaults.inferLexicon
+	);
+	var qud = inferQUD ? qudPrior() : (params.qud ? params.qud : defaults.qud);
+	var cg = inferCG ? qudPrior() : (params.cg ? params.cg : defaults.cg);
+	var lexicon = inferLexicon ? qudPrior() : (
+		params.lexicon ? params.lexicon : defaults.lexicon
+	);
+	if (params.cg && params.inferCG) { display("warning 72913"); }
+	if (params.qud && params.inferQUD) { display("warning 19482"); }
+	if (params.lexicon && params.inferLexicon) { display("warning 73830427"); }
+
+	// inferred parameters
+	var lambda1 = interlocuterLevel > 0 ? lambda1Prior() : false;
+	var lambda2 = interlocuterLevel > 2 ? lambda2Prior() : false;
+	var stickiness = stickinessPrior();
+	var costPerWord = interlocuterLevel > 0 ? costPrior() : false;
+	var actualUtterance = (
+		params.actualUtterance ? params.actualUtterance : false
+	);
+
+	if (interlocuter == "literal") {
+		return literal({
+			utterance: params.utterance,
+			qud: qud,
+			cgStates: cgStates,
+			lexicon: lexicon,
+			stickiness: stickiness
+		});
+	} else if (interlocuter == "s1") {
+		return s1({
+			inferenceOpts: inferenceOpts,
+			world: params.world,
+			qud: qud,
+			cgStates: cgStates,
+			lexicon: lexicon,
+			lambda1: lambda1,
+			stickiness: stickiness,
+			actualUtterance: actualUtterance,
+			costPerWord: costPerWord,
+			utteranceSet: utteranceSet
+		});
+	} else if (interlocuter == "listener") {
+		return listener({
+			inferenceOpts: inferenceOpts,
+			utterance: params.utterance,
+			qud: qud,
+			cg: cg,
+			lexicon: lexicon,
+			inferQUD: inferQUD,
+			inferCG: inferCG,
+			inferLexicon: inferLexicon,
+			lambda1: lambda1,
+			stickiness: stickiness,
+			actualUtterance: actualUtterance,
+			costPerWord: costPerWord,
+			utteranceSet: utteranceSet
+		})
+	} else if (interlocuter == "s2") {
+		return s2({
+			inferenceOpts: inferenceOpts,
+			world: params.world,
+			qud: qud,
+			cg: cg,
+			lexicon: lexicon,
+			inferQUD: inferQUD,
+			inferCG: inferCG,
+			inferLexicon: inferLexicon,
+			lambda1: lambda1,
+			lambda2: lambda2,
+			stickiness: stickiness,
+			actualUtterance: actualUtterance,
+			costPerWord: costPerWord,
+			utteranceSet: utteranceSet
+		});
+	}
+};
+
+"finished"
