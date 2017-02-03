@@ -1,5 +1,34 @@
+var start = Date.now();
 var program = makeProgram({});
-var input = inputPrior();
-display(input);
-display(all_graphs[input.graphNumber]);
-program(input);
+// var input = inputPrior();
+// display(input);
+// display(all_graphs[input.graphNumber]);
+// program(input);
+
+// Infer({method: "enumerate"}, function() {
+// 	var input = inputPrior();
+// 	var results = program(input);
+// 	return results;
+// });
+
+var rs = worldModelERP({
+	returnCF: true,
+	useObs: {
+		structureParams: false,
+		input: true,
+		output: true
+	},
+	inferenceOpts: {
+		worldModel: {method: "enumerate"}
+	},
+	passErr: true
+});
+display(rs);
+
+// timing:
+var end = Date.now();
+var duration = end - start;
+display("miliseconds: " + duration);
+display("seconds: " + (duration/1000));
+display("minutes: " + (duration/60000));
+display("hours: " + (duration/3600000));
