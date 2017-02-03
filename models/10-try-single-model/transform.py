@@ -37,7 +37,15 @@ def transform_program(prog_file, cfprior_file, expressions_file):
 	# replace it in the program with 
 	# latents.VARNAME
 
-	orig_prog_lines = open(prog_file).read().split("\nvar input = {")[0].split("var program = function(input) {\n")[1].split("\n")
+	external_definitions = open(prog_file).read().split(
+		"var program = function(input) {\n"
+	)[0]
+
+	orig_prog_lines = open(prog_file).read().split(
+		"\nvar input = {"
+	)[0].split(
+		"var program = function(input) {\n"
+	)[1].split("\n")
 	orig_prog_lines_adjusted = map(lambda line: "\t" + line, orig_prog_lines)
 	orig_prog = "\n".join(orig_prog_lines_adjusted)
 
@@ -78,7 +86,7 @@ def transform_program(prog_file, cfprior_file, expressions_file):
 	else:
 		unobservables = ""
 
-	new_prog = re.sub(r"\n\t* *return ({(?:[^}]*\n?)[^}]*})\;", r"""
+	new_prog = re.sub(r"\n\t* *return ((?:{(?:[^}]*\n?)[^}]*}|output))\;", r"""
 		return {""" + unobservables + """
 			ERPs: {
 				""" + erps + """
@@ -88,7 +96,7 @@ def transform_program(prog_file, cfprior_file, expressions_file):
 			output: \1
 		};""", exogenized_prog)
 
-	return new_prog
+	return external_definitions + "\n" + new_prog
 
 def get_structvars(cfprior_file):
 	# last line of file is just for returnify
