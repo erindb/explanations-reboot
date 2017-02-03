@@ -78,7 +78,7 @@ def transform_program(prog_file, cfprior_file, expressions_file):
 	else:
 		unobservables = ""
 
-	new_prog = re.sub(r"\n\t*return ({(?:[^}]*\n?)[^}]*})\;", r"""
+	new_prog = re.sub(r"\n\t* *return ({(?:[^}]*\n?)[^}]*})\;", r"""
 		return {""" + unobservables + """
 			ERPs: {
 				""" + erps + """
