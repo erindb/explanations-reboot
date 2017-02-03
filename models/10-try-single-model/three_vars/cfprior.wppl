@@ -1,0 +1,21 @@
+var structureParamsPrior = function() {
+	return {
+	};
+};
+
+var inputPrior = function() {
+	return {
+		graphNumber: randomInteger(25),
+		bA: flip(0.1),
+		bB: flip(0.1),
+		bC: flip(0.1),
+		causeAB: flip(0.75),
+		causeBC: flip(0.75),
+		causeCB: flip(0.75),
+		causeCA: flip(0.75),
+		causeBA: flip(0.75),
+		causeAC: flip(0.75)
+	};
+};
+
+"cfprior";

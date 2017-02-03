@@ -1,0 +1,5 @@
+var program = makeProgram({});
+var input = inputPrior();
+display(input);
+display(all_graphs[input.graphNumber]);
+program(input);

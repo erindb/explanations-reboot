@@ -1,0 +1,181 @@
+// this program enumerates all
+// causal bayes nets of 3 variables
+// where joint cause is always combined
+// with OR, causal strengths are always 0.75,
+// and priors for variables with no parents
+// are always 0.1
+
+// some constants: causal power for variables with parents,
+// and prior prob for variables without parents
+var PRIOR_PROB = 0.1;
+var CAUSAL_POWER = 0.75;
+var variables = ["A", "B", "C"];
+
+var all_pairs = reduce(function(v1, acc1) {
+  acc1.concat(reduce(function(v2, acc2) {
+    return (v1==v2 ? acc2 : acc2.concat([v1 + v2]));
+  }, [], variables));
+}, [], variables);
+
+var pairs = reduce(function(v1, acc1) {
+  acc1.concat(reduce(function(v2, acc2) {
+    return (v1>=v2 ? acc2 : acc2.concat([v1 + v2]));
+  }, [], variables));
+}, [], variables);
+
+var graphERP = Infer ({method: "enumerate"}, function() {
+  var graph = _.zipObject(
+    pairs,
+    map(function(pair) {
+      var linked = flip(2/3);
+      if (linked) {
+        return flip(0.5) ? ">" : "<";
+      } else { return "."; }
+    }, pairs)
+  );
+  // exclude cycles
+  var clockwise = (
+  	graph["AB"]==">" &&
+  	graph["BC"]==">" &&
+  	graph["AC"]=="<"
+  );
+  var counterclockwise = (
+  	graph["AB"]=="<" &&
+  	graph["BC"]=="<" &&
+  	graph["AC"]==">"
+  );
+  if (clockwise || counterclockwise) {
+    factor( graph["AB"]=="." ? 0 : -Infinity );
+  }
+  return graph;
+})
+
+var all_graphs = graphERP.support();
+
+if (JSON.stringify(all_graphs[19])=='{"BC":">","AC":".","AB":">"}') {
+  // everything is OK
+} else {
+  display("error 0293840917");
+}
+
+var getParentFn = function(graph) {
+  return function (variable) {
+    var v = variable;
+    // variable v, e.g. "A"
+    return filter(function(p) {
+      // possible parent p, e.g. "B"
+      if (v==p) {return false}
+      var key = v<p ? v+p : p+v;
+      // if v<p, then "<" corresponds to p being a parent
+      // e.g. if v="A" and p="B", then v<p and so
+      // "<" means p (B) is a parent of v (A).
+      var dir = graph[key];
+      if ((v<p && dir=="<") || (v>p && dir==">")) {
+        return true
+      } else {return false;}
+    }, variables);
+  };
+};
+
+var getUnobservables = cache(function(graph) {
+  var parentFn = getParentFn(graph);
+  var unobervableBackgroundCauses = map(
+    function(v) {
+      return "b" + v;
+    },
+    filter(function(v) {
+      return parentFn(v).length>0;
+    }, variables)
+  );
+  var unobservableCausalStrengths = map(
+    function(pair) {
+      return "cause" + pair;
+    },
+    filter(function(pair) {
+      var parent = pair[0];
+      var child = pair[1];
+      var actualParents = parentFn(child);
+      return actualParents.indexOf(parent) < 0;
+    }, all_pairs)
+  );
+
+  var unobservables = unobervableBackgroundCauses.concat(
+    unobservableCausalStrengths
+  );
+  return unobservables;
+});
+
+var program = function(input) {
+
+  //   // sample causal structure (what is connected and in what direction)
+  //   var graph = sample(graphERP);
+  var graph = all_graphs[input.graphNumber];
+
+  //   //   // for each potential link, is actualCause enabled?
+  //   //   var causalPowers = _.zipObject(
+  //   //     all_pairs,
+  //   //     map(function(pair) {flip(CAUSAL_POWER)}, all_pairs)
+  //   //   );
+  //   var causalPowers = input.causalPowers;
+
+  //   //   // for each potential top-level variable, is its background cause present?
+  //   //   var backgroundCauses = _.zipObject(
+  //   //     variables,
+  //   //     map(function(v) {flip(PRIOR_PROB);}, variables)
+  //   //   );
+  //   var backgroundCauses = input.backgroundCauses;
+
+  // given a graph and variable, find the parents of that variable.
+  var parentFn = getParentFn(graph);
+
+  // variable states are deterministic functions of parameters
+  var evaluate = function(varname) {
+    var parents = parentFn(varname);
+    if (parents.length==0) {
+      return input["b" + varname];
+    } else if (parents.length==1) {
+      var parentValue = evaluate(parents[0]);
+      var actualCause = input["cause" + parents[0] + varname];
+      return parentValue&&actualCause;
+    } else {
+      var parentValue1 = evaluate(parents[0]);
+      var parentValue2 = evaluate(parents[1]);
+      var actualCause1 = input["cause" + parents[0] + varname];
+      var actualCause2 = input["cause" + parents[1] + varname];
+      return ((parentValue1&&actualCause1) || (parentValue2&&actualCause2));
+    }
+  };
+
+  var unobservables = getUnobservables(graph);
+
+  var output = _.zipObject(variables, map(evaluate, variables));
+
+  var A = output.A;
+  var B = output.B;
+  var C = output.C;
+
+  // print(graph);
+  // print(backgroundCauses);
+  // print(causalPowers);
+  // print({A: A, B: B, C: C});
+
+  return output;
+};
+
+var input = {
+  graphNumber: 19,
+  bA: true,
+  // filler (not evaluated):
+  bB: true,
+  bC: true,
+  causeAB: true,
+  causeBC: true, 
+  // filler (not evaluated):
+  causeCB: true,
+  causeCA: true,
+  causeBA: true,
+  causeAC: true, 
+};
+
+// actual graph # is 23
+program(input);

@@ -1,0 +1,19 @@
+// ------------ observations -------------------
+
+var observations = {
+	structureParams: {
+	},
+	input: {
+		graphNumber: 23,
+		bA: true,
+		causeAB: true,
+		causeBC: true
+	},
+	output: {
+		A: true,
+		B: true,
+		C: true
+	}
+};
+
+observations;
