@@ -16,9 +16,11 @@ var match = function(inferred, observed) {
 };
 
 var reduce_to_matching_keys = function(bigger_object, limiting_object) {
-	var objWithOverlappingKeys = _.object(map(function(k) {
-		return [k, bigger_object[k]];
-	}, _.keys(limiting_object)));
+	var keys = _.keys(limiting_object);
+	var values = map(function(k) {
+		return bigger_object[k];
+	}, keys);
+	var objWithOverlappingKeys = _.zipObject(keys, values);
 
 	// then for each overlapping key, if its value is also an object,
 	// reduce that, too.
@@ -95,9 +97,13 @@ var marginalize = function(erp, variable) {
 };
 
 var removeKeys = function(object, keys) {
-	return _.object(filter(function(pair) {
-		return keys.indexOf(pair[0])<0;
-	}, _.pairs(object)));
+	var newKeys = filter(function(k) {
+		return keys.indexOf(k)<0;
+	}, _.keys(object));
+	var newValues = map(function(k) {
+		return object[k];
+	}, newKeys);
+	return _.zipObject(newKeys, newValues);
 };
 
 var removeUnobservables = function(world) {
@@ -158,6 +164,21 @@ var counterfactualizeLatents = function(model, actual, stickiness) {
 // --------------------------- forward sample ----------------------------------
 
 var worldModel = function(params) {
+	// {
+	// 	returnCF: true,
+	// 	obs: world,
+	// 	useObs: {
+	// 		structureParams: true,
+	// 		input: true,
+	// 		output: true
+	// 	},
+	// 	inferenceOpts: inferenceOpts,
+	// 	cfObs: {
+	// 		output: cfPremise
+	// 	},
+	// 	passErr: true
+	// }
+
 	var params = params ? params : {};
 
 	var inferenceOpts = (
@@ -514,11 +535,12 @@ var qudFns = {
 	// TO DO other QUDs
 };
 var getCGStates = function(world, cg) {
-	var asList = map(
-	  function(variable) {return [variable, world.output[variable]];},
-	  cg
+	var keys = cg;
+	var values = map(
+		function(variable) {return world.output[variable];},
+		cg
 	);
-	return _.object(asList);
+	return _.zipObject(keys, values);
 };
 
 // TO DO
@@ -568,8 +590,8 @@ var meaningUncached = function(params) {
 		var explanansVariable = words[words.length-1];
 		var explanandumValue = explanandumWords[0]!="!";
 		var explanansValue = explanansWords[0]!="!";
-		var explanandum = _.object([[explanandumVariable, explanandumValue]]);
-		var explanans = _.object([[explanansVariable, explanansValue]]);
+		var explanandum = _.zipObject([explanandumVariable], [explanandumValue]);
+		var explanans = _.zipObject([explanansVariable], [explanansValue]);
 
 		// condition on explanans
 		var entailmentFactorA = (
@@ -598,8 +620,8 @@ var meaningUncached = function(params) {
 			display("warning 2098-2")
 		}
 
-		var cfPremise = _.object([[explanansVariable, !explanansValue]]);
-		var cfConsequent = _.object([[explanandumVariable, !explanandumValue]]);
+		var cfPremise = _.zipObject([explanansVariable], [!explanansValue]);
+		var cfConsequent = _.zipObject([explanandumVariable], [!explanandumValue]);
 
 		var cfERP = worldModelERP({
 			returnCF: true,
