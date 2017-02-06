@@ -1,0 +1,172 @@
+---
+title: "Flat CF with logical IF"
+subtitle: "works just as well as nested inference"
+output:
+pdf_document:
+toc: true
+highlight: zenburn
+toc_depth: 3
+---
+
+```{r global_options, include=FALSE}
+rm(list=ls())
+knitr::opts_chunk$set(
+  echo=F, warning=F, cache=T, 
+  message=F, sanitiz =T, 
+  fig.width = 5, fig.height = 3)
+```
+
+```{r load libraries, echo=F, message=F, warning=F}
+source("~/Settings/startup.R")
+```
+
+## Story 1
+
+```{r}
+knitr::include_graphics("lkstories-graphs/story1.png")
+```
+
+Prior.
+
+```{r}
+lk1prior = webppl(program_file = "lk1.wppl",
+                  model_var = "lk1",
+                  inference_opts = list(method = "enumerate"))
+```
+
+```{r, fig.width=4, fig.height=2}
+lk1prior %>%
+  mutate(A = paste(ifelse(actual.A, "T", "F"), " ",
+                   ifelse(counterfactual.A, "T", "F"),
+                   "'", sep=""),
+         B = paste(ifelse(actual.B, "T", "F"), " ",
+                   ifelse(counterfactual.B, "T", "F"),
+                   "'", sep="")) %>%
+  group_by(A, B) %>%
+  summarise(marginal.prob = sum(prob)) %>%
+  as.data.frame %>%
+  ggplot(., aes(x=A, y=B, fill=marginal.prob)) +
+  geom_tile() +
+  geom_vline(xintercept=2.5, colour="white") +
+  geom_hline(yintercept=2.5, colour="white") +
+  ggtitle("prior")
+```
+
+```{r, fig.width=3, fig.height=2}
+lk1prior %>%
+  rename(graph = graph.AB) %>%
+  group_by(graph) %>%
+  summarise(marginal.prob = sum(prob)) %>%
+  as.data.frame %>%
+  ggplot(., aes(x=graph, y=marginal.prob)) +
+  geom_bar(stat="identity")
+```
+
+Literal interpretations of explanations, when flattened to logical IF.
+
+```{r}
+lk1flatliteralFN = function(utterance) {
+  rs = webppl(program_file = "lk1.wppl",
+         model_var = paste("flat_literal('", utterance, "')", sep=""),
+         inference_opts = list(method = "enumerate"))
+  return(rs %>% mutate(utterance = utterance))
+}
+lk1flatliteral = do.call(rbind,
+                     lapply(c("A because B", "B because A"),
+                            lk1flatliteralFN))
+```
+
+```{r, fig.width=5, fig.height=2}
+lk1flatliteral %>%
+  mutate(A = paste(ifelse(actual.A, "T", "F"), " ",
+                   ifelse(counterfactual.A, "T", "F"),
+                   "'", sep=""),
+         B = paste(ifelse(actual.B, "T", "F"), " ",
+                   ifelse(counterfactual.B, "T", "F"),
+                   "'", sep="")) %>%
+  group_by(A, B, utterance) %>%
+  summarise(marginal.prob = sum(prob)) %>%
+  as.data.frame %>%
+  ggplot(., aes(x=A, y=B, fill=marginal.prob)) +
+  geom_tile() +
+  geom_vline(xintercept=2.5, colour="white") +
+  geom_hline(yintercept=2.5, colour="white") +
+  facet_wrap(~ utterance) +
+  ggtitle("flat literal")
+```
+
+```{r, fig.width=3, fig.height=2}
+lk1flatliteral %>%
+  rename(graph = graph.AB) %>%
+  group_by(graph, utterance) %>%
+  summarise(marginal.prob = sum(prob)) %>%
+  as.data.frame %>%
+  ggplot(., aes(x=graph, y=marginal.prob)) +
+  geom_bar(stat="identity") +
+  facet_wrap(~ utterance) +
+  ggtitle("flat literal")
+```
+
+Literal interpretation with nested counterfactual factor.
+
+```{r}
+lk1nestedliteralFN = function(utterance) {
+  rs = webppl(program_file = "lk1.wppl",
+         model_var = paste("nested_literal('", utterance, "')", sep=""),
+         inference_opts = list(method = "enumerate"))
+  return(rs %>% mutate(utterance = utterance))
+}
+lk1nestedliteral = do.call(rbind,
+                     lapply(c("A because B", "B because A"),
+                            lk1nestedliteralFN))
+```
+
+```{r, fig.width=5, fig.height=2}
+lk1nestedliteral %>%
+  rename(A = output.A, B = output.B) %>%
+  group_by(A, B, utterance) %>%
+  summarise(marginal.prob = sum(prob)) %>%
+  as.data.frame %>%
+  ggplot(., aes(x=A, y=B, fill=marginal.prob)) +
+  geom_tile() +
+  geom_vline(xintercept=2.5, colour="white") +
+  geom_hline(yintercept=2.5, colour="white") +
+  facet_wrap(~ utterance) +
+  ggtitle("nested literal")
+```
+
+```{r, fig.width=3, fig.height=2}
+lk1nestedliteral %>%
+  rename(graph = graph.AB) %>%
+  group_by(graph, utterance) %>%
+  summarise(marginal.prob = sum(prob)) %>%
+  as.data.frame %>%
+  ggplot(., aes(x=graph, y=marginal.prob)) +
+  geom_bar(stat="identity") +
+  facet_wrap(~ utterance) +
+  ggtitle("nested literal")
+```
+
+```{r}
+literalcomparison = rbind(
+  lk1nestedliteral %>%
+    select(graph.AB, prob, utterance) %>%
+    mutate(cfType="nested"),
+  lk1flatliteral %>%
+    select(graph.AB, prob, utterance) %>%
+    mutate(cfType="flat")
+)
+literalcomparison %>%
+  rename(graph = graph.AB) %>%
+  mutate(graph = factor(
+    graph, levels=c(".", ">", "<"),
+    labels=c("no cause", "A->B", "B->A"))) %>%
+  group_by(graph, utterance, cfType) %>%
+  summarise(marginal.prob = sum(prob)) %>%
+  as.data.frame %>%
+  ggplot(., aes(x=graph, y=marginal.prob, fill=cfType)) +
+  geom_bar(stat="identity", position="dodge") +
+  scale_fill_brewer(type="qual", palette=3) +
+  facet_wrap(~utterance)
+```
+

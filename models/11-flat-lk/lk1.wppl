@@ -1,0 +1,528 @@
+// -------- utils -------
+
+var debug = function(string) {
+	display(string);
+};
+
+var round = function(x){
+  return Math.round(x*10)/10
+};
+
+var match = function(inferred, observed) {
+	var overlapping = reduce_to_matching_keys(inferred, observed);
+	return _.isEqual(overlapping, observed);
+};
+
+var reduce_to_matching_keys = function(bigger_object, limiting_object) {
+	var keys = _.keys(limiting_object);
+	var values = map(function(k) {
+		return bigger_object[k];
+	}, keys);
+	var objWithOverlappingKeys = _.zipObject(keys, values);
+
+	// then for each overlapping key, if its value is also an object,
+	// reduce that, too.
+	var reducedObject = mapObject(function(key, value) {
+		// if it's an object
+		var limiting_object_value = limiting_object[key];
+		if (value !== null && typeof value === 'object') {
+			var reduced_result = reduce_to_matching_keys(
+				value, limiting_object_value
+			);
+			return reduced_result;
+		} else if (close(value, limiting_object_value)) {
+			// if we've got a number embedded in the bigger object,
+			// then check if the number is close to that of the 
+			// limiting object. if it is, give the reduced object
+			// a chance to equal the limiting object (replace the
+			// actual value with that of the limiting object)
+			return limiting_object_value;
+		} else {
+			return value;
+		}
+	}, objWithOverlappingKeys);
+
+	return reducedObject;
+};
+
+var matchingFactor = function(bigERP, obs) {
+	if (bigERP=="enumeration error") {
+		return -Infinity;
+	} else {
+		// obs.input might have more keys than interpretationERP.input
+		var reducedERP = Infer(
+			{method: "enumerate"},
+			function() {
+				var result = sample(bigERP);
+				var reduced_result = reduce_to_matching_keys(result, obs);
+				return reduced_result;
+			}
+		);
+		return reducedERP.score(obs);
+	}
+};
+
+var cleanupEnumerationOuput = function(erp) {
+	var all_false = reduce(
+		function(s, acc) {
+			var stillFalse = s.truthFactor == -Infinity;
+			return acc && stillFalse;
+		},
+		true,
+		erp.support()
+	);
+	if (all_false) {
+		return "enumeration error";
+	} 
+	return Infer(
+		{method: "enumerate"},
+		function() {
+			var s = sample(erp);
+			factor(s.truthFactor);
+			return s.observations;
+		}
+	);
+};
+
+var marginalize = function(erp, variable) {
+	if (erp=="enumeration error") {
+		return erp;
+	} else {
+		return Infer({method: "enumerate"}, function() {
+			return (sample(erp))[variable];
+		});
+	}
+};
+
+var removeKeys = function(object, keys) {
+	var newKeys = filter(function(k) {
+		return keys.indexOf(k)<0;
+	}, _.keys(object));
+	var newValues = map(function(k) {
+		return object[k];
+	}, newKeys);
+	return _.zipObject(newKeys, newValues);
+};
+
+// --------------------------- graphs logic ---------------------------
+
+var graphMaker = function() {
+	var all_pairs = reduce(function(v1, acc1) {
+	  acc1.concat(reduce(function(v2, acc2) {
+	    return (v1==v2 ? acc2 : acc2.concat([v1 + v2]));
+	  }, [], variables));
+	}, [], variables);
+
+	var pairs = reduce(function(v1, acc1) {
+	  acc1.concat(reduce(function(v2, acc2) {
+	    return (v1>=v2 ? acc2 : acc2.concat([v1 + v2]));
+	  }, [], variables));
+	}, [], variables);
+
+	var graphERP = Infer ({method: "enumerate"}, function() {
+	  var graph = _.zipObject(
+	    pairs,
+	    map(function(pair) {
+	      var linked = flip(2/3);
+	      if (linked) {
+	        return flip(0.5) ? ">" : "<";
+	      } else { return "."; }
+	    }, pairs)
+	  );
+	  // exclude cycles
+	  if (graph["AB"]==graph["BC"] && graph["BC"]==graph["AC"]) {
+	    factor( graph["AB"]=="." ? 0 : -Infinity );
+	  }
+	  return graph;
+	})
+
+	var all_possible_graphs = graphERP.support();
+	return all_possible_graphs;
+};
+
+var variables = ["A", "B"];
+var all_graphs = [{"AB":"."}, {"AB":"<"}, {"AB":">"}];
+var getParentFn = cache(function(graph) {
+  return function (variable) {
+    var v = variable;
+    // variable v, e.g. "A"
+    return filter(function(p) {
+      // possible parent p, e.g. "B"
+      if (v==p) {return false}
+      var key = v<p ? v+p : p+v;
+      // if v<p, then "<" corresponds to p being a parent
+      // e.g. if v="A" and p="B", then v<p and so
+      // "<" means p (B) is a parent of v (A).
+      var dir = graph[key];
+      if ((v<p && dir=="<") || (v>p && dir==">")) {
+        return true
+      } else {return false;}
+    }, variables);
+  };
+});
+var bg = function(p) {return function() {return flip(p);};};
+var causeEnabled = function(p) {return function() {return flip(p);};};
+var priors = {
+  bA: bg(0.1),
+  bB: bg(0.1),
+  causeAB: causeEnabled(0.9),
+  causeBA: causeEnabled(0.9)
+};
+var getParamsPrior = function(graph) {
+  var parentFn = getParentFn(graph);
+  var links = _.toPairs(graph);
+  var causeParams = filter(function(x) {return x}, map(function(link) {
+    var var1 = link[0][0];
+    var var2 = link[0][1];
+    var dir = link[1];
+    if (dir == ">") {
+      return "cause" + var1 + var2;
+    } else if (dir == "<") {
+      return "cause" + var2 + var1;
+    } else {
+      return false;
+    }
+  }, links));
+  var backgroundParams = filter(function(x) {return x;}, map(function(v) {
+    var parents = parentFn(v);
+    if (parents.length == 0) {
+      return "b" + v;
+    } else {
+      return false;
+    }
+  }, variables));
+  var paramKeys = backgroundParams.concat(causeParams);
+  return function() {
+    return _.zipObject(
+      paramKeys,
+      map(function(pk) {
+        var priorFn = priors[pk];
+        return priorFn();
+      }, paramKeys)
+    );
+  };
+};
+var getEvalFn = function(graph, params) {
+	var parentFn = getParentFn(graph);
+	var evaluate = function(varname) {
+		var parents = parentFn(varname);
+		if (parents.length==0) {
+			return params["b" + varname];
+		} else if (parents.length==1) {
+			var parentValue = evaluate(parents[0]);
+			var actualCause = params["cause" + parents[0] + varname];
+			return parentValue&&actualCause;
+		} else {
+			var parentValue1 = evaluate(parents[0]);
+			var parentValue2 = evaluate(parents[1]);
+			var actualCause1 = params["cause" + parents[0] + varname];
+			var actualCause2 = params["cause" + parents[1] + varname];
+			return (
+				(parentValue1&&actualCause1) ||
+				(parentValue2&&actualCause2)
+			);
+		}
+	};
+	return evaluate;
+};
+
+// --------------------------- counterfactuals logic ---------------------------
+
+var counterfactualizeLatents = function(model, actual, stickiness) {
+	var s = stickiness ? stickiness : 0.53;
+	var totallyDifferent = model();
+
+	return mapObject(function(key, value) {
+		return flip(s) ? actual[key] : totallyDifferent[key];
+	}, actual);
+};
+
+// --------------------------- meaning fn -------------------------
+
+var meaning = function(simpleUtterance, output) {
+	// no because
+	var variable = simpleUtterance[simpleUtterance.length-1];
+	var value = output[variable];
+	if (simpleUtterance[0]=="!") {
+		return !value;
+	} else {
+		return value;
+	}
+};
+
+var logicalIfMeaning = function(utterance, mainOutput, secondaryOutput) {
+	if (utterance=="null") {return true;}
+	var components = utterance.split(" because ");
+	if (components.length==1) {
+		meaning(utterance, mainOutput);
+	} else {
+		var explanans = components[1];
+		var explanandum = components[0];
+		// explanans or not explanandum
+		return (
+			meaning(explanans, secondaryOutput) ||
+			! meaning(explanandum, secondaryOutput)
+		);
+	}
+};
+
+var nestedIfMeaning = function(utterance, graph, params) {
+	var evalFn = getEvalFn(graph, params);
+	// calculate output (deterministic given graph and params)
+	var output = _.zipObject(variables, map(evalFn, variables));
+
+	if (utterance=="null") {return 0;}
+	var components = utterance.split(" because ");
+	if (components.length==1) {
+		return meaning(utterance, output) ? 0 : -Infinity;
+	} else {
+		var explanans = components[1];
+		var explanandum = components[0];
+
+		// if !explanans then !explanandum
+		var cfERP = Infer({method: "enumerate"}, function() {
+			var paramsPrior = getParamsPrior(graph);
+			// counterfactualize params
+			// RANDOM CHOICE
+			var cfParams = counterfactualizeLatents(paramsPrior, params);
+
+			var cfEvalFn = getEvalFn(graph, cfParams);
+			// calculate CF output (deteriministic given cfParams)
+			var cfOutput = _.zipObject(variables, map(cfEvalFn, variables));
+
+			condition(!meaning(explanans, cfOutput));
+
+			return !meaning(explanandum, cfOutput);
+		});
+		return cfERP.score(true);
+	}
+};
+
+// --------------------------- forward sample -------------------------
+
+var lk1 = function() {
+
+	var all_graphs = [{"AB":"."}, {"AB":"<"}, {"AB":">"}];
+
+	// sample actual causal structure
+	var graph = uniformDraw(all_graphs); // RANDOM CHOICE
+
+	// sample situation parameters
+	var paramsPrior = getParamsPrior(graph);
+	var params = paramsPrior(); // RANDOM CHOICE
+
+	var evalFn = getEvalFn(graph, params);
+	// calculate output (deterministic given graph and params)
+	var output = _.zipObject(variables, map(evalFn, variables));
+
+	// counterfactualize params
+	// RANDOM CHOICE
+	var cfParams = counterfactualizeLatents(paramsPrior, params);
+
+	var cfEvalFn = getEvalFn(graph, cfParams);
+	// calculate CF output (deteriministic given cfParams)
+	var cfOutput = _.zipObject(variables, map(cfEvalFn, variables));
+
+	return {
+		actual: output,
+		counterfactual: cfOutput,
+		graph: graph
+	};
+};
+
+var identity = function(x) {return x;};
+var extractGraph = function(x) {return x.graph;};
+
+var literalOptionsDefault = {
+	QUD: identity
+};
+var flat_literal = function(utterance, options) {
+	var options = options ? options : {};
+	var QUD = options.QUD ? options.QUD : literalOptionsDefault.QUD;
+	return function() {
+		var world = lk1();
+		var output = world.actual;
+		var cfOutput = world.counterfactual;
+		var graph = world.graph;
+		condition(logicalIfMeaning(utterance, output, cfOutput));
+		return QUD(world);
+	};
+};
+var nested_literal = function(utterance, options) {
+	var options = options ? options : {};
+	var QUD = options.QUD ? options.QUD : literalOptionsDefault.QUD;
+	return function() {
+
+		var all_graphs = [{"AB":"."}, {"AB":"<"}, {"AB":">"}];
+		// sample actual causal structure
+		var graph = uniformDraw(all_graphs); // RANDOM CHOICE
+
+		// sample situation parameters
+		var paramsPrior = getParamsPrior(graph);
+		var params = paramsPrior(); // RANDOM CHOICE
+
+		var evalFn = getEvalFn(graph, params);
+		// calculate output (deterministic given graph and params)
+		var output = _.zipObject(variables, map(evalFn, variables));
+
+		factor(nestedIfMeaning(
+			utterance,
+			graph,
+			params
+		));
+
+		return {
+			output: output,
+			graph: graph
+		};
+	};
+};
+var literal = flat_literal;
+
+// --------------------------- utterance prior ---------------------------------
+
+// var utterancePriorMaker = function(params) {
+// 	var params = params ? params : {};
+
+// 	var utteranceSet = (
+// 		params.utteranceSet ?
+// 		params.utteranceSet :
+// 		defaults.utteranceSet
+// 	);
+
+// 	var actualUtterance = (
+// 		params.actualUtterance ? params.actualUtterance : false
+// 	);
+
+// 	var costPerWord = (
+// 		params.costPerWord ? params.costPerWord : defaults.costPerWord
+// 	);
+
+// 	// for each base expression
+// 	// we can say that expression
+// 	var unaryUtterances = expressions.concat(
+// 		// or we can negate it
+// 		map(function(u) {return "! " + u;}, expressions)
+// 	);
+
+// 	var contradiction = function(u1, u2) {
+// 		if ("! "+u1==u2 || "! "+u2==u1) {
+// 			return true;
+// 		}
+// 		if ((u1=="C" && u2=="! D") ||
+// 			(u1=="! C" && u2=="D") ||
+// 			(u1=="D" && u2=="! C") ||
+// 			(u1=="! D" && u2=="C")) {
+// 			return true;
+// 		}
+// 		return false;
+// 	};
+
+// 	var becauseUtterances = reduce(function(u1, acc) {
+// 		return acc.concat(
+// 			// because
+// 			reduce(function (u2, acc) {
+// 				if (contradiction(u1, u2)) {
+// 					// that will yield a contradiction
+// 					return acc;
+// 				} else {
+// 					return acc.concat([u1 + " because " + u2]);
+// 				}
+// 			}, [], unaryUtterances)
+// 		);
+// 	}, [], unaryUtterances);
+
+// 	// logic for generating and and or sentences
+// 	// not currently in use.
+// 	var andUtterances = reduce(function(u1, acc) {
+// 		return acc.concat(
+// 			// and
+// 			reduce(function (u2, acc) {
+// 				if (contradiction(u1, u2)) {
+// 					// that will yield a contradiction
+// 					return acc;
+// 				} else {
+// 					return acc.concat([u1 + " and " + u2]);
+// 				}
+// 			}, [], unaryUtterances)
+// 		);
+// 	}, [], unaryUtterances);
+
+// 	var orUtterances = reduce(function(u1, acc) {
+// 		return acc.concat(
+// 			// and
+// 			reduce(function (u2, acc) {
+// 				if (contradiction(u1, u2)) {
+// 					// that is trivially true
+// 					return acc;
+// 				} else {
+// 					return acc.concat([u1 + " or " + u2]);
+// 				}
+// 			}, [], unaryUtterances)
+// 		);
+// 	}, [], unaryUtterances);
+
+// 	// for each pair of unary expressions
+// 	// we can say "and", "or", or "because"
+// 	var binaryUtterances = becauseUtterances.concat(
+// 		andUtterances.concat(orUtterances)
+// 	);
+
+// 	if (utteranceSet == "max") {
+// 		// no dependence on actualUtterance
+// 		var maxERP = Infer({method: "enumerate"}, function() {
+// 			var utterance = uniformDraw(unaryUtterances.concat(
+// 				becauseUtterances.concat(["null"])
+// 			));
+// 			if (utterance!="null") {
+// 				factor(- costPerWord * utterance.split(" ").length)
+// 			}
+// 			return utterance;
+// 		});
+// 		return function() {
+// 			sample(maxERP);
+// 		};
+// 	} else if (utteranceSet == "even_more") {
+// 		// no dependence on actualUtterance
+// 		var evenMoreERP = Infer({method: "enumerate"}, function() {
+// 			var utterance = uniformDraw(
+// 				unaryUtterances.concat(
+// 					andUtterances.concat(orUtterances.concat(
+// 						becauseUtterances.concat(["null"])
+// 					))
+// 				)
+// 			);
+// 			if (utterance!="null") {
+// 				factor(- costPerWord * utterance.split(" ").length)
+// 			}
+// 			return utterance;
+// 		});
+// 		return function() {
+// 			sample(evenMoreERP);
+// 		};
+// 	} else {
+// 		if (actualUtterance) {
+// 			if (utteranceSet == "yes/no") {
+// 				var yesnoERP = Infer({method: "enumerate"}, function() {
+// 					var utterance = uniformDraw(["null", actualUtterance]);
+// 					// for ":" prior type, that's yes/no and they're equally costly
+// 					if (utterance!="null") {
+// 						factor(- costPerWord * utterance.split(" ").length)
+// 					}
+// 					return utterance;
+// 				});
+// 				return function() {
+// 					return sample(yesnoERP);
+// 				};
+// 			} else {
+// 				display("warning 12341234")
+// 			}
+// 		} else {
+// 			display("warning 2852")
+// 		}
+// 	}
+// };
+
+// var lookupUtterancePrior = cache(function(params) {
+// 	return utterancePriorMaker(params);
+// });
