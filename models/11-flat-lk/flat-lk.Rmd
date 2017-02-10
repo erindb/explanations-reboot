@@ -170,3 +170,58 @@ literalcomparison %>%
   facet_wrap(~utterance)
 ```
 
+Utterance prior for rating explanation "A because B".
+
+```{r, fig.width=4, fig.height=2}
+utterance = "A because B"
+webppl(
+  program_file = "lk1.wppl",
+  model_var = paste("utterancePriorMaker('", utterance, 
+                    "')", sep=""),
+  inference_opts = list(method = "enumerate")) %>%
+  ggplot(., aes(x=support, y=prob)) +
+  geom_bar(stat="identity") +
+  xlab("utterance") +
+  ggtitle("utterance prior")
+```
+
+Speaker (S1) with logical IF.
+
+```{r}
+lk1s1FN = function(utterance, causeAB, lambda, cost) {
+  model_var = paste("s1('", utterance,
+                    "', {AB: '", causeAB,
+                    "'}, {lambda1: ", lambda,
+                    ", costPerWord: ", cost,
+                    "})", sep="")
+  rs = webppl(program_file = "lk1.wppl",
+         model_var = model_var,
+         inference_opts = list(method = "enumerate"))
+  return(rs$prob[char(rs$support)==utterance])
+}
+lk1s1 = expand.grid(
+  utterance = c("A because B", "B because A"),
+  causeAB = c(".", "<", ">"),
+  lambda = c(1, 5, 10),
+  cost = c(1, 5, 10)) %>%
+  mutate(prob = mapply(lk1s1FN, utterance, causeAB, lambda, cost))
+```
+
+```{r}
+lk1s1 %>%
+  mutate(
+    causal_graph = factor(
+      causeAB,
+      levels = c(".", "<", ">"),
+      labels = c("no cause", "B->A", "A->B")
+    ),
+    prob = num(prob)) %>%
+  ggplot(., aes(x=causal_graph, y=prob, fill=utterance)) +
+  geom_bar(stat="identity", position="dodge") +
+  xlab("actual causal graph") +
+  geom_hline(yintercept=0.5, colour="black") +
+  facet_grid(cost~lambda) +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0)) +
+  scale_fill_brewer(type="qual", palette = 3)
+```
+

@@ -8,6 +8,11 @@ var round = function(x){
   return Math.round(x*10)/10
 };
 
+var epsilon = 0.001;
+var close = function(a, b) {
+	return Math.abs(a-b) < epsilon;
+};
+
 var match = function(inferred, observed) {
 	var overlapping = reduce_to_matching_keys(inferred, observed);
 	return _.isEqual(overlapping, observed);
@@ -92,6 +97,16 @@ var marginalize = function(erp, variable) {
 			return (sample(erp))[variable];
 		});
 	}
+};
+
+var filterKeys = function(object, keys) {
+	var newKeys = filter(function(k) {
+		return keys.indexOf(k)>=0;
+	}, _.keys(object));
+	var newValues = map(function(k) {
+		return object[k];
+	}, newKeys);
+	return _.zipObject(newKeys, newValues);
 };
 
 var removeKeys = function(object, keys) {
@@ -331,6 +346,7 @@ var lk1 = function() {
 };
 
 var identity = function(x) {return x;};
+var extractActual = function(x) {return x.actual;};
 var extractGraph = function(x) {return x.graph;};
 
 var literalOptionsDefault = {
@@ -381,148 +397,79 @@ var literal = flat_literal;
 
 // --------------------------- utterance prior ---------------------------------
 
-// var utterancePriorMaker = function(params) {
-// 	var params = params ? params : {};
+var uttPriorOptionsDefault = {
+	costPerWord: 0,
+	alternatives: "yes/no"
+};
+var utterancePriorMaker = cache(function(utterance, options) {
+	var options = options ? options : {};
+	var costPerWord = (
+		options.costPerWord ?
+		options.costPerWord :
+		uttPriorOptionsDefault.costPerWord
+	);
+	var alternatives = (
+		options.alternatives ?
+		options.alternatives :
+		uttPriorOptionsDefault.alternatives
+	);
+	if (alternatives=="yes/no") {
+		var utterancePriorERP = Infer({method: "enumerate"}, function() {
+			var u = uniformDraw([utterance, "null"]);
+			if (u!="null") {
+				var utteranceLength = (u.split(" ")).length;
+				factor(-costPerWord * utteranceLength);
+			}
+			return u;
+		});
+		return function() {
+			return sample(utterancePriorERP);
+		};
+	} else { display("error 947"); }
+});
 
-// 	var utteranceSet = (
-// 		params.utteranceSet ?
-// 		params.utteranceSet :
-// 		defaults.utteranceSet
-// 	);
+// --------------------------- s1 ---------------------------------
 
-// 	var actualUtterance = (
-// 		params.actualUtterance ? params.actualUtterance : false
-// 	);
+var s1OptionsDefault = {
+	costPerWord: 0,
+	alternatives: "yes/no",
+	lambda1: 1,
+	QUD: extractGraph
+};
 
-// 	var costPerWord = (
-// 		params.costPerWord ? params.costPerWord : defaults.costPerWord
-// 	);
+var s1 = function(actualUtterance, actualWorld, options) {
+	var options = options ? options : {};
+	var QUD = options.QUD ? options.QUD : s1OptionsDefault.QUD;
+	var lambda1 = (options.lambda1 ?
+		options.lambda1 :
+		s1OptionsDefault.lambda1
+	);
+	debug(options);
+	var uttPriorOptions = reduce_to_matching_keys(options, uttPriorOptionsDefault);
+	debug(uttPriorOptions);
+	var utterancePrior = utterancePriorMaker(
+		actualUtterance,
+		uttPriorOptions
+	);
+	return function() {
+		var utterance = utterancePrior();
+		var interpretationERP = Infer({method: "enumerate"},
+			literal(
+				utterance,
+				_.extend(
+					reduce_to_matching_keys(
+						options,
+						literalOptionsDefault
+					),
+					{QUD: QUD}
+				)
+			)
+		);
+		var interpretationScore = interpretationERP.score(actualWorld);
+		factor(interpretationScore * lambda1);
+		return utterance;
+	};
+};
 
-// 	// for each base expression
-// 	// we can say that expression
-// 	var unaryUtterances = expressions.concat(
-// 		// or we can negate it
-// 		map(function(u) {return "! " + u;}, expressions)
-// 	);
 
-// 	var contradiction = function(u1, u2) {
-// 		if ("! "+u1==u2 || "! "+u2==u1) {
-// 			return true;
-// 		}
-// 		if ((u1=="C" && u2=="! D") ||
-// 			(u1=="! C" && u2=="D") ||
-// 			(u1=="D" && u2=="! C") ||
-// 			(u1=="! D" && u2=="C")) {
-// 			return true;
-// 		}
-// 		return false;
-// 	};
 
-// 	var becauseUtterances = reduce(function(u1, acc) {
-// 		return acc.concat(
-// 			// because
-// 			reduce(function (u2, acc) {
-// 				if (contradiction(u1, u2)) {
-// 					// that will yield a contradiction
-// 					return acc;
-// 				} else {
-// 					return acc.concat([u1 + " because " + u2]);
-// 				}
-// 			}, [], unaryUtterances)
-// 		);
-// 	}, [], unaryUtterances);
-
-// 	// logic for generating and and or sentences
-// 	// not currently in use.
-// 	var andUtterances = reduce(function(u1, acc) {
-// 		return acc.concat(
-// 			// and
-// 			reduce(function (u2, acc) {
-// 				if (contradiction(u1, u2)) {
-// 					// that will yield a contradiction
-// 					return acc;
-// 				} else {
-// 					return acc.concat([u1 + " and " + u2]);
-// 				}
-// 			}, [], unaryUtterances)
-// 		);
-// 	}, [], unaryUtterances);
-
-// 	var orUtterances = reduce(function(u1, acc) {
-// 		return acc.concat(
-// 			// and
-// 			reduce(function (u2, acc) {
-// 				if (contradiction(u1, u2)) {
-// 					// that is trivially true
-// 					return acc;
-// 				} else {
-// 					return acc.concat([u1 + " or " + u2]);
-// 				}
-// 			}, [], unaryUtterances)
-// 		);
-// 	}, [], unaryUtterances);
-
-// 	// for each pair of unary expressions
-// 	// we can say "and", "or", or "because"
-// 	var binaryUtterances = becauseUtterances.concat(
-// 		andUtterances.concat(orUtterances)
-// 	);
-
-// 	if (utteranceSet == "max") {
-// 		// no dependence on actualUtterance
-// 		var maxERP = Infer({method: "enumerate"}, function() {
-// 			var utterance = uniformDraw(unaryUtterances.concat(
-// 				becauseUtterances.concat(["null"])
-// 			));
-// 			if (utterance!="null") {
-// 				factor(- costPerWord * utterance.split(" ").length)
-// 			}
-// 			return utterance;
-// 		});
-// 		return function() {
-// 			sample(maxERP);
-// 		};
-// 	} else if (utteranceSet == "even_more") {
-// 		// no dependence on actualUtterance
-// 		var evenMoreERP = Infer({method: "enumerate"}, function() {
-// 			var utterance = uniformDraw(
-// 				unaryUtterances.concat(
-// 					andUtterances.concat(orUtterances.concat(
-// 						becauseUtterances.concat(["null"])
-// 					))
-// 				)
-// 			);
-// 			if (utterance!="null") {
-// 				factor(- costPerWord * utterance.split(" ").length)
-// 			}
-// 			return utterance;
-// 		});
-// 		return function() {
-// 			sample(evenMoreERP);
-// 		};
-// 	} else {
-// 		if (actualUtterance) {
-// 			if (utteranceSet == "yes/no") {
-// 				var yesnoERP = Infer({method: "enumerate"}, function() {
-// 					var utterance = uniformDraw(["null", actualUtterance]);
-// 					// for ":" prior type, that's yes/no and they're equally costly
-// 					if (utterance!="null") {
-// 						factor(- costPerWord * utterance.split(" ").length)
-// 					}
-// 					return utterance;
-// 				});
-// 				return function() {
-// 					return sample(yesnoERP);
-// 				};
-// 			} else {
-// 				display("warning 12341234")
-// 			}
-// 		} else {
-// 			display("warning 2852")
-// 		}
-// 	}
-// };
-
-// var lookupUtterancePrior = cache(function(params) {
-// 	return utterancePriorMaker(params);
-// });
