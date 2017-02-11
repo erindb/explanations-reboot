@@ -156,7 +156,6 @@ var graphMaker = function() {
 };
 
 var variables = ["A", "B"];
-var all_graphs = [{"AB":"."}, {"AB":"<"}, {"AB":">"}];
 var getParentFn = cache(function(graph) {
   return function (variable) {
     var v = variable;
@@ -178,12 +177,25 @@ var getParentFn = cache(function(graph) {
 var bg = function(p) {return function() {return flip(p);};};
 var causeEnabled = function(p) {return function() {return flip(p);};};
 var priors = {
-  bA: bg(0.1),
-  bB: bg(0.1),
-  causeAB: causeEnabled(0.9),
-  causeBA: causeEnabled(0.9)
+	lk1: {
+	  bA: bg(0.1),
+	  bB: bg(0.1),
+	  causeAB: causeEnabled(0.9),
+	  causeBA: causeEnabled(0.9)
+	},
+	lk2: {
+	  bA: bg(0.1),
+	  bB: bg(0.1),
+	  bC: bg(0.1),
+	  causeAB: causeEnabled(0.75),
+	  causeBA: causeEnabled(0.75),
+	  causeBC: causeEnabled(0.75),
+	  causeCB: causeEnabled(0.75),
+	  causeAC: causeEnabled(0.75),
+	  causeCA: causeEnabled(0.75)
+	}
 };
-var getParamsPrior = function(graph) {
+var getParamsPrior = function(graph, label) {
   var parentFn = getParentFn(graph);
   var links = _.toPairs(graph);
   var causeParams = filter(function(x) {return x}, map(function(link) {
@@ -211,7 +223,7 @@ var getParamsPrior = function(graph) {
     return _.zipObject(
       paramKeys,
       map(function(pk) {
-        var priorFn = priors[pk];
+        var priorFn = priors[label][pk];
         return priorFn();
       }, paramKeys)
     );
@@ -323,7 +335,63 @@ var lk1 = function() {
 	var graph = uniformDraw(all_graphs); // RANDOM CHOICE
 
 	// sample situation parameters
-	var paramsPrior = getParamsPrior(graph);
+	var paramsPrior = getParamsPrior(graph, "lk1");
+	var params = paramsPrior(); // RANDOM CHOICE
+
+	var evalFn = getEvalFn(graph, params);
+	// calculate output (deterministic given graph and params)
+	var output = _.zipObject(variables, map(evalFn, variables));
+
+	// counterfactualize params
+	// RANDOM CHOICE
+	var cfParams = counterfactualizeLatents(paramsPrior, params);
+
+	var cfEvalFn = getEvalFn(graph, cfParams);
+	// calculate CF output (deteriministic given cfParams)
+	var cfOutput = _.zipObject(variables, map(cfEvalFn, variables));
+
+	return {
+		actual: output,
+		counterfactual: cfOutput,
+		graph: graph
+	};
+};
+
+var lk2 = function() {
+
+	var all_graphs = [
+		{"BC":".","AC":".","AB":"."},
+		{"BC":".","AC":".","AB":"<"},
+		{"BC":".","AC":".","AB":">"},
+		{"BC":".","AC":"<","AB":"."},
+		{"BC":".","AC":"<","AB":"<"},
+		{"BC":".","AC":"<","AB":">"},
+		{"BC":".","AC":">","AB":"."},
+		{"BC":".","AC":">","AB":"<"},
+		{"BC":".","AC":">","AB":">"},
+		{"BC":"<","AC":".","AB":"."},
+		{"BC":"<","AC":".","AB":"<"},
+		{"BC":"<","AC":".","AB":">"},
+		{"BC":"<","AC":"<","AB":"."},
+		{"BC":"<","AC":"<","AB":">"},
+		{"BC":"<","AC":">","AB":"."},
+		{"BC":"<","AC":">","AB":"<"},
+		{"BC":"<","AC":">","AB":">"},
+		{"BC":">","AC":".","AB":"."},
+		{"BC":">","AC":".","AB":"<"},
+		{"BC":">","AC":".","AB":">"},
+		{"BC":">","AC":"<","AB":"."},
+		{"BC":">","AC":"<","AB":"<"},
+		{"BC":">","AC":"<","AB":">"},
+		{"BC":">","AC":">","AB":"."},
+		{"BC":">","AC":">","AB":"<"}
+	];
+
+	// sample actual causal structure
+	var graph = uniformDraw(all_graphs); // RANDOM CHOICE
+
+	// sample situation parameters
+	var paramsPrior = getParamsPrior(graph, "lk2");
 	var params = paramsPrior(); // RANDOM CHOICE
 
 	var evalFn = getEvalFn(graph, params);
@@ -350,13 +418,18 @@ var extractActual = function(x) {return x.actual;};
 var extractGraph = function(x) {return x.graph;};
 
 var literalOptionsDefault = {
-	QUD: identity
+	QUD: identity,
+	worldFn: lk1
 };
 var flat_literal = function(utterance, options) {
 	var options = options ? options : {};
 	var QUD = options.QUD ? options.QUD : literalOptionsDefault.QUD;
+	var worldFn = (options.worldFn ?
+		options.worldFn :
+		literalOptionsDefault.worldFn
+	);
 	return function() {
-		var world = lk1();
+		var world = worldFn();
 		var output = world.actual;
 		var cfOutput = world.counterfactual;
 		var graph = world.graph;
@@ -374,7 +447,7 @@ var nested_literal = function(utterance, options) {
 		var graph = uniformDraw(all_graphs); // RANDOM CHOICE
 
 		// sample situation parameters
-		var paramsPrior = getParamsPrior(graph);
+		var paramsPrior = getParamsPrior(graph, "lk1");
 		var params = paramsPrior(); // RANDOM CHOICE
 
 		var evalFn = getEvalFn(graph, params);
@@ -434,7 +507,8 @@ var s1OptionsDefault = {
 	costPerWord: 0,
 	alternatives: "yes/no",
 	lambda1: 1,
-	QUD: extractGraph
+	QUD: extractGraph,
+	worldFn: lk1
 };
 
 var s1 = function(actualUtterance, actualWorld, options) {
@@ -444,9 +518,11 @@ var s1 = function(actualUtterance, actualWorld, options) {
 		options.lambda1 :
 		s1OptionsDefault.lambda1
 	);
-	debug(options);
+	var worldFn = (options.worldFn ?
+		options.worldFn :
+		s1OptionsDefault.worldFn
+	);
 	var uttPriorOptions = reduce_to_matching_keys(options, uttPriorOptionsDefault);
-	debug(uttPriorOptions);
 	var utterancePrior = utterancePriorMaker(
 		actualUtterance,
 		uttPriorOptions
@@ -471,5 +547,9 @@ var s1 = function(actualUtterance, actualWorld, options) {
 	};
 };
 
-
+// Infer({method: "enumerate"},
+// 	literal("B because A", {
+// 	QUD: identity,
+// 	worldFn: lk2
+// }));
 
