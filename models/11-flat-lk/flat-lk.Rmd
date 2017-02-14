@@ -11,8 +11,8 @@ toc_depth: 3
 ```{r global_options, include=FALSE}
 rm(list=ls())
 knitr::opts_chunk$set(
-  echo=F, warning=F, cache=T, 
-  message=F, sanitiz =T, 
+  echo=F, warning=F, #cache=T, 
+  message=F, #sanitiz =T, 
   fig.width = 5, fig.height = 3)
 ```
 
@@ -29,7 +29,7 @@ knitr::include_graphics("lkstories-graphs/story1.png")
 Prior.
 
 ```{r}
-lk1prior = webppl(program_file = "lk1.wppl",
+lk1prior = webppl(program_file = "lk-flat.wppl",
                   model_var = "lk1",
                   inference_opts = list(method = "enumerate"))
 ```
@@ -66,7 +66,7 @@ Literal interpretations of explanations, when flattened to logical IF.
 
 ```{r}
 lk1flatliteralFN = function(utterance) {
-  rs = webppl(program_file = "lk1.wppl",
+  rs = webppl(program_file = "lk-flat.wppl",
          model_var = paste("flat_literal('", utterance, "')", sep=""),
          inference_opts = list(method = "enumerate"))
   return(rs %>% mutate(utterance = utterance))
@@ -111,7 +111,7 @@ Literal interpretation with nested counterfactual factor.
 
 ```{r}
 lk1nestedliteralFN = function(utterance) {
-  rs = webppl(program_file = "lk1.wppl",
+  rs = webppl(program_file = "lk-flat.wppl",
          model_var = paste("nested_literal('", utterance, "')", sep=""),
          inference_opts = list(method = "enumerate"))
   return(rs %>% mutate(utterance = utterance))
@@ -175,7 +175,7 @@ Utterance prior for rating explanation "A because B".
 ```{r, fig.width=4, fig.height=2}
 utterance = "A because B"
 webppl(
-  program_file = "lk1.wppl",
+  program_file = "lk-flat.wppl",
   model_var = paste("utterancePriorMaker('", utterance, 
                     "')", sep=""),
   inference_opts = list(method = "enumerate")) %>%
@@ -194,7 +194,7 @@ lk1s1FN = function(utterance, causeAB, lambda, cost) {
                     "'}, {lambda1: ", lambda,
                     ", costPerWord: ", cost,
                     "})", sep="")
-  rs = webppl(program_file = "lk1.wppl",
+  rs = webppl(program_file = "lk-flat.wppl",
          model_var = model_var,
          inference_opts = list(method = "enumerate"))
   return(rs$prob[char(rs$support)==utterance])
@@ -203,7 +203,7 @@ lk1s1 = expand.grid(
   utterance = c("A because B", "B because A"),
   causeAB = c(".", "<", ">"),
   lambda = c(1, 5, 10),
-  cost = c(1, 5, 10)) %>%
+  cost = c(0)) %>%
   mutate(prob = mapply(lk1s1FN, utterance, causeAB, lambda, cost))
 ```
 
@@ -225,3 +225,232 @@ lk1s1 %>%
   scale_fill_brewer(type="qual", palette = 3)
 ```
 
+```{r}
+lk1s1 %>%
+  filter(lambda == 10) %>%
+  mutate(
+    causal_graph = factor(
+      causeAB,
+      levels = c(".", "<", ">"),
+      labels = c("no cause", "B->A", "A->B")
+    ),
+    prob = num(prob)) %>%
+  ggplot(., aes(x=causal_graph, y=prob, fill=utterance)) +
+  geom_bar(stat="identity", position="dodge") +
+  xlab("actual causal graph") +
+  geom_hline(yintercept=0.5, colour="black") +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0)) +
+  scale_fill_brewer(type="qual", palette = 3)
+```
+
+## Story 2
+
+```{r}
+knitr::include_graphics("lkstories-graphs/story2.png")
+```
+
+
+Prior for "A because B".
+
+```{r}
+lk2priorAB = webppl(program_file = "lk-flat.wppl",
+                    model_var = "function() {lk2('A because B')}",
+                    inference_opts = list(method = "enumerate"))
+```
+
+```{r, fig.width=4, fig.height=2}
+lk2prior %>%
+  mutate(A = paste(ifelse(actual.A, "T", "F"), " ",
+                   ifelse(counterfactual.A, "T", "F"),
+                   "'", sep=""),
+         B = paste(ifelse(actual.B, "T", "F"), " ",
+                   ifelse(counterfactual.B, "T", "F"),
+                   "'", sep=""),
+         C = paste(ifelse(actual.C, "T", "F"), " ",
+                   ifelse(counterfactual.C, "T", "F"),
+                   "'", sep="")) %>%
+  group_by(A, B, C) %>%
+  summarise(marginal.prob = sum(prob)) %>%
+  as.data.frame %>%
+  ggplot(., aes(x=B, y=C, fill=marginal.prob)) +
+  geom_tile() +
+  facet_wrap(~A) +
+  geom_vline(xintercept=2.5, colour="white") +
+  geom_hline(yintercept=2.5, colour="white") +
+  ggtitle("prior")
+```
+
+```{r}
+lk2flatliteralFN = function(utterance) {
+  rs = webppl(program_file = "lk-flat.wppl",
+         model_var = paste("literal('", utterance, "', '",
+                           utterance, "', {worldFn: lk2})", sep=""),
+         inference_opts = list(method = "enumerate"))
+  return(rs %>% mutate(utterance = utterance))
+}
+lk2flatliteral = do.call(rbind,
+                     lapply(c("A because B", "B because A",
+                              "C because B", "B because C",
+                              "A because C", "C because A"),
+                            lk2flatliteralFN))
+```
+
+```{r, fig.width=5, fig.height=2}
+lk2flatliteral %>%
+  mutate(A = paste(ifelse(actual.A, "T", "F"), " ",
+                   ifelse(counterfactual.A, "T", "F"),
+                   "'", sep=""),
+         B = paste(ifelse(actual.B, "T", "F"), " ",
+                   ifelse(counterfactual.B, "T", "F"),
+                   "'", sep=""),
+         C = paste(ifelse(actual.C, "T", "F"), " ",
+                   ifelse(counterfactual.C, "T", "F"),
+                   "'", sep="")) %>%
+  group_by(A, B, C) %>%
+  summarise(marginal.prob = sum(prob)) %>%
+  as.data.frame %>%
+  ggplot(., aes(x=B, y=C, fill=marginal.prob)) +
+  geom_tile() +
+  facet_wrap(~A) +
+  geom_vline(xintercept=2.5, colour="white") +
+  geom_hline(yintercept=2.5, colour="white") +
+  ggtitle("literal")
+```
+
+```{r, fig.width=3, fig.height=2}
+lk2flatliteral %>%
+  rename(AB = graph.AB, BC = graph.BC, AC = graph.AC) %>%
+  group_by(AB, BC, AC, utterance) %>%
+  summarise(marginal.prob = sum(prob)) %>%
+  as.data.frame %>%
+  gather("edge", "link", c(AB, BC, AC)) %>%
+  ggplot(., aes(x=edge, y=marginal.prob, fill=link)) +
+  geom_bar(stat="identity", position="dodge") +
+  facet_wrap(~ utterance) +
+  scale_fill_brewer(type="qual", palette = 2) +
+  ggtitle("flat literal")
+```
+
+Speaker (S1) with logical IF.
+
+```{r}
+lk2s1FN = function(utterance, causeAB, causeBC, causeAC, lambda, cost) {
+  model_var = paste("s1('", utterance,
+                    "', {AB: '", causeAB,
+                    "', BC: '", causeBC,
+                    "', AC: '", causeAC, "'}, {lambda1: ", lambda,
+                    ", costPerWord: ", cost,
+                    ", worldFn: lk2})", sep="")
+  rs = webppl(program_file = "lk-flat.wppl",
+         model_var = model_var,
+         inference_opts = list(method = "enumerate"))
+  return(rs$prob[char(rs$support)==utterance])
+}
+lambdas = c(1, 5, 10)
+s12AB = expand.grid(
+    utterance = c("A because B", "B because A"),
+    graphs = c(". . .", "> > .", "> . .", "< . .", "< > .", ". > ."),
+    lambda = lambdas,
+    cost = c(0)) %>%
+    separate(graphs, c("causeAB", "causeBC", "causeAC"), sep=c(" ")) %>%
+  mutate(prob = mapply(lk2s1FN, utterance,
+                       causeAB, causeBC, causeAC,
+                       lambda, cost))
+s12BC = expand.grid(
+    utterance = c("C because B", "B because C"),
+    graphs = c(". . .", "> > .", "> . .", ". > .", ". < .", "> < ."),
+    lambda = lambdas,
+    cost = c(0)) %>%
+    separate(graphs, c("causeAB", "causeBC", "causeAC"), sep=c(" ")) %>%
+  mutate(prob = mapply(lk2s1FN, utterance,
+                       causeAB, causeBC, causeAC,
+                       lambda, cost))
+s12AC = expand.grid(
+    utterance = c("A because C", "C because A"),
+    graphs = c(". . .", "> > .", "> . .", ". > .", ". . >",
+               ". > >", "> . >", ". . <", "> . <", ". > <"),
+    lambda = lambdas,
+    cost = c(0)) %>%
+    separate(graphs, c("causeAB", "causeBC", "causeAC"), sep=c(" ")) %>%
+  mutate(prob = mapply(lk2s1FN, utterance,
+                       causeAB, causeBC, causeAC,
+                       lambda, cost))
+  
+lk2s1 = rbind(s12AB, s12BC, s12AC)
+```
+
+```{r}
+lk2s1 %>%
+  mutate(
+    causal_graph = factor(
+      paste(causeAB, causeBC, causeAC),
+      levels = c(". . .",
+                 "> . .", ". > .", ". . >",
+                 "< . .", ". < .", ". . <",
+                 "> > .", ". > <", "> . <",
+                 "> < .", ". > >", "> . >",
+                 "< > ."),
+      labels = c("no cause",
+                 "A->B, C", "A, B->C", "A->C, B",
+                 "B->A, C", "A, C->B", "C->A, B",
+                 "A->B->C", "B->C->A", "C->A->B",
+                 "A->B<-C", "B->C<-A", "C<-A->B",
+                 "C<-B->A")
+    ),
+    prob = num(prob)) %>%
+  ggplot(., aes(x=causal_graph, y=prob, fill=utterance)) +
+  geom_bar(stat="identity", position="dodge") +
+  xlab("actual causal graph") +
+  geom_hline(yintercept=0.5, colour="black") +
+  facet_grid(cost~lambda) +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0)) +
+  scale_fill_brewer(type="qual", palette = 3)
+```
+
+## Story 4
+
+```{r}
+knitr::include_graphics("lkstories-graphs/story4.png")
+```
+
+```{r}
+lk4s1FN = function(utterance, causeAB, causeBC, causeAC, lambda, cost) {
+  model_var = paste("s1('", utterance,
+                    "', {AB: '", causeAB,
+                    "', BC: '", causeBC,
+                    "', AC: '", causeAC,
+                    "', CD: '>'}, ",
+                    "{lambda1: ", lambda,
+                    ", costPerWord: ", cost,
+                    ", worldFn: lk4})", sep="")
+  rs = webppl(program_file = "lk-flat.wppl",
+         model_var = model_var,
+         inference_opts = list(method = "enumerate"))
+  return(rs$prob[char(rs$support)==utterance])
+}
+lambdas = c(1, 5, 10)
+lk2s1 = rbind(
+  expand.grid(
+    utterance = c("A because B", "B because A"),
+    causeAB = c(".", "<", ">"),
+    causeBC = c(">"),
+    causeAC = c("."),
+    lambda = lambdas,
+    cost = c(0)),
+  expand.grid(
+    utterance = c("B because C", "C because B"),
+    causeAB = c(">"),
+    causeBC = c(".", "<", ">"),
+    causeAC = c("."),
+    lambda = lambdas,
+    cost = c(0))) %>%
+    mutate(prob = mapply(lk2s1FN, utterance,
+                         causeAB, causeBC, causeAC,
+                         lambda, cost))
+```
+
+## Story 5
+
+```{r}
+knitr::include_graphics("lkstories-graphs/story5.png")
+```
