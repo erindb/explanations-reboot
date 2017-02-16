@@ -366,7 +366,7 @@ var lk1 = function() {
 };
 
 var graphObj = {
-	"no cause": {AB: ".", BC: ".", AC: "."},
+	"A, B, C": {AB: ".", BC: ".", AC: "."},
 	"A->B->C": {AB: ">", BC: ">", AC: "."},
 	"A->B, C": {AB: ">", BC: ".", AC: "."},
 	"B->A, C": {AB: "<", BC: ".", AC: "."},
@@ -379,21 +379,198 @@ var graphObj = {
 	"B<-A->C": {AB: ">", BC: ".", AC: ">"},
 	"C->A, B": {AB: ".", BC: ".", AC: "<"},
 	"C->A->B": {AB: ">", BC: ".", AC: "<"},
-	"B->C->A": {AB: ".", BC: ">", AC: "<"}
+	"B->C->A": {AB: ".", BC: ">", AC: "<"},
+	"A->B->C->D": {
+		AB: ">", AC: ".", AD: ".",
+		BC: ">", BD: ".", CD: ">"
+	},
+	"B<-A->C->D": {
+		AB: ">", AC: ">", AD: ".",
+		BC: ".", BD: ".", CD: ">"
+	},
+	"B->A, C->D": {
+		AB: "<", AC: ".", AD: ".",
+		BC: ".", BD: ".", CD: ">"
+	},
+	"A->B, C->D": {
+		AB: ">", AC: ".", AD: ".",
+		BC: ".", BD: ".", CD: ">"
+	},
+	"B->A->C->D": {
+		AB: "<", AC: ">", AD: ".",
+		BC: ".", BD: ".", CD: ">"
+	},
+	"A<-B->C->D": {
+		AB: "<", AC: ".", AD: ".",
+		BC: ">", BD: ".", CD: ">"
+	},
+	"A->(C->D)<-B": { // actual world
+		AB: ".", AC: ">", AD: ".",
+		BC: ">", BD: ".", CD: ">"
+	},
+	"A, B->C->D": {
+		AB: ".", AC: ".", AD: ".",
+		BC: ">", BD: ".", CD: ">"
+	},
+	"A, B, C->D": {
+		AB: ".", AC: ".", AD: ".",
+		BC: ".", BD: ".", CD: ">"
+	},
+	"B->(A<-C->D)": {
+		AB: ".", AC: "<", AD: ".",
+		BC: ">", BD: ".", CD: ">"
+	},
+	"A->(B<-C->D)": {
+		AB: ".", AC: ">", AD: ".",
+		BC: "<", BD: ".", CD: ">"
+	},
+	"A->C<-B, D": {
+		AB: ".", AC: ">", AD: ".",
+		BC: ">", BD: ".", CD: "."
+	},
+	"(A, B, C)->D": {
+		AB: ".", AC: ".", AD: ">",
+		BC: ".", BD: ">", CD: ">"
+	},
+	"A, B->C, D": {
+		AB: ".", AC: ".", AD: ".",
+		BC: ">", BD: ".", CD: "."
+	},
+	"A, B->C->D": {
+		AB: ".", AC: ".", AD: ".",
+		BC: ">", BD: ".", CD: ">"
+	},
+	"A, B->D<-C": {
+		AB: ".", AC: ".", AD: ".",
+		BC: ".", BD: ">", CD: ">"
+	},
+	"A->C, B->D": {
+		AB: ".", AC: ">", AD: ".",
+		BC: ".", BD: ">", CD: "."
+	},
+	"A->C, D->B": {
+		AB: ".", AC: ">", AD: ".",
+		BC: ".", BD: "<", CD: "."
+	},
+	"A->C->D->B": {
+		AB: ".", AC: ">", AD: ".",
+		BC: ".", BD: "<", CD: ">"
+	},
+	"A->C<-B->D": {
+		AB: ".", AC: ">", AD: ".",
+		BC: ">", BD: ">", CD: "."
+	},
+	"A->C<-B<-D": {
+		AB: ".", AC: ">", AD: ".",
+		BC: ">", BD: "<", CD: "."
+	},
+	"A->D, B->C": {
+		AB: ".", AC: ".", AD: ">",
+		BC: ">", BD: ".", CD: "."
+	},
+	"A->D<-C, B": {
+		AB: ".", AC: ".", AD: ">",
+		BC: ".", BD: ".", CD: "<"
+	},
+	"B, A->C, D": {
+		AB: ".", AC: ">", AD: ".",
+		BC: ".", BD: ".", CD: "."
+	},
+	"B, A->C->D": {
+		AB: ".", AC: ">", AD: ".",
+		BC: ".", BD: ".", CD: ">"
+	},
+	"B->C, D->A": {
+		AB: ".", AC: ".", AD: "<",
+		BC: ">", BD: ".", CD: "."
+	},
+	"B->C->D->A": {
+		AB: ".", AC: ".", AD: "<",
+		BC: ">", BD: ".", CD: ">"
+	},
+	"D->A->C<-B": {
+		AB: ".", AC: ">", AD: "<",
+		BC: ">", BD: ".", CD: "."
+	},
+	"D<-A->C<-B": {
+		AB: ".", AC: ">", AD: "<",
+		BC: ">", BD: ".", CD: "."
+	}
+	// "": {
+	// 	AB: "", AC: "", AD: "",
+	// 	BC: "", BD: "", CD: ""
+	// },
 };
 
 // define alternative causal graphs
 var str2graph = function(str) { return graphObj[str]; };
-var abGraphs = _.map(str2graph, [
-	"A, B->C", "A->B->C", "A<-B->C"
+// var cd4 = map(str2graph, [
+// 	"A->(C->D)<-B", // actual world
+// 	"A, B, C->D",
+// 	"A->C<-B, D",
+// 	"(A, B, C)->D"
+// ]);
+// var ad4 = map(str2graph, [
+// 	"A->(C->D)<-B", // actual world
+// 	"A, B->C->D",
+// 	"A->C<-B, D",
+// 	"A, B->C, D",
+// 	"A->D<-C, B",
+// 	"D<-A->C<-B",
+// 	"A->D, B->C",
+// 	"B->C, D->A",
+// 	"B->C->D->A",
+// 	"D->A->C<-B"
+// ]);
+// var bd4 = map(str2graph, [
+// 	"A->(C->D)<-B", // actual world
+// 	"B, A->C->D",
+// 	"A->C<-B, D",
+// 	"B, A->C, D",
+// 	"A, B->D<-C",
+// 	"A->C<-B->D",
+// 	"A->C, B->D",
+// 	"A->C, D->B",
+// 	"A->C->D->B",
+// 	"A->C<-B<-D"
+// ]);
+// var ab4 = map(str2graph, [
+// 	"A->B->C->D",
+// 	"A<-B->C->D",
+// 	"B<-A->C->D",
+// 	"A->B, C->D",
+// 	"B->A->C->D",
+// 	"B->A, C->D",
+// 	"A->(C->D)<-B", // actual world
+// 	"A, B->C->D",
+// 	"A->C->D, B",
+// 	"A, B, C->D"
+// ]);
+// var bc4 = map(str2graph, [
+// 	"A->(C->D)<-B", // actual world
+// 	"A->C->D, B",
+// 	"A, B->C->D",
+// 	"A->(B<-C->D)"
+// ]);
+// var ac4 = map(str2graph, [
+// 	"A->(C->D)<-B", // actual world
+// 	"A->C->D, B",
+// 	"A, B->C->D",
+// 	"B->(A<-C->D)"
+// ]);
+var abGraphs = map(str2graph, [
+	"A, B->C",
+	"A->B->C",
+	"A<-B->C"
 ]);
-var cbecausebGraphs = _.map(str2graph, [
-	"A->B->C", "A->B, C", "A->B<-C", "A, C->B"
+var bcGraphs = map(str2graph, [
+	"A->B, C",
+	"A->B->C",
+	"A->B<-C",
+	"A, C->B"
 ]);
-var bbecausecGraphs = _.map(str2graph, [
-	"A->B->C", "A->B, C", "A->B<-C"
-]);
-var acGraphs = _.map(str2graph, [
+var acGraphs = map(str2graph, [
+	"A->B->C",
 	"A, B, C", "A, B->C", "A->B, C",
 	"C->A->B", "B->C->A", "C->A, B",
 	"A->C<-B", "B<-A->C", "A->C, B"
@@ -403,11 +580,25 @@ var relevant_graphs = {
 	lk2: {
 		"A because B": abGraphs,
 		"B because A": abGraphs,
-		"B because C": bbecausecGraphs,
-		"C because B": cbecausebGraphs,
+		"B because C": bcGraphs,
+		"C because B": bcGraphs,
 		"A because C": acGraphs,
 		"C because A": acGraphs
-	}
+	}//,
+	// lk4: {
+	// 	"A because B": ab4,
+	// 	"B because A": ab4,
+	// 	"B because C": bc4,
+	// 	"C because B": bc4,
+	// 	"A because C": ac4,
+	// 	"C because A": ac4,
+	// 	"D because C": cd4,
+	// 	"C because D": cd4,
+	// 	"B because D": bd4,
+	// 	"D because B": bd4,
+	// 	"A because D": ad4,
+	// 	"D because A": ad4
+	// }
 };
 
 var lk2 = function(base_utterance) {
@@ -442,13 +633,46 @@ var lk2 = function(base_utterance) {
 	};
 };
 
+// var lk4 = function(base_utterance) {
+
+// 	var variables = ["A", "B", "C", "D"];
+
+// 	var all_graphs = relevant_graphs["lk4"][base_utterance];
+
+// 	// sample actual causal structure
+// 	var graph = uniformDraw(all_graphs); // RANDOM CHOICE
+
+// 	// sample situation parameters
+// 	var paramsPrior = getParamsPrior(graph, "lk4");
+// 	var params = paramsPrior(); // RANDOM CHOICE
+
+// 	var evalFn = getEvalFn(graph, params, "lk4");
+// 	// calculate output (deterministic given graph and params)
+// 	var output = _.zipObject(variables, map(evalFn, variables));
+
+// 	// counterfactualize params
+// 	// RANDOM CHOICE
+// 	var cfParams = counterfactualizeLatents(paramsPrior, params);
+
+// 	var cfEvalFn = getEvalFn(graph, cfParams, "lk4");
+// 	// calculate CF output (deteriministic given cfParams)
+// 	var cfOutput = _.zipObject(variables, map(cfEvalFn, variables));
+
+// 	return {
+// 		actual: output,
+// 		counterfactual: cfOutput,
+// 		graph: graph
+// 	};
+// };
+
 var identity = function(x) {return x;};
 var extractActual = function(x) {return x.actual;};
 var extractGraph = function(x) {return x.graph;};
 
 var literalOptionsDefault = {
 	QUD: identity,
-	worldFn: lk1
+	worldFn: lk1,
+	background_knowledge: "all_states"
 };
 var flat_literal = function(utterance, base_utterance, options) {
 	var options = options ? options : {};
@@ -457,9 +681,21 @@ var flat_literal = function(utterance, base_utterance, options) {
 		options.worldFn :
 		literalOptionsDefault.worldFn
 	);
+	var background_knowledge = (
+		options.background_knowledge ? 
+		options.background_knowledge :
+		literalOptionsDefault.background_knowledge
+	);
 	return function() {
 		var world = worldFn(base_utterance);
 		var output = world.actual;
+		if (background_knowledge=="all_states") {
+			factor(output.A ? 0 : -100);
+			factor(output.B ? 0 : -100);
+			if (_.keys(output).length==3) {
+				factor(output.C ? 0 : -100);
+			}
+		}
 		var cfOutput = world.counterfactual;
 		var graph = world.graph;
 		condition(logicalIfMeaning(utterance, output, cfOutput));
@@ -538,7 +774,8 @@ var s1OptionsDefault = {
 	alternatives: "yes/no",
 	lambda1: 1,
 	QUD: extractGraph,
-	worldFn: lk1
+	worldFn: lk1,
+	background_knowledge: "all_states"
 };
 
 var s1 = function(actualUtterance, actualWorld, options) {
