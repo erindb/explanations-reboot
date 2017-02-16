@@ -1,0 +1,84 @@
+---
+title: "Background Knowledge"
+subtitle:  ""
+output: html_document
+highlight: zenburn
+toc_depth: 3
+---
+
+```{r global_options, include=FALSE}
+rm(list=ls())
+knitr::opts_chunk$set(
+  echo=F, warning=F, cache=T, 
+  message=F, sanitiz =T, 
+  fig.width = 5, fig.height = 3)
+```
+
+```{r load libraries, echo=F, message=F, warning=F}
+source("~/Settings/startup.R")
+```
+
+**Semantics:**
+"B because A" := "!CFA=>!CFB" == "CFA||!CFB"
+
+**Background Knowledge:**
+Either no background knowledge ("none assumed") or both A and B are true ("all_states assumed").
+
+**Rationality:** 10
+
+**Speaker model:** S1
+
+**Cost per word:** 0 (explanation and null utterance are equally costly)
+
+### Story 1
+
+![](lkstories-graphs/story1.png)
+
+**Prior probability to supply as needed:** 0.1
+
+**Causal power when imagining cause:** 0.9
+
+**QUD:** What is the underlying causal graph?
+
+![](s1AB.png)
+
+Assuming A and B are true makes both "A because B" and "B because A" terrible things to say when there is no causal link between A and B.
+
+It also pulls down the explanations that suggest the wrong direction of cause to slightly below 50%.
+
+It actual also slightly lowers endorsement of the correct explanation relative to a null utterance.
+
+It may be that part of the mechanism for this is the fact that A and B both being true lower the prior probability of there being no causal link between A and B.
+
+### Story 2
+
+**Prior probability to supply as needed:** 0.1
+
+**Causal power when imagining cause:** 0.75
+
+![](lkstories-graphs/story2.png)
+
+In story2 the causal strength from A to B (or vice versa) is 0.75 rather than 0.9.
+
+![](s2AB.png)
+
+Effects are actually stronger here, which surprises me. Maybe this has to do with backtracking counterfactuals being less sticky. That is...
+
+Imagine A->B. We know from our background knowledge that A=T and B=T. So we know the actual cause from A to B must have been enabled in the actual world.
+
+If the explanans is true in a counterfactual world, then the explanation will also be true. So we basically don't care about those situations. We care about what happens when the explanans is false.
+
+A is the explanans for "B because A". When A is changed to counterfactually false, which happens occasionally, B will *always* be hanged to counterfactually false. So this explanation is a very good fit for our world where A->B.
+
+B is the explanans for "A because B". When B is changed to counterfactually false, this is either because A changed to false (a likely occurance, since A's prior is only 0.1) or because the cause from A to B was not enabled (a slightly more likely occurrance when the causal power is 0.75 than when the causal power is 0.9). In the former case, our explanation is true. In the later case, our explanation is false. So averaging out, this explanation is not a great fit for our world where A->B. It's crucial that we had situations where B changed but A did not. So having less causal power actually lets us distinguish between causal directions more.
+
+Of course, if we lifted up to S2, the direction inference could be much stronger, since in both story1 and story2, "A because B" is a better thing to say when B->A than when A->B.
+
+**Prediction:** S2("B because A") favors A->B *a lot*.
+
+![](s2BC.png)
+
+
+
+![](s2AC.png)
+
