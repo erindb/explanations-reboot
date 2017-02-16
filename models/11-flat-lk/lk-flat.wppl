@@ -737,10 +737,9 @@ var literal = flat_literal;
 // --------------------------- utterance prior ---------------------------------
 
 var uttPriorOptionsDefault = {
-	costPerWord: 0,
-	alternatives: "yes/no"
+	costPerWord: 0
 };
-var utterancePriorMaker = cache(function(utterance, options) {
+var utterancePriorMaker = cache(function(utterance, alternatives, options) {
 	var options = options ? options : {};
 	var costPerWord = (
 		options.costPerWord ?
@@ -781,6 +780,11 @@ var s1OptionsDefault = {
 var s1 = function(actualUtterance, actualWorld, options) {
 	var options = options ? options : {};
 	var QUD = options.QUD ? options.QUD : s1OptionsDefault.QUD;
+	var alternatives = (
+		options.alternatives ? 
+		options.alternatives :
+		s1OptionsDefault.alternatives
+	)
 	var lambda1 = (options.lambda1 ?
 		options.lambda1 :
 		s1OptionsDefault.lambda1
@@ -792,6 +796,7 @@ var s1 = function(actualUtterance, actualWorld, options) {
 	var uttPriorOptions = reduce_to_matching_keys(options, uttPriorOptionsDefault);
 	var utterancePrior = utterancePriorMaker(
 		actualUtterance,
+		alternatives,
 		uttPriorOptions
 	);
 	return function() {
@@ -811,6 +816,140 @@ var s1 = function(actualUtterance, actualWorld, options) {
 		);
 		var interpretationScore = interpretationERP.score(actualWorld);
 		factor(interpretationScore * lambda1);
+		return utterance;
+	};
+};
+
+// --------------------------- listener ---------------------------------
+
+var listenerOptionsDefault = {
+	costPerWord: 0,
+	alternatives: "yes/no",
+	lambda1: 1,
+	QUD: extractGraph,
+	s2_QUD: extractGraph,
+	worldFn: lk1,
+	background_knowledge: "all_states"
+};
+var listener = function(utterance, base_utterance, options) {
+	var options = options ? options : {};
+	var QUD = options.QUD ? options.QUD : listenerOptionsDefault.QUD;
+	var worldFn = (options.worldFn ?
+		options.worldFn :
+		listenerOptionsDefault.worldFn
+	);
+	var lambda1 = (options.lambda1 ?
+		options.lambda1 :
+		listenerOptionsDefault.lambda1
+	);
+	var background_knowledge = (
+		options.background_knowledge ? 
+		options.background_knowledge :
+		listenerOptionsDefault.background_knowledge
+	);
+	return function() {
+		var world = worldFn(base_utterance);
+		var output = world.actual;
+
+		// incorporate background knowledge
+		if (background_knowledge=="all_states") {
+			factor(output.A ? 0 : -100);
+			factor(output.B ? 0 : -100);
+			if (_.keys(output).length==3) {
+				factor(output.C ? 0 : -100);
+			}
+		}
+
+		// sample world
+		var graph = world.graph;
+
+		// sample speaker's description given that world
+		var descriptionERP = Infer({method: "enumerate"},
+			s1(
+				base_utterance,
+				graph,
+				reduce_to_matching_keys(
+					options,
+					s1OptionsDefault
+				)
+			)
+		);
+		var descriptionScore = descriptionERP.score(utterance);
+		factor(descriptionScore);
+		return s2_QUD(world);
+	};
+};
+
+// --------------------------- s2 ---------------------------------
+
+var s2OptionsDefault = {
+	costPerWord: 0,
+	alternatives: "yes/no", // s1 alternatives
+	s2_alternatives: "yes/no",
+	lambda1: 1,
+	lambda2: 1,
+	QUD: extractGraph, // s1 QUD
+	s2_QUD: extractGraph,
+	worldFn: lk1,
+	background_knowledge: "all_states"
+};
+
+var s1 = function(actualUtterance, actualWorld, options) {
+	var options = options ? options : {};
+	var QUD = options.QUD ? options.QUD : s2OptionsDefault.QUD;
+	var alternatives = (
+		options.alternatives ?
+		options.alternatives :
+		s2OptionsDefault.alternatives
+	)
+	var alternatives = (
+		options.s2_alternatives ?
+		options.s2_alternatives :
+		s2OptionsDefault.s2_alternatives
+	)
+	var s2_QUD = (
+		options.s2_QUD
+		? options.s2_QUD : 
+		s2OptionsDefault.s2_QUD
+	);
+	var lambda1 = (options.lambda1 ?
+		options.lambda1 :
+		s2OptionsDefault.lambda1
+	);
+	var lambda2 = (options.lambda2 ?
+		options.lambda2 :
+		s2OptionsDefault.lambda2
+	);
+	var worldFn = (options.worldFn ?
+		options.worldFn :
+		s2OptionsDefault.worldFn
+	);
+	var uttPriorOptions = reduce_to_matching_keys(
+		options,
+		uttPriorOptionsDefault
+	);
+	var utterancePrior = utterancePriorMaker(
+		actualUtterance,
+		s2_alternatives,
+		uttPriorOptions
+	);
+	return function() {
+		var utterance = utterancePrior();
+		var interpretationERP = Infer({method: "enumerate"},
+			listener(
+				utterance,
+				actualUtterance,
+				_.extend(
+					reduce_to_matching_keys(
+						options,
+						listenerOptionsDefault
+					),
+					{s2_QUD: s2_QUD}
+				)
+			)
+		);
+		var interpretationScore = interpretationERP.score(actualWorld);
+		factor(interpretationScore * lambda2);
 		return utterance;
 	};
 };
