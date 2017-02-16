@@ -1,0 +1,81 @@
+story.number,actual.world,explanation,background_knowledge
+1,.,A because B,all_states
+1,>,A because B,all_states
+1,<,A because B,all_states
+1,.,B because A,all_states
+1,>,B because A,all_states
+1,<,B because A,all_states
+2,. > .,A because B,all_states
+2,> > .,A because B,all_states
+2,< > .,A because B,all_states
+2,. > .,B because A,all_states
+2,> > .,B because A,all_states
+2,< > .,B because A,all_states
+2,> . .,C because B,all_states
+2,> > .,C because B,all_states
+2,> < .,C because B,all_states
+2,> . .,B because C,all_states
+2,> > .,B because C,all_states
+2,> < .,B because C,all_states
+2,> > .,C because A,all_states
+2,. . .,C because A,all_states
+2,. > .,C because A,all_states
+2,> . .,C because A,all_states
+2,> . <,C because A,all_states
+2,. > <,C because A,all_states
+2,. . <,C because A,all_states
+2,. > >,C because A,all_states
+2,> . >,C because A,all_states
+2,. . >,C because A,all_states
+2,> > .,A because C,all_states
+2,. . .,A because C,all_states
+2,. > .,A because C,all_states
+2,> . .,A because C,all_states
+2,> . <,A because C,all_states
+2,. > <,A because C,all_states
+2,. . <,A because C,all_states
+2,. > >,A because C,all_states
+2,> . >,A because C,all_states
+2,. . >,A because C,all_states
+1,.,A because B,none
+1,>,A because B,none
+1,<,A because B,none
+1,.,B because A,none
+1,>,B because A,none
+1,<,B because A,none
+2,. > .,A because B,none
+2,> > .,A because B,none
+2,< > .,A because B,none
+2,. > .,B because A,none
+2,> > .,B because A,none
+2,< > .,B because A,none
+2,> . .,C because B,none
+2,> > .,C because B,none
+2,> < .,C because B,none
+2,> . .,B because C,none
+2,> > .,B because C,none
+2,> < .,B because C,none
+2,> > .,C because A,none
+2,. . .,C because A,none
+2,. > .,C because A,none
+2,> . .,C because A,none
+2,> . <,C because A,none
+2,. > <,C because A,none
+2,. . <,C because A,none
+2,. > >,C because A,none
+2,> . >,C because A,none
+2,. . >,C because A,none
+2,> > .,A because C,none
+2,. . .,A because C,none
+2,. > .,A because C,none
+2,> . .,A because C,none
+2,> . <,A because C,none
+2,. > <,A because C,none
+2,. . <,A because C,none
+2,. > >,A because C,none
+2,> . >,A because C,none
+2,. . >,A because C,none
+2,. < .,C because B,none
+2,. < .,B because C,none
+2,. < .,C because B,all_states
+2,. < .,B because C,all_states
