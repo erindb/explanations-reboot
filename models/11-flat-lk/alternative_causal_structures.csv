@@ -1,0 +1,41 @@
+story.number,actual.world,explanation
+1,.,A because B
+1,>,A because B
+1,<,A because B
+1,.,B because A
+1,>,B because A
+1,<,B because A
+2,. > .,A because B
+2,> > .,A because B
+2,< > .,A because B
+2,. > .,B because A
+2,> > .,B because A
+2,< > .,B because A
+2,> . .,C because B
+2,> > .,C because B
+2,> < .,C because B
+2,> . .,B because C
+2,> > .,B because C
+2,> < .,B because C
+2,> > .,C because A
+2,. . .,C because A
+2,. > .,C because A
+2,> . .,C because A
+2,> . <,C because A
+2,. > <,C because A
+2,. . <,C because A
+2,. > >,C because A
+2,> . >,C because A
+2,. . >,C because A
+2,> > .,A because C
+2,. . .,A because C
+2,. > .,A because C
+2,> . .,A because C
+2,> . <,A because C
+2,. > <,A because C
+2,. . <,A because C
+2,. > >,A because C
+2,> . >,A because C
+2,. . >,A because C
+2,. < .,C because B
+2,. < .,B because C

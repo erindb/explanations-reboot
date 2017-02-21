@@ -695,6 +695,10 @@ var flat_literal = function(utterance, base_utterance, options) {
 			if (_.keys(output).length==3) {
 				factor(output.C ? 0 : -100);
 			}
+		} else if (background_knowledge=="none") {
+			// do nothing
+		} else {
+			display("error 827934");
 		}
 		var cfOutput = world.counterfactual;
 		var graph = world.graph;
@@ -734,12 +738,21 @@ var nested_literal = function(utterance, options) {
 };
 var literal = flat_literal;
 
+var literalERP = cache(function(utterance, base_utterance, options) {
+	return Infer(
+		{method: "enumerate"},
+		literal(utterance, base_utterance, options)
+	);
+});
+
 // --------------------------- utterance prior ---------------------------------
 
 var uttPriorOptionsDefault = {
-	costPerWord: 0
+	costPerWord: 0,
+	alternatives: "yes/no",
+	worldLabel: "lk1"
 };
-var utterancePriorMaker = cache(function(utterance, alternatives, options) {
+var utterancePriorMaker = cache(function(utterance, options) {
 	var options = options ? options : {};
 	var costPerWord = (
 		options.costPerWord ?
@@ -751,9 +764,50 @@ var utterancePriorMaker = cache(function(utterance, alternatives, options) {
 		options.alternatives :
 		uttPriorOptionsDefault.alternatives
 	);
+	var worldLabel = (
+		options.worldLabel ?
+		options.worldLabel :
+		uttPriorOptionsDefault.worldLabel
+	);
 	if (alternatives=="yes/no") {
 		var utterancePriorERP = Infer({method: "enumerate"}, function() {
 			var u = uniformDraw([utterance, "null"]);
+			if (u!="null") {
+				var utteranceLength = (u.split(" ")).length;
+				factor(-costPerWord * utteranceLength);
+			}
+			return u;
+		});
+		return function() {
+			return sample(utterancePriorERP);
+		};
+	} else if (alternatives=="yes/no/reverse") {
+		var words = utterance.split(" ");
+		var reverse = words[1] + " because " + words[0];
+		var utterancePriorERP = Infer({method: "enumerate"}, function() {
+			var u = uniformDraw([reverse, utterance, "null"]);
+			if (u!="null") {
+				var utteranceLength = (u.split(" ")).length;
+				factor(-costPerWord * utteranceLength);
+			}
+			return u;
+		});
+		return function() {
+			return sample(utterancePriorERP);
+		};
+	} else if (alternatives=="all") {
+		var explanations = (
+			worldLabel=="lk1" ?
+			["A because B", "B because A", "null"] :
+			[
+				"A because B", "B because A",
+				"C because B", "B because C",
+				"C because A", "A because C",
+				"null"
+			]
+		);
+		var utterancePriorERP = Infer({method: "enumerate"}, function() {
+			var u = uniformDraw(explanations);
 			if (u!="null") {
 				var utteranceLength = (u.split(" ")).length;
 				factor(-costPerWord * utteranceLength);
@@ -774,7 +828,8 @@ var s1OptionsDefault = {
 	lambda1: 1,
 	QUD: extractGraph,
 	worldFn: lk1,
-	background_knowledge: "all_states"
+	background_knowledge: "all_states",
+	worldLabel: "lk1"
 };
 
 var s1 = function(actualUtterance, actualWorld, options) {
@@ -796,28 +851,31 @@ var s1 = function(actualUtterance, actualWorld, options) {
 	var uttPriorOptions = reduce_to_matching_keys(options, uttPriorOptionsDefault);
 	var utterancePrior = utterancePriorMaker(
 		actualUtterance,
-		alternatives,
 		uttPriorOptions
 	);
 	return function() {
 		var utterance = utterancePrior();
-		var interpretationERP = Infer({method: "enumerate"},
-			literal(
-				utterance,
-				actualUtterance,
-				_.extend(
-					reduce_to_matching_keys(
-						options,
-						literalOptionsDefault
-					),
-					{QUD: QUD}
-				)
+		var interpretationERP = literalERP(
+			utterance,
+			actualUtterance,
+			_.extend(
+				reduce_to_matching_keys(
+					options,
+					literalOptionsDefault
+				),
+				{QUD: QUD}
 			)
 		);
 		var interpretationScore = interpretationERP.score(actualWorld);
 		factor(interpretationScore * lambda1);
 		return utterance;
 	};
+};
+var s1ERP = function(actualUtterance, actualWorld, options) {
+	return Infer(
+		{method: "enumerate"},
+		s1(actualUtterance, actualWorld, options)
+	);
 };
 
 // --------------------------- listener ---------------------------------
@@ -829,11 +887,17 @@ var listenerOptionsDefault = {
 	QUD: extractGraph,
 	s2_QUD: extractGraph,
 	worldFn: lk1,
-	background_knowledge: "all_states"
+	background_knowledge: "all_states",
+	worldLabel: "lk1"
 };
 var listener = function(utterance, base_utterance, options) {
 	var options = options ? options : {};
 	var QUD = options.QUD ? options.QUD : listenerOptionsDefault.QUD;
+	var s2_QUD = (
+		options.s2_QUD ?
+		options.s2_QUD :
+		listenerOptionsDefault.s2_QUD
+	)
 	var worldFn = (options.worldFn ?
 		options.worldFn :
 		listenerOptionsDefault.worldFn
@@ -858,6 +922,10 @@ var listener = function(utterance, base_utterance, options) {
 			if (_.keys(output).length==3) {
 				factor(output.C ? 0 : -100);
 			}
+		} else if (background_knowledge=="none") {
+			// do nothing
+		} else {
+			display("error 62503");
 		}
 
 		// sample world
@@ -879,30 +947,43 @@ var listener = function(utterance, base_utterance, options) {
 		return s2_QUD(world);
 	};
 };
+var listenerERP = function(utterance, base_utterance, options) {
+	return Infer(
+		{method: "enumerate"},
+		listener(utterance, base_utterance, options)
+	);
+};
 
 // --------------------------- s2 ---------------------------------
 
 var s2OptionsDefault = {
 	costPerWord: 0,
 	alternatives: "yes/no", // s1 alternatives
+	s2_costPerWord: 0,
 	s2_alternatives: "yes/no",
 	lambda1: 1,
 	lambda2: 1,
 	QUD: extractGraph, // s1 QUD
 	s2_QUD: extractGraph,
 	worldFn: lk1,
+	worldLabel: "lk1",
 	background_knowledge: "all_states"
 };
 
-var s1 = function(actualUtterance, actualWorld, options) {
+var s2 = function(actualUtterance, actualWorld, options) {
 	var options = options ? options : {};
 	var QUD = options.QUD ? options.QUD : s2OptionsDefault.QUD;
 	var alternatives = (
 		options.alternatives ?
 		options.alternatives :
 		s2OptionsDefault.alternatives
-	)
-	var alternatives = (
+	);
+	var worldLabel = (
+		options.worldLabel ? 
+		options.worldLabel : 
+		s2OptionsDefault.worldLabel
+	);
+	var s2_alternatives = (
 		options.s2_alternatives ?
 		options.s2_alternatives :
 		s2OptionsDefault.s2_alternatives
@@ -911,6 +992,11 @@ var s1 = function(actualUtterance, actualWorld, options) {
 		options.s2_QUD
 		? options.s2_QUD : 
 		s2OptionsDefault.s2_QUD
+	);
+	var s2_costPerWord = (
+		options.s2_costPerWord
+		? options.s2_costPerWord : 
+		s2OptionsDefault.s2_costPerWord
 	);
 	var lambda1 = (options.lambda1 ?
 		options.lambda1 :
@@ -930,8 +1016,11 @@ var s1 = function(actualUtterance, actualWorld, options) {
 	);
 	var utterancePrior = utterancePriorMaker(
 		actualUtterance,
-		s2_alternatives,
-		uttPriorOptions
+		{
+			costPerWord: s2_costPerWord,
+			alternatives: s2_alternatives,
+			worldLabel: worldLabel
+		}
 	);
 	return function() {
 		var utterance = utterancePrior();
