@@ -1,0 +1,7 @@
+"story.number","actual.world","explanation","model"
+1,".","A because B",0.00248003348536662
+1,">","A because B",0.919014684947198
+1,"<","A because B",0.968752441150729
+1,".","B because A",0.00248003348536662
+1,">","B because A",0.968752441150729
+1,"<","B because A",0.919014684947198
