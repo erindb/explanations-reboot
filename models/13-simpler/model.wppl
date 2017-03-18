@@ -1,0 +1,61 @@
+/*
+
+causeA        causeB
+effectE
+
+links:
+AE
+BE
+
+strengths: [0,1]
+
+*/
+
+var probability_of_cause = 0.5;
+var probability_of_causal_variable = 0.5;
+
+var causal_variable_prior = function() {
+	return flip(probability_of_causal_variable);
+};
+var strength_prior = function() {
+	// half the time, return 0 (no cause)
+	// otherwise, causal strength is uniform
+	return flip(probability_of_cause) ? uniformDraw(
+		[0.25, 0.5, 0.75, 1]
+	) : 0;
+};
+var actual_cause_prior = function() {
+	return uniformDraw(
+		_.range(0, 1, 0.2)
+	);
+};
+
+var causal_structure_prior = function() {
+	var causal_parameters = {
+		AE: strength_prior(),
+		BE: strength_prior()
+	};
+	return causal_parameters;
+};
+var sample_parameters_prior = function() {
+	var sample_parameters = {
+		A: causal_variable_prior(),
+		B: causal_variable_prior(),
+		AE: actual_cause_prior(),
+		BE: actual_cause_prior()
+	};
+	return sample_parameters;
+};
+
+var model = function() {
+	var causal_structure = causal_structure_prior();
+	var sample_parameters = sample_parameters_prior();
+	var causeAE = causal_structure.AE > sample_parameters.AE;
+	var causeBE = causal_structure.BE > sample_parameters.BE;
+	var A = sample_parameters.A;
+	var B = sample_parameters.B;
+	var E = causeAE || causeBE;
+	return {A: A, B: B, E: E};
+};
+
+Infer({method: "enumerate"}, model);
