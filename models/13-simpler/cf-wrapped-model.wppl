@@ -1,0 +1,719 @@
+// -------- utils -------
+
+var debug = function(string) {
+	display(string);
+};
+
+var round = function(x){
+  return Math.round(x*10)/10
+};
+
+var epsilon = 0.001;
+var close = function(a, b) {
+	return Math.abs(a-b) < epsilon;
+};
+
+var match = function(inferred, observed) {
+	var overlapping = reduce_to_matching_keys(inferred, observed);
+	return _.isEqual(overlapping, observed);
+};
+
+var reduce_to_matching_keys = function(bigger_object, limiting_object) {
+	var keys = _.keys(limiting_object);
+	var values = map(function(k) {
+		return bigger_object[k];
+	}, keys);
+	var objWithOverlappingKeys = _.zipObject(keys, values);
+
+	// then for each overlapping key, if its value is also an object,
+	// reduce that, too.
+	var reducedObject = mapObject(function(key, value) {
+		// if it's an object
+		var limiting_object_value = limiting_object[key];
+		if (value !== null && typeof value === 'object') {
+			var reduced_result = reduce_to_matching_keys(
+				value, limiting_object_value
+			);
+			return reduced_result;
+		} else if (close(value, limiting_object_value)) {
+			// if we've got a number embedded in the bigger object,
+			// then check if the number is close to that of the 
+			// limiting object. if it is, give the reduced object
+			// a chance to equal the limiting object (replace the
+			// actual value with that of the limiting object)
+			return limiting_object_value;
+		} else {
+			return value;
+		}
+	}, objWithOverlappingKeys);
+
+	return reducedObject;
+};
+
+var matchingFactor = function(bigERP, obs) {
+	if (bigERP=="enumeration error") {
+		return -Infinity;
+	} else {
+		// obs.input might have more keys than interpretationERP.input
+		var reducedERP = Infer(
+			{method: "enumerate"},
+			function() {
+				var result = sample(bigERP);
+				var reduced_result = reduce_to_matching_keys(result, obs);
+				return reduced_result;
+			}
+		);
+		return reducedERP.score(obs);
+	}
+};
+
+var cleanupEnumerationOuput = function(erp) {
+	var all_false = reduce(
+		function(s, acc) {
+			var stillFalse = s.truthFactor == -Infinity;
+			return acc && stillFalse;
+		},
+		true,
+		erp.support()
+	);
+	if (all_false) {
+		return "enumeration error";
+	} 
+	return Infer(
+		{method: "enumerate"},
+		function() {
+			var s = sample(erp);
+			factor(s.truthFactor);
+			return s.observations;
+		}
+	);
+};
+
+var marginalize = function(erp, variable) {
+	if (erp=="enumeration error") {
+		return erp;
+	} else {
+		return Infer({method: "enumerate"}, function() {
+			return (sample(erp))[variable];
+		});
+	}
+};
+
+var filterKeys = function(object, keys) {
+	var newKeys = filter(function(k) {
+		return keys.indexOf(k)>=0;
+	}, _.keys(object));
+	var newValues = map(function(k) {
+		return object[k];
+	}, newKeys);
+	return _.zipObject(newKeys, newValues);
+};
+
+var removeKeys = function(object, keys) {
+	var newKeys = filter(function(k) {
+		return keys.indexOf(k)<0;
+	}, _.keys(object));
+	var newValues = map(function(k) {
+		return object[k];
+	}, newKeys);
+	return _.zipObject(newKeys, newValues);
+};
+
+// --------------------------- graphs logic ---------------------------
+
+var variableSets = {
+	lk1: ["A", "B"],
+	lk2: ["A", "B", "C"],
+	model: ["A", "B", "E"]
+};
+
+var graphMaker = function(variables) {
+	var all_pairs = reduce(function(v1, acc1) {
+	  acc1.concat(reduce(function(v2, acc2) {
+	    return (v1==v2 ? acc2 : acc2.concat([v1 + v2]));
+	  }, [], variables));
+	}, [], variables);
+
+	var pairs = reduce(function(v1, acc1) {
+	  acc1.concat(reduce(function(v2, acc2) {
+	    return (v1>=v2 ? acc2 : acc2.concat([v1 + v2]));
+	  }, [], variables));
+	}, [], variables);
+
+	var graphERP = Infer ({method: "enumerate"}, function() {
+	  var graph = _.zipObject(
+	    pairs,
+	    map(function(pair) {
+	      var linked = flip(2/3);
+	      if (linked) {
+	        return flip(0.5) ? ">" : "<";
+	      } else { return "."; }
+	    }, pairs)
+	  );
+	  // exclude cycles
+	  if (graph["AB"]==graph["BC"] && graph["BC"]==graph["AC"]) {
+	    factor( graph["AB"]=="." ? 0 : -Infinity );
+	  }
+	  return graph;
+	})
+
+	var all_possible_graphs = graphERP.support();
+	return all_possible_graphs;
+};
+
+var getParentFn = cache(function(graph, label) {
+	var variables = variableSets[label];
+  return function (variable) {
+    var v = variable;
+    // variable v, e.g. "A"
+    return filter(function(p) {
+      // possible parent p, e.g. "B"
+      if (v==p) {return false}
+      var key = v<p ? v+p : p+v;
+      // if v<p, then "<" corresponds to p being a parent
+      // e.g. if v="A" and p="B", then v<p and so
+      // "<" means p (B) is a parent of v (A).
+      var dir = graph[key];
+      if ((v<p && dir=="<") || (v>p && dir==">")) {
+        return true
+      } else {return false;}
+    }, variables);
+  };
+});
+var bg = function(p) {return function() {return flip(p);};};
+var causeEnabled = function(p) {return function() {return flip(p);};};
+var priors = {
+	lk1: {
+	  bA: bg(0.1),
+	  bB: bg(0.1),
+	  causeAB: causeEnabled(0.9),
+	  causeBA: causeEnabled(0.9)
+	},
+	lk2: {
+	  bA: bg(0.1),
+	  bB: bg(0.1),
+	  bC: bg(0.1),
+	  causeAB: causeEnabled(0.75),
+	  causeBA: causeEnabled(0.75),
+	  causeBC: causeEnabled(0.75),
+	  causeCB: causeEnabled(0.75),
+	  causeAC: causeEnabled(0.75),
+	  causeCA: causeEnabled(0.75)
+	}
+};
+var getParamsPrior = function(graph, label) {
+	var variables = variableSets[label];
+  var parentFn = getParentFn(graph, label);
+  var links = _.toPairs(graph);
+  var causeParams = filter(function(x) {return x}, map(function(link) {
+    var var1 = link[0][0];
+    var var2 = link[0][1];
+    var dir = link[1];
+    if (dir == ">") {
+      return "cause" + var1 + var2;
+    } else if (dir == "<") {
+      return "cause" + var2 + var1;
+    } else {
+      return false;
+    }
+  }, links));
+  var backgroundParams = filter(function(x) {return x;}, map(function(v) {
+    var parents = parentFn(v);
+    if (parents.length == 0) {
+      return "b" + v;
+    } else {
+      return false;
+    }
+  }, variables));
+  var paramKeys = backgroundParams.concat(causeParams);
+  return function() {
+    return _.zipObject(
+      paramKeys,
+      map(function(pk) {
+        var priorFn = priors[label][pk];
+        return priorFn();
+      }, paramKeys)
+    );
+  };
+};
+var getEvalFn = function(graph, params, label) {
+	var parentFn = getParentFn(graph, label);
+	var evaluate = function(varname) {
+		var parents = parentFn(varname);
+		if (parents.length==0) {
+			return params["b" + varname];
+		} else if (parents.length==1) {
+			var parentValue = evaluate(parents[0]);
+			var actualCause = params["cause" + parents[0] + varname];
+			return parentValue&&actualCause;
+		} else {
+			var parentValue1 = evaluate(parents[0]);
+			var parentValue2 = evaluate(parents[1]);
+			var actualCause1 = params["cause" + parents[0] + varname];
+			var actualCause2 = params["cause" + parents[1] + varname];
+			return (
+				(parentValue1&&actualCause1) ||
+				(parentValue2&&actualCause2)
+			);
+		}
+	};
+	return evaluate;
+};
+
+// --------------------------- counterfactuals logic ---------------------------
+
+var counterfactualizeLatents = function(model, actual, stickiness) {
+	var s = stickiness ? stickiness : 0.53;
+	var totallyDifferent = model();
+
+	return mapObject(function(key, value) {
+		return flip(s) ? actual[key] : totallyDifferent[key];
+	}, actual);
+};
+
+// --------------------------- meaning fn -------------------------
+
+var meaning = function(simpleUtterance, output) {
+	// no because
+	var variable = simpleUtterance[simpleUtterance.length-1];
+	var value = output[variable];
+	if (simpleUtterance[0]=="!") {
+		return !value;
+	} else {
+		return value;
+	}
+};
+
+var logicalIfMeaning = function(utterance, mainOutput, secondaryOutput) {
+	if (utterance=="null") {return true;}
+	var components = utterance.split(" because ");
+	if (components.length==1) {
+		meaning(utterance, mainOutput);
+	} else {
+		var explanans = components[1];
+		var explanandum = components[0];
+		// explanans or not explanandum
+		return (
+			meaning(explanans, secondaryOutput) ||
+			! meaning(explanandum, secondaryOutput)
+		);
+	}
+};
+
+
+// --------------------------- forward sample -------------------------
+
+var probability_of_cause = 0.5;
+var probability_of_causal_variable = 0.5;
+
+var causal_variable_prior = function() {
+	return flip(probability_of_causal_variable);
+};
+var strength_prior = function() {
+	// half the time, return 0 (no cause)
+	// otherwise, causal strength is uniform
+	return flip(probability_of_cause) ? uniformDraw(
+		[0.25, 0.5, 0.75, 1]
+	) : 0;
+};
+var actual_cause_prior = function() {
+	return uniformDraw(
+		_.range(0, 1, 0.2)
+	);
+};
+
+var causal_structure_prior = function() {
+	var causal_parameters = {
+		AE: strength_prior(),
+		BE: strength_prior()
+	};
+	return causal_parameters;
+};
+var sample_parameters_prior = function() {
+	var sample_parameters = {
+		A: causal_variable_prior(),
+		B: causal_variable_prior(),
+		AE: actual_cause_prior(),
+		BE: actual_cause_prior()
+	};
+	return sample_parameters;
+};
+
+var model = function() {
+	var causal_structure = causal_structure_prior();
+	var sample_parameters = sample_parameters_prior();
+	var causeAE = causal_structure.AE > sample_parameters.AE;
+	var causeBE = causal_structure.BE > sample_parameters.BE;
+	var A = sample_parameters.A;
+	var B = sample_parameters.B;
+	var E = causeAE || causeBE;
+
+	// only counterfactualize within causal structure
+	var cf_sample_parameters = counterfactualizeLatents(
+		sample_parameters_prior,
+		sample_parameters
+	);
+	var cf_causeAE = causal_structure.AE > cf_sample_parameters.AE;
+	var cf_causeBE = causal_structure.BE > cf_sample_parameters.BE;
+	var cf_A = cf_sample_parameters.A;
+	var cf_B = cf_sample_parameters.B;
+	var cf_E = cf_causeAE || cf_causeBE;
+	return {
+		actual: {A: A, B: B, E: E},
+		counterfactual: {A: cf_A, B: cf_B, E: cf_E},
+		graph: causal_structure
+	};
+};
+
+var identity = function(x) {return x;};
+var extractActual = function(x) {return x.actual;};
+var extractGraph = function(x) {return x.graph;};
+
+var literalOptionsDefault = {
+	QUD: identity,
+	worldFn: model,
+	background_knowledge: "all_states"
+};
+var flat_literal = function(utterance, base_utterance, options) {
+	var options = options ? options : {};
+	var QUD = options.QUD ? options.QUD : literalOptionsDefault.QUD;
+	var worldFn = (options.worldFn ?
+		options.worldFn :
+		literalOptionsDefault.worldFn
+	);
+	var background_knowledge = (
+		options.background_knowledge ? 
+		options.background_knowledge :
+		literalOptionsDefault.background_knowledge
+	);
+	return function() {
+		var world = worldFn(base_utterance);
+		var output = world.actual;
+		// TO DO: incorporate background knowledge
+		// if (background_knowledge=="all_states") {
+		// 	factor(output.A ? 0 : -100);
+		// 	factor(output.B ? 0 : -100);
+		// 	if (_.keys(output).length==3) {
+		// 		factor(output.C ? 0 : -100);
+		// 	}
+		// } else if (background_knowledge=="none") {
+		// 	// do nothing
+		// } else {
+		// 	display("error 827934");
+		// }
+		var cfOutput = world.counterfactual;
+		condition(logicalIfMeaning(utterance, output, cfOutput));
+		return QUD(world);
+	};
+};
+var literal = flat_literal;
+
+var literalERP = cache(function(utterance, base_utterance, options) {
+	return Infer(
+		{method: "enumerate"},
+		literal(utterance, base_utterance, options)
+	);
+});
+
+// --------------------------- utterance prior ---------------------------------
+
+var uttPriorOptionsDefault = {
+	costPerWord: 0,
+	alternatives: "yes/no",
+	worldLabel: "model"
+};
+var utterancePriorMaker = cache(function(utterance, options) {
+	var options = options ? options : {};
+	var costPerWord = (
+		options.costPerWord ?
+		options.costPerWord :
+		uttPriorOptionsDefault.costPerWord
+	);
+	var alternatives = (
+		options.alternatives ?
+		options.alternatives :
+		uttPriorOptionsDefault.alternatives
+	);
+	var worldLabel = (
+		options.worldLabel ?
+		options.worldLabel :
+		uttPriorOptionsDefault.worldLabel
+	);
+	if (alternatives=="yes/no") {
+		var utterancePriorERP = Infer({method: "enumerate"}, function() {
+			var u = uniformDraw([utterance, "null"]);
+			if (u!="null") {
+				var utteranceLength = (u.split(" ")).length;
+				factor(-costPerWord * utteranceLength);
+			}
+			return u;
+		});
+		return function() {
+			return sample(utterancePriorERP);
+		};
+	} else if (alternatives=="yes/no/reverse") {
+		var words = utterance.split(" ");
+		var reverse = words[2] + " because " + words[0];
+		var utterancePriorERP = Infer({method: "enumerate"}, function() {
+			var u = uniformDraw([reverse, utterance, "null"]);
+			if (u!="null") {
+				var utteranceLength = (u.split(" ")).length;
+				factor(-costPerWord * utteranceLength);
+			}
+			return u;
+		});
+		return function() {
+			return sample(utterancePriorERP);
+		};
+	} else if (alternatives=="all") {
+		var explanations = ["E because A", "E because B", "null"];
+		var utterancePriorERP = Infer({method: "enumerate"}, function() {
+			var u = uniformDraw(explanations);
+			if (u!="null") {
+				var utteranceLength = (u.split(" ")).length;
+				factor(-costPerWord * utteranceLength);
+			}
+			return u;
+		});
+		return function() {
+			return sample(utterancePriorERP);
+		};
+	} else { display("error 947"); }
+});
+
+// --------------------------- s1 ---------------------------------
+
+var s1OptionsDefault = {
+	costPerWord: 0,
+	alternatives: "yes/no",
+	lambda1: 1,
+	QUD: extractGraph,
+	worldFn: model,
+	background_knowledge: "all_states",
+	worldLabel: "model"
+};
+
+var s1 = function(actualUtterance, actualWorld, options) {
+	var options = options ? options : {};
+	var QUD = options.QUD ? options.QUD : s1OptionsDefault.QUD;
+	var alternatives = (
+		options.alternatives ? 
+		options.alternatives :
+		s1OptionsDefault.alternatives
+	);
+	var lambda1 = (options.lambda1 ?
+		options.lambda1 :
+		s1OptionsDefault.lambda1
+	);
+	var worldFn = (options.worldFn ?
+		options.worldFn :
+		s1OptionsDefault.worldFn
+	);
+	var uttPriorOptions = reduce_to_matching_keys(options, uttPriorOptionsDefault);
+	var utterancePrior = utterancePriorMaker(
+		actualUtterance,
+		uttPriorOptions
+	);
+	return function() {
+		var utterance = utterancePrior();
+		var interpretationERP = literalERP(
+			utterance,
+			actualUtterance,
+			_.extend(
+				reduce_to_matching_keys(
+					options,
+					literalOptionsDefault
+				),
+				{QUD: QUD}
+			)
+		);
+		var interpretationScore = interpretationERP.score(actualWorld);
+		factor(interpretationScore * lambda1);
+		return utterance;
+	};
+};
+var s1ERP = function(actualUtterance, actualWorld, options) {
+	return Infer(
+		{method: "enumerate"},
+		s1(actualUtterance, actualWorld, options)
+	);
+};
+
+// --------------------------- listener ---------------------------------
+
+var listenerOptionsDefault = {
+	costPerWord: 0,
+	alternatives: "yes/no",
+	lambda1: 1,
+	QUD: extractGraph,
+	s2_QUD: extractGraph,
+	worldFn: model,
+	background_knowledge: "all_states",
+	worldLabel: "model"
+};
+var listener = function(utterance, base_utterance, options) {
+	// goal of listener (L1)
+	// sentence about parameters in the model
+	// ...
+	var options = options ? options : {};
+	var QUD = options.QUD ? options.QUD : listenerOptionsDefault.QUD;
+	var s2_QUD = (
+		options.s2_QUD ?
+		options.s2_QUD :
+		listenerOptionsDefault.s2_QUD
+	)
+	var worldFn = (options.worldFn ?
+		options.worldFn :
+		listenerOptionsDefault.worldFn
+	);
+	var lambda1 = (options.lambda1 ?
+		options.lambda1 :
+		listenerOptionsDefault.lambda1
+	);
+
+	// some states of variables might be in common ground,
+	// i.e. known by both listener and speaker a priori
+	// (this is a string: 'all_states' or 'none')
+	var background_knowledge = (
+		options.background_knowledge ? 
+		options.background_knowledge :
+		listenerOptionsDefault.background_knowledge
+	);
+	return function() {
+		var world = worldFn(base_utterance);
+		var output = world.actual;
+
+		// incorporate background knowledge
+		if (background_knowledge=="all_states") {
+			factor(output.A ? 0 : -100);
+			factor(output.B ? 0 : -100);
+			if (_.keys(output).length==3) {
+				factor(output.C ? 0 : -100);
+			}
+		} else if (background_knowledge=="none") {
+			// do nothing
+		} else {
+			display("error 62503");
+		}
+
+		// sample world
+		var graph = world.graph;
+
+		// sample speaker's description given that world
+		var descriptionERP = Infer({method: "enumerate"},
+			s1(
+				base_utterance,
+				graph,
+				reduce_to_matching_keys(
+					options,
+					s1OptionsDefault
+				)
+			)
+		);
+		var descriptionScore = descriptionERP.score(utterance);
+		factor(descriptionScore);
+		return s2_QUD(world);
+	};
+};
+var listenerERP = function(utterance, base_utterance, options) {
+	return Infer(
+		{method: "enumerate"},
+		listener(utterance, base_utterance, options)
+	);
+};
+
+// --------------------------- s2 ---------------------------------
+
+var s2OptionsDefault = {
+	costPerWord: 0,
+	alternatives: "yes/no", // s1 alternatives
+	s2_costPerWord: 0,
+	s2_alternatives: "yes/no",
+	lambda1: 1,
+	lambda2: 1,
+	QUD: extractGraph, // s1 QUD
+	s2_QUD: extractGraph,
+	worldFn: model,
+	worldLabel: "model",
+	background_knowledge: "all_states"
+};
+
+var s2 = function(actualUtterance, actualWorld, options) {
+	var options = options ? options : {};
+	var QUD = options.QUD ? options.QUD : s2OptionsDefault.QUD;
+	var alternatives = (
+		options.alternatives ?
+		options.alternatives :
+		s2OptionsDefault.alternatives
+	);
+	var worldLabel = (
+		options.worldLabel ? 
+		options.worldLabel : 
+		s2OptionsDefault.worldLabel
+	);
+	var s2_alternatives = (
+		options.s2_alternatives ?
+		options.s2_alternatives :
+		s2OptionsDefault.s2_alternatives
+	)
+	var s2_QUD = (
+		options.s2_QUD
+		? options.s2_QUD : 
+		s2OptionsDefault.s2_QUD
+	);
+	var s2_costPerWord = (
+		options.s2_costPerWord
+		? options.s2_costPerWord : 
+		s2OptionsDefault.s2_costPerWord
+	);
+	var lambda1 = (options.lambda1 ?
+		options.lambda1 :
+		s2OptionsDefault.lambda1
+	);
+	var lambda2 = (options.lambda2 ?
+		options.lambda2 :
+		s2OptionsDefault.lambda2
+	);
+	var worldFn = (options.worldFn ?
+		options.worldFn :
+		s2OptionsDefault.worldFn
+	);
+	var uttPriorOptions = reduce_to_matching_keys(
+		options,
+		uttPriorOptionsDefault
+	);
+	var utterancePrior = utterancePriorMaker(
+		actualUtterance,
+		{
+			costPerWord: s2_costPerWord,
+			alternatives: s2_alternatives,
+			worldLabel: worldLabel
+		}
+	);
+	return function() {
+		var utterance = utterancePrior();
+		var interpretationERP = Infer({method: "enumerate"},
+			listener(
+				utterance,
+				actualUtterance,
+				_.extend(
+					reduce_to_matching_keys(
+						options,
+						listenerOptionsDefault
+					),
+					{s2_QUD: s2_QUD}
+				)
+			)
+		);
+		var interpretationScore = interpretationERP.score(actualWorld);
+		factor(interpretationScore * lambda2);
+		return utterance;
+	};
+};
+
+Infer({method: "enumerate"},
+	literal("E because A", {
+	QUD: identity,
+	worldFn: model
+}));
+
