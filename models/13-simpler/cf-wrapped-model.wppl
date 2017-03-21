@@ -372,7 +372,7 @@ var extractGraph = function(x) {return x.graph;};
 var literalOptionsDefault = {
 	QUD: identity,
 	worldFn: model,
-	background_knowledge: "all_states"
+	background_knowledge: {A: true, B: true, E: true}
 };
 var flat_literal = function(utterance, base_utterance, options) {
 	var options = options ? options : {};
@@ -389,18 +389,17 @@ var flat_literal = function(utterance, base_utterance, options) {
 	return function() {
 		var world = worldFn(base_utterance);
 		var output = world.actual;
-		// TO DO: incorporate background knowledge
-		// if (background_knowledge=="all_states") {
-		// 	factor(output.A ? 0 : -100);
-		// 	factor(output.B ? 0 : -100);
-		// 	if (_.keys(output).length==3) {
-		// 		factor(output.C ? 0 : -100);
-		// 	}
-		// } else if (background_knowledge=="none") {
-		// 	// do nothing
-		// } else {
-		// 	display("error 827934");
-		// }
+
+		// condition on background_knowledge
+		_.mapValues(background_knowledge,
+			function(variableKey) {
+				factor(
+					(background_knowledge.variableKey == 
+						output.variableKey) ? 0 : -100
+				);
+			}
+		);
+		
 		var cfOutput = world.counterfactual;
 		condition(logicalIfMeaning(utterance, output, cfOutput));
 		return QUD(world);
@@ -489,7 +488,7 @@ var s1OptionsDefault = {
 	lambda1: 1,
 	QUD: extractGraph,
 	worldFn: model,
-	background_knowledge: "all_states",
+	background_knowledge: {A: true, B: true, E: true},
 	worldLabel: "model"
 };
 
@@ -548,7 +547,7 @@ var listenerOptionsDefault = {
 	QUD: extractGraph,
 	s2_QUD: extractGraph,
 	worldFn: model,
-	background_knowledge: "all_states",
+	background_knowledge: {A: true, B: true, E: true},
 	worldLabel: "model"
 };
 var listener = function(utterance, base_utterance, options) {
@@ -583,18 +582,15 @@ var listener = function(utterance, base_utterance, options) {
 		var world = worldFn(base_utterance);
 		var output = world.actual;
 
-		// incorporate background knowledge
-		if (background_knowledge=="all_states") {
-			factor(output.A ? 0 : -100);
-			factor(output.B ? 0 : -100);
-			if (_.keys(output).length==3) {
-				factor(output.C ? 0 : -100);
+		// condition on background_knowledge
+		_.mapValues(background_knowledge,
+			function(variableKey) {
+				factor(
+					(background_knowledge.variableKey == 
+						output.variableKey) ? 0 : -100
+				);
 			}
-		} else if (background_knowledge=="none") {
-			// do nothing
-		} else {
-			display("error 62503");
-		}
+		);
 
 		// sample world
 		var graph = world.graph;
@@ -635,7 +631,7 @@ var s2OptionsDefault = {
 	s2_QUD: extractGraph,
 	worldFn: model,
 	worldLabel: "model",
-	background_knowledge: "all_states"
+	background_knowledge: {A: true, B: true, E: true}
 };
 
 var s2 = function(actualUtterance, actualWorld, options) {
