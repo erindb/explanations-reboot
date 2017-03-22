@@ -315,6 +315,8 @@ var strength_prior = function() {
 	return flip(probability_of_cause) ? uniformDraw(
 		[0.25, 0.5, 0.75, 1]
 	) : 0;
+	// but something *has* to be the cause of E
+	// (otherwise I have to worry about the prior over E)
 };
 var actual_cause_prior = function() {
 	return uniformDraw(
@@ -323,38 +325,49 @@ var actual_cause_prior = function() {
 };
 
 var causal_structure_prior = function() {
-	var causal_parameters = {
-		AE: strength_prior(),
-		BE: strength_prior()
-	};
-	return causal_parameters;
+	var erp = Infer(
+		{method: "enumerate"},
+		function() {
+			var causal_parameters = {
+				AE: strength_prior(),
+				BE: strength_prior()
+			};
+			condition((causal_parameters.AE!=0) ||
+				(causal_parameters.BE!=0));
+			return causal_parameters;
+		}
+	);
+	return sample(erp);
 };
-var sample_parameters_prior = function() {
-	var sample_parameters = {
-		A: causal_variable_prior(),
-		B: causal_variable_prior(),
-		AE: actual_cause_prior(),
-		BE: actual_cause_prior()
+var sample_parameters_prior = function(causal_parameters) {
+	return function() {
+		var sample_parameters = {
+			A: causal_variable_prior(),
+			B: causal_variable_prior(),
+			AE: flip(causal_parameters.AE),
+			BE: flip(causal_parameters.BE)
+		};
+		return sample_parameters;
 	};
-	return sample_parameters;
 };
 
 var model = function() {
 	var causal_structure = causal_structure_prior();
-	var sample_parameters = sample_parameters_prior();
-	var causeAE = causal_structure.AE > sample_parameters.AE;
-	var causeBE = causal_structure.BE > sample_parameters.BE;
+	var sample_parameters_fn = sample_parameters_prior(causal_structure);
+	var sample_parameters = sample_parameters_fn();
+	var causeAE = sample_parameters.AE;
+	var causeBE = sample_parameters.BE;
 	var A = sample_parameters.A;
 	var B = sample_parameters.B;
 	var E = causeAE || causeBE;
 
 	// only counterfactualize within causal structure
 	var cf_sample_parameters = counterfactualizeLatents(
-		sample_parameters_prior,
+		sample_parameters_fn,
 		sample_parameters
 	);
-	var cf_causeAE = causal_structure.AE > cf_sample_parameters.AE;
-	var cf_causeBE = causal_structure.BE > cf_sample_parameters.BE;
+	var cf_causeAE = cf_sample_parameters.AE;
+	var cf_causeBE = cf_sample_parameters.BE;
 	var cf_A = cf_sample_parameters.A;
 	var cf_B = cf_sample_parameters.B;
 	var cf_E = cf_causeAE || cf_causeBE;
@@ -368,6 +381,7 @@ var model = function() {
 var identity = function(x) {return x;};
 var extractActual = function(x) {return x.actual;};
 var extractGraph = function(x) {return x.graph;};
+var causeAE = function(x) {return (x.graph).AE;};
 
 var literalOptionsDefault = {
 	QUD: identity,
@@ -375,6 +389,14 @@ var literalOptionsDefault = {
 	background_knowledge: {A: true, B: true, E: true}
 };
 var flat_literal = function(utterance, base_utterance, options) {
+	if (!((typeof utterance)=="string")) {
+		console.log("error 230498");
+		stop;
+	}
+	if (!((typeof base_utterance)=="string")) {
+		console.log("error 234982");
+		stop;
+	}
 	var options = options ? options : {};
 	var QUD = options.QUD ? options.QUD : literalOptionsDefault.QUD;
 	var worldFn = (options.worldFn ?
@@ -399,7 +421,7 @@ var flat_literal = function(utterance, base_utterance, options) {
 				);
 			}
 		);
-		
+
 		var cfOutput = world.counterfactual;
 		condition(logicalIfMeaning(utterance, output, cfOutput));
 		return QUD(world);
@@ -493,6 +515,14 @@ var s1OptionsDefault = {
 };
 
 var s1 = function(actualUtterance, actualWorld, options) {
+	if (!((typeof actualUtterance)=="string")) {
+		console.log("error 23049711343");
+		stop;
+	}
+	if (!(actualWorld !== null && typeof actualWorld === 'object')) {
+		console.log("error 0923471-");
+		stop;
+	}
 	var options = options ? options : {};
 	var QUD = options.QUD ? options.QUD : s1OptionsDefault.QUD;
 	var alternatives = (
@@ -707,9 +737,68 @@ var s2 = function(actualUtterance, actualWorld, options) {
 	};
 };
 
-Infer({method: "enumerate"},
-	literal("E because A", {
-	QUD: identity,
-	worldFn: model
-}));
+// literal
+var literal_output = Infer({method: "enumerate"},
+	literal("E because A", "E because A", {
+		QUD: causeAE,
+		worldFn: model,
+		background_knowledge: {A: true, B: true, E: true}
+	})
+);
+// display(literal_output);
+var prior_output = Infer({method: "enumerate"},
+	literal("null", "E because A", {
+		QUD: causeAE,
+		worldFn: model,
+		background_knowledge: {A: true, B: true, E: true}
+	})
+);
+// display(prior_output);
+map(function(causeAE) {
+	var literal = literal_output.score(causeAE);
+	var prior = prior_output.score(causeAE);
+	display(causeAE + ": " + (literal - prior));
+}, [0, 0.25, 0.5, 0.75, 1]);
 
+// // s1
+// var causal_variable_states = [
+// 	[1, 1, "E because A"],
+// 	[1, 1, "E because B"],
+// 	[1, 0, "E because A"],
+// 	[1, 0, "E because B"],
+// 	[1, 0.75, "E because A"],
+// 	[1, 0.75, "E because B"],
+// 	[0.75, 0.75, "E because A"],
+// 	[0.25, 0.25, "E because A"],
+// 	[0.75, 0, "E because A"],
+// 	[0.75, 0, "E because B"]
+// ];
+// map(
+// 	function(parameters) {
+// 		var input_world = {
+// 			AE: parameters[0],
+// 			BE: parameters[1]
+// 		};
+// 		display(input_world);
+// 		var explanation = parameters[2]
+// 		display(explanation);
+// 		var speaker_output = Infer({method: "enumerate"},
+// 			s1(
+// 				explanation,
+// 				input_world,
+// 				{
+// 					QUD: extractGraph,
+// 					worldFn: model,
+// 					background_knowledge: {A: true, B: true, E: true}
+// 				}
+// 			)
+// 		);
+// 		var probability_of_yes = Math.exp(speaker_output.score(explanation));
+// 		display(probability_of_yes);
+// 		display("******")
+// 		return true;
+// 	},
+// 	causal_variable_states
+// );
+
+"finished";
