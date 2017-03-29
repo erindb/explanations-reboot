@@ -3,9 +3,7 @@
 var defaults = {
 	stickiness: 0.53,
 	parent_prior_prob: 0.5,
-	prob_of_causal_link: 0.5,
-	causal_strength: 0.9,
-	effect_background_prior_prob: 0
+	prob_of_causal_link: 0.5
 };
 
 // -------- utils -----------------
@@ -28,14 +26,6 @@ var check = function(variable, varname, var_type) {
 	if (typeof(variable)!=var_type) {error("230947091834");};
 };
 
-var map_object = function(fn, keys) {
-	return _.zipObject(keys, map(fn, keys));
-};
-
-var apply = function(fn) {
-	return fn();
-};
-
 // -------- exogenized program ----
 
 // two potential parents: A and B
@@ -44,96 +34,36 @@ var apply = function(fn) {
 // if no link, then no cause. if linked, then actual cause is stochastic
 // E is true whenever A_cause OR B_cause
 
-// sampling parameters are RESAMPLED in the counterfactual world,
-// whereas causal parameters are held constant.
 var causal_parameter_prior = function() {
 	return {
-		AE: flip(defaults.prob_of_causal_link),
-		BE: flip(defaults.prob_of_causal_link)
+		AE: flip(prob_of_causal_link) ? uniform(0, 1) : 0,
+		BE: flip(prob_of_causal_link) ? uniform(0, 1) : 0
 	};
 };
 
-// because sampling parameters are resampled but causal parameters are not,
-// sampling parameters can depend on causal parameters.
-// this minimizes the random choices, but it's possible these parameters
-// could be marginalized out, under the right circumstances
-var sampling_parameter_prior = function(causal_parameters, paramname) {
-	// the functions for sampling:
-	var priors = {
-
-		// "actual cause" parameters:
-		AE: function() {
-			return (
-				causal_parameters.AE ? flip(defaults.causal_strength) : false
-			);
-		},
-		BE: function() {
-			return (
-				causal_parameters.BE ? flip(defaults.causal_strength) : false
-			);
-		},
-		// "prior" parameters:
-		A: function() {
-			return (
-				flip(defaults.parent_prior_prob)
-			);
-		},
-		B: function() {
-			return (
-				flip(defaults.parent_prior_prob)
-			);
-		},
-		// the "effect" could have a "background cause"
-		E: function() {
-			return (
-				flip(defaults.effect_background_prior_prob)
-			);
-		}
-	};
-	// the logic for sampling them:
+var sampling_parameter_prior = function(paramname) {
 	if (paramname) {
 		// sample only that parameter
-		return apply(priors[paramname]);
+		return uniform(0, 1);
 	} else {
 		// sample all of them
-		map_object(function(paramname) {
-			sampling_parameter_prior(causal_parameters, paramname);
-		}, _.keys(priors));
+		return {
+			AE: uniform(0, 1),
+			BE: uniform(0, 1)
+		};
 	}
 };
 
 var world_from_parameters = function(causal_parameters, sampling_parameters) {
-
-	var A = sampling_parameters.A;
-	var B = sampling_parameters.B;
-
-	var actual_cause_AE = sampling_parameters.AE;
-	var actual_cause_BE = sampling_parameters.BE;
-	var background_cause_E = sampling_parameters.E;
-
-	var E = actual_cause_AE || actual_cause_BE || background_cause_E;
-
-	return {A: A, B: B, E: E};
 };
 
 // -------- counterfactuals -------
 
 var counterfactualize = function(
 			actual_sampling_parameters,
-			sampling_parameter_prior,
-			causal_parameters,
-			stickiness) {
+			sampling_parameter_prior) {
 	// map across all actual parameters
 	// either keep that value or resample a new one
-	var stickiness = stickiness ? stickiness : defaults.stickiness;
-
-	return map_object(function(paramname) {
-		if (flip(stickiness)) {
-			return actual_sampling_parameters[paramname];
-		} else {
-			return sampling_parameter_prior(causal_parameters, paramname);
-		}
-	}, _.keys(actual_sampling_parameters));
 };
 
 // -------- forward sample --------
@@ -145,13 +75,10 @@ var forward_sample = function() {
 
 	// different sampling parameters for actual vs counterfactual,
 	// counterfactual sampling parameters are based on the actual ones
-	var actual_sampling_parameters = sampling_parameter_prior(
-		causal_parameters
-	);
+	var actual_sampling_parameters = sampling_parameter_prior();
 	var counterfactual_sampling_parameters = counterfactualize(
 		actual_sampling_parameters,
-		sampling_parameter_prior,
-		causal_parameters
+		sampling_parameter_prior
 	);
 
 	// worlds are deteriminstic functions of parameters
