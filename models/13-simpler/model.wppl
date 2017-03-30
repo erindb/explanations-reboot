@@ -36,6 +36,18 @@ var apply = function(fn) {
 	return fn();
 };
 
+var and = function(lst) {
+	return reduce(function(elem, acc) {
+		return elem && acc;
+	}, true, lst);
+};
+
+var or = function(lst) {
+	return reduce(function(elem, acc) {
+		return elem || acc;
+	}, false, lst);
+};
+
 // -------- exogenized program ----
 
 // two potential parents: A and B
@@ -61,7 +73,7 @@ var sampling_parameter_prior = function(causal_parameters, paramname) {
 	// the functions for sampling:
 	var priors = {
 
-		// "actual cause" parameters:
+		// "actual cause enabled" parameters:
 		AE: function() {
 			return (
 				causal_parameters.AE ? flip(defaults.causal_strength) : false
@@ -107,11 +119,11 @@ var world_from_parameters = function(causal_parameters, sampling_parameters) {
 	var A = sampling_parameters.A;
 	var B = sampling_parameters.B;
 
-	var actual_cause_AE = sampling_parameters.AE;
-	var actual_cause_BE = sampling_parameters.BE;
+	var actual_cause_AE = A && sampling_parameters.AE;
+	var actual_cause_BE = B && sampling_parameters.BE;
 	var background_cause_E = sampling_parameters.E;
 
-	var E = actual_cause_AE || actual_cause_BE || background_cause_E;
+	var E = (actual_cause_AE || actual_cause_BE) || background_cause_E;
 
 	return {A: A, B: B, E: E};
 };
@@ -139,36 +151,72 @@ var counterfactualize = function(
 // -------- forward sample --------
 // sample actual and counterfactual worlds
 
-var forward_sample = function() {
-	// same causal parameters for actual and counterfactual
-	var causal_parameters = causal_parameter_prior();
+var forward_sample = function(background_knowledge) {
+	return function() {
+		// same causal parameters for actual and counterfactual
+		var causal_parameters = causal_parameter_prior();
 
-	// different sampling parameters for actual vs counterfactual,
-	// counterfactual sampling parameters are based on the actual ones
-	var actual_sampling_parameters = sampling_parameter_prior(
-		causal_parameters
-	);
-	var counterfactual_sampling_parameters = counterfactualize(
-		actual_sampling_parameters,
-		sampling_parameter_prior,
-		causal_parameters
-	);
+		// different sampling parameters for actual vs counterfactual,
+		// counterfactual sampling parameters are based on the actual ones
+		var actual_sampling_parameters = sampling_parameter_prior(
+			causal_parameters
+		);
+		// worlds are deteriminstic functions of parameters
+		var actual_world = world_from_parameters(
+			causal_parameters,
+			actual_sampling_parameters
+		);
 
-	// worlds are deteriminstic functions of parameters
-	var actual_world = world_from_parameters(
-		causal_parameters,
-		actual_sampling_parameters
-	);
-	var counterfactual_world = world_from_parameters(
-		causal_parameters,
-		counterfactual_sampling_parameters
-	);
+		// condition on background knowledge being the same as the actual world
+		condition(and(map(function(varname) {
+			actual_world[varname] == background_knowledge[varname];
+		}, _.keys(background_knowledge))))
 
-	return {
-		actual: actual_world,
-		counterfactual: counterfactual_world,
-		causal_parameters: causal_parameters
-	}
+		// different sampling parameters for actual vs counterfactual,
+		// counterfactual sampling parameters are based on the actual ones
+		var counterfactual_sampling_parameters = counterfactualize(
+			actual_sampling_parameters,
+			sampling_parameter_prior,
+			causal_parameters
+		);
+		// worlds are deteriminstic functions of parameters
+		var counterfactual_world = world_from_parameters(
+			causal_parameters,
+			counterfactual_sampling_parameters
+		);
+
+		return {
+			actual: actual_world,
+			counterfactual: counterfactual_world,
+			causal_parameters: causal_parameters
+		};
+	};
+};
+
+// -------- literal ---------------
+// condition on meanings of utterances
+
+var meaning = function(utterance, actual, counterfactual) {
+
+};
+
+var literal = function(utterance) {
+	return function() {
+
+		var worlds = forward_sample();
+
+		var causal_parameters = worlds.causal_parameters;
+		var actual = worlds.actual;
+		var counterfactual = worlds.counterfactual;
+
+		condition(meaning(utterance));
+
+		return {
+			actual: actual_world,
+			counterfactual: counterfactual_world,
+			causal_parameters: causal_parameters
+		};
+	};
 };
 
 // // -------- world -----------------
