@@ -6,7 +6,8 @@ var defaults = {
   prob_of_causal_link: 0.5,
   causal_strength: 0.9,
   effect_background_prior_prob: 0,
-  background_knowledge: {}
+  background_knowledge: {},
+  QUD: extract_causal_parameters
 };
 
 // -------- utils -----------------
@@ -200,35 +201,56 @@ var forward_sample = function(background_knowledge) {
 // -------- literal ---------------
 // condition on meanings of utterances
 
+var identity = function(x) {return x;};
+var extract_causal_parameters = function(x) {return x.causal_parameters;};
+var extract_actual = function(x) {return x.actual;};
+var extract_counterfactual = function(x) {return x.counterfactual;};
+
 var meaning = function(utterance, actual, counterfactual) {
   if (utterance=="null") { return true; } else {
-    var words = utterance.split(" ");
-    var because_index = words.indexOf("because");
-    if (because_index >= 0) {
-      var explanandum = words.slice(0, because_index).join(" ");
-      var explanans = words.slice(because_index+1, words.length).join(" ");
-      // explanans || !explanandum
-      return (
-        meaning(explanans, counterfactual) || 
-        !meaning(explanandum, counterfactual)
-      );
-    } else {
-      if (words[0]=="!") {
-        return !meaning(words.slice(1,words.length), actual);
+    var phrases = utterance.split(", and ");
+    if (phrases.length>1) {
+      if (phrases.length==2) {
+        return (
+          meaning(phrases[0], actual, counterfactual) &&
+          meaning(phrases[1], actual, counterfactual)
+        );
       } else {
-        if (words.length != 1) {
-          console.log("error 9823741");
-          stop;
+        console.log("error 2304981");
+        stop;
+      }
+    } else {
+      var words = utterance.split(" ");
+      var because_index = words.indexOf("because");
+      if (because_index >= 0) {
+        var explanandum = words.slice(0, because_index).join(" ");
+        var explanans = words.slice(because_index+1, words.length).join(" ");
+        // explanans || !explanandum
+        return (
+          meaning(explanans, counterfactual) || 
+          !meaning(explanandum, counterfactual)
+        );
+      } else {
+        if (words[0]=="!") {
+          return !meaning(words.slice(1,words.length), actual);
+        } else {
+          if (words.length != 1) {
+            console.log("error 9823741");
+            stop;
+          }
+          return actual[words[0]]==true;
         }
-        return actual[words[0]]==true;
       }
     }
   }
 };
 
-var literal = function(utterance, background_knowledge) {
+var literal = function(utterance, background_knowledge, QUD) {
   var background_knowledge = (
     background_knowledge ? background_knowledge : defaults.background_knowledge
+  );
+  var QUD = (
+    QUD ? QUD : defaults.QUD
   );
   return function() {
 
@@ -241,149 +263,47 @@ var literal = function(utterance, background_knowledge) {
 
     condition(meaning(utterance, actual_world, counterfactual_world));
 
-    return {
+    return QUD({
       actual: actual_world,
       counterfactual: counterfactual_world,
       causal_parameters: causal_parameters
-    };
+    });
   };
 };
+var literalERP = cache(function(utterance, background_knowledge, QUD) {
+  return Infer(
+    {method: "enumerate"},
+    literal(utterance, background_knowledge, QUD)
+  );
+});
 
-// // -------- world -----------------
+// -------- speaker ---------------
 
-// /*
-// three possible causes: A, B, and C
-// prior probabilities on those causes.
-// two effects: E and F
-// for each possible cause and each effect:
-//  either there is a causal link
-//  to effect or there is not
-// some probability of a causal link
-// for each causal link:
-//  some probability of actual cause
-// each world is identified by:
-//  set of causal links
-//  set of parent states
-// each of those variables
-//  are independent of one another
-// */
+var utterance_prior = function() {
+  return uniformDraw([
+    "null",
+    // "E because A, and E because B",
+    "E because A",
+    "E because B"
+  ]);
+};
 
-// var parent_prior_prob = 0.5;
-// var prob_of_cause = 0.5;
-// var causal_strength = 0.9;
-
-// var parents = ["A", "B"];
-// var children = ["E"];
-
-// var world_parameters_samplers = (function() {
-//  var priors = map(
-//    function(parent) {
-//      return [
-//        parent,
-//        function() {return flip(parent_prior_prob);}
-//      ];
-//    },
-//    parents
-//  );
-//  var causal_links = reduce(
-//    function(parent, acc) {
-//      return acc.concat(map(function(child) {
-//        return [
-//          parent + child,
-//          function() {return flip(prob_of_cause);}
-//        ];
-//      }, children));
-//    },
-//    [],
-//    parents
-//  );
-//  return _.fromPairs(priors.concat(causal_links));
-// })();
-// var sample_world_parameter = function(paramname) {
-//  var fn = world_parameters_samplers[paramname];
-//  return fn();
-// };
-// var world_parameters_prior = function() {
-//  var link_names = reduce(function(parent, acc) {
-//    return acc.concat(
-//      map(function(child) {parent+child}, children));
-//  }, [], parents);
-//  var all_paramnames = link_names.concat(parents);
-//  return _.fromPairs(map(function(paramname) {
-//    return [paramname, sample_world_parameter(paramname)];
-//  }, all_paramnames));
-// };
-
-// var world_model = function(world_parameters) {
-//  var parent_values = map(function(parent) {
-//    return [parent, world_parameters[parent]];
-//  }, parents);
-//  var child_values = map(function(child) {
-//    var child_value = reduce(function(parent, acc) {
-//      var actual_cause = world_parameters[parent+child];
-//      return acc || actual_cause;
-//    }, false, parents);
-//    return [child, child_value];
-//  }, children);
-//  return _.fromPairs(
-//    parent_values.concat(child_values)
-//  );
-// };
-
-// // -------- counterfactuals -------
-
-// var counterfactualize_world_parameters = function(actual, stickiness) {
-
-//  var stickiness = check(stickiness, "stickiness", "number");
-
-//  var paramnames = _.keys(actual);
-//  return _.fromPairs(map(function(paramname) {
-//    return [
-//      paramname,
-//      flip(stickiness) ? 
-//      actual[paramname] : 
-//      sample_world_parameter(paramname)
-//    ];
-//  }, paramnames));
-// };
-
-// // -------- forward sample --------
-
-// var forward_sample = function(cf, background_knowledge) {
-//  return function() {
-
-//    // sample from P(world)
-//    var actual_params = world_parameters_prior();
-//    var actual = world_model(actual_params);
-
-//    // condition on background_knowledge
-//    var background_factor = reduce(
-//      function(key, acc) {
-//        return acc + (
-//          actual[key]==background_knowledge[key] ?
-//          0 :
-//          -Infinity
-//        ); 
-//      },
-//      0,
-//      _.keys(background_knowledge)
-//    );
-//    factor(background_factor);
-
-//    if (cf) {
-//      var cfactual_params = counterfactualize_world_parameters(actual_params);
-//      var cfactual = world_model(cfactual_params);
-//      return {
-//        actual: actual,
-//        actual_params: actual_params,
-//        counterfactual: cfactual,
-//        cfactual_params: cfactual_params
-//      };
-//    } else {
-//      return { world: actual, params: actual_params };
-//    }
-//  };
-// };
+var speaker = function(actual_value_of_QUD, background_knowledge, QUD) {
+  var background_knowledge = (
+    background_knowledge ?
+    background_knowledge :
+    defaults.background_knowledge
+  );
+  var QUD = (
+    QUD ? QUD : defaults.QUD
+  );
+  return function() {
+    var utterance = utterance_prior();
+    var interpretation = literalERP(utterance, background_knowledge, QUD);
+    factor(interpretation.score(actual_value_of_QUD));
+    return utterance;
+  };
+};
 
 // -------- rsa -------------------
 

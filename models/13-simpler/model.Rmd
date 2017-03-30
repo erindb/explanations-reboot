@@ -333,9 +333,39 @@ rbind(prior, posterior) %>%
   group_by(utterance, variable) %>%
   summarise(prob = sum(prob[value==T])) %>%
   as.data.frame %>%
+  mutate(variable = factor(variable,
+                           levels=c("causal_parameters.AE", "causal_parameters.BE"),
+                           labels=c("A->E", "B->E"))) %>%
   ggplot(., aes(x=variable, y=prob, fill=utterance)) +
   geom_bar(stat="identity", position = "dodge") +
-  scale_fill_brewer(type = "qual", palette = 6)
-ggsave("simplest_prediction.png", width=4, height=2)
+  scale_fill_brewer(type = "qual", palette = 6) +
+  xlab("causal link")
+ggsave("simplest_interpretation.png", width=4, height=2)
 ```
 
+```{r}
+link_values = list(
+  c(F, F),
+  c(F, T),
+  c(T, F),
+  c(T, T)
+)
+speaker = lapply(link_values, function(link_vals) {
+  causal_parameters = paste(
+    "{AE: ", tolower(link_vals[1]),
+    ", BE: ", tolower(link_vals[2]),
+    "}", sep=""
+  )
+  speaker = webppl(
+    program_file = "model.wppl",
+    model_var = paste(
+      "speaker(",
+      causal_parameters,
+      ", ", 
+      background_knowledge, 
+      ", extract_causal_parameters)", sep=""),
+    inference_opts = list(method="enumerate")
+  ) %>% mutate(`A->E`=link_vals[1],
+               `B->E`=link_vals[2])
+})
+```
