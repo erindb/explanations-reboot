@@ -1,51 +1,52 @@
 // -------- defaults --------------
 
 var defaults = {
-	stickiness: 0.53,
-	parent_prior_prob: 0.5,
-	prob_of_causal_link: 0.5,
-	causal_strength: 0.9,
-	effect_background_prior_prob: 0
+  stickiness: 0.53,
+  parent_prior_prob: 0.5,
+  prob_of_causal_link: 0.5,
+  causal_strength: 0.9,
+  effect_background_prior_prob: 0,
+  background_knowledge: {}
 };
 
 // -------- utils -----------------
 
 var debug = function(string) {
-	display(string);
+  display(string);
 };
 
 var error = function(id) {
-	console.log("error " + id);
-	stop;
+  console.log("error " + id);
+  stop;
 };
 
 var thunk = function(fn) {return function() {return fn();}};
 
 var check = function(variable, varname, var_type) {
-	if (typeof(varname)!="string") {error("98273649");};
-	if (typeof(var_type)!="string") {error("3871304");};
-	var variable = variable ? variable : defaults[varname];
-	if (typeof(variable)!=var_type) {error("230947091834");};
+  if (typeof(varname)!="string") {error("98273649");};
+  if (typeof(var_type)!="string") {error("3871304");};
+  var variable = variable ? variable : defaults[varname];
+  if (typeof(variable)!=var_type) {error("230947091834");};
 };
 
 var map_object = function(fn, keys) {
-	return _.zipObject(keys, map(fn, keys));
+  return _.zipObject(keys, map(fn, keys));
 };
 
 var apply = function(fn) {
-	return fn();
+  return fn();
 };
 
 var and = function(lst) {
-	return reduce(function(elem, acc) {
-		return elem && acc;
-	}, true, lst);
+  return reduce(function(elem, acc) {
+    return elem && acc;
+  }, true, lst);
 };
 
 var or = function(lst) {
-	return reduce(function(elem, acc) {
-		return elem || acc;
-	}, false, lst);
+  return reduce(function(elem, acc) {
+    return elem || acc;
+  }, false, lst);
 };
 
 // -------- exogenized program ----
@@ -59,10 +60,10 @@ var or = function(lst) {
 // sampling parameters are RESAMPLED in the counterfactual world,
 // whereas causal parameters are held constant.
 var causal_parameter_prior = function() {
-	return {
-		AE: flip(defaults.prob_of_causal_link),
-		BE: flip(defaults.prob_of_causal_link)
-	};
+  return {
+    AE: flip(defaults.prob_of_causal_link),
+    BE: flip(defaults.prob_of_causal_link)
+  };
 };
 
 // because sampling parameters are resampled but causal parameters are not,
@@ -70,153 +71,182 @@ var causal_parameter_prior = function() {
 // this minimizes the random choices, but it's possible these parameters
 // could be marginalized out, under the right circumstances
 var sampling_parameter_prior = function(causal_parameters, paramname) {
-	// the functions for sampling:
-	var priors = {
+  // the functions for sampling:
+  var priors = {
 
-		// "actual cause enabled" parameters:
-		AE: function() {
-			return (
-				causal_parameters.AE ? flip(defaults.causal_strength) : false
-			);
-		},
-		BE: function() {
-			return (
-				causal_parameters.BE ? flip(defaults.causal_strength) : false
-			);
-		},
-		// "prior" parameters:
-		A: function() {
-			return (
-				flip(defaults.parent_prior_prob)
-			);
-		},
-		B: function() {
-			return (
-				flip(defaults.parent_prior_prob)
-			);
-		},
-		// the "effect" could have a "background cause"
-		E: function() {
-			return (
-				flip(defaults.effect_background_prior_prob)
-			);
-		}
-	};
-	// the logic for sampling them:
-	if (paramname) {
-		// sample only that parameter
-		return apply(priors[paramname]);
-	} else {
-		// sample all of them
-		map_object(function(paramname) {
-			sampling_parameter_prior(causal_parameters, paramname);
-		}, _.keys(priors));
-	}
+    // "actual cause enabled" parameters:
+    AE: function() {
+      return (
+        causal_parameters.AE ? flip(defaults.causal_strength) : false
+      );
+    },
+    BE: function() {
+      return (
+        causal_parameters.BE ? flip(defaults.causal_strength) : false
+      );
+    },
+    // "prior" parameters:
+    A: function() {
+      return (
+        flip(defaults.parent_prior_prob)
+      );
+    },
+    B: function() {
+      return (
+        flip(defaults.parent_prior_prob)
+      );
+    },
+    // the "effect" could have a "background cause"
+    E: function() {
+      return (
+        flip(defaults.effect_background_prior_prob)
+      );
+    }
+  };
+  // the logic for sampling them:
+  if (paramname) {
+    // sample only that parameter
+    return apply(priors[paramname]);
+  } else {
+    // sample all of them
+    map_object(function(paramname) {
+      sampling_parameter_prior(causal_parameters, paramname);
+    }, _.keys(priors));
+  }
 };
 
 var world_from_parameters = function(causal_parameters, sampling_parameters) {
 
-	var A = sampling_parameters.A;
-	var B = sampling_parameters.B;
+  var A = sampling_parameters.A;
+  var B = sampling_parameters.B;
 
-	var actual_cause_AE = A && sampling_parameters.AE;
-	var actual_cause_BE = B && sampling_parameters.BE;
-	var background_cause_E = sampling_parameters.E;
+  var actual_cause_AE = A && sampling_parameters.AE;
+  var actual_cause_BE = B && sampling_parameters.BE;
+  var background_cause_E = sampling_parameters.E;
 
-	var E = (actual_cause_AE || actual_cause_BE) || background_cause_E;
+  var E = (actual_cause_AE || actual_cause_BE) || background_cause_E;
 
-	return {A: A, B: B, E: E};
+  return {A: A, B: B, E: E};
 };
 
 // -------- counterfactuals -------
 
 var counterfactualize = function(
-			actual_sampling_parameters,
-			sampling_parameter_prior,
-			causal_parameters,
-			stickiness) {
-	// map across all actual parameters
-	// either keep that value or resample a new one
-	var stickiness = stickiness ? stickiness : defaults.stickiness;
+      actual_sampling_parameters,
+      sampling_parameter_prior,
+      causal_parameters,
+      stickiness) {
+  // map across all actual parameters
+  // either keep that value or resample a new one
+  var stickiness = stickiness ? stickiness : defaults.stickiness;
 
-	return map_object(function(paramname) {
-		if (flip(stickiness)) {
-			return actual_sampling_parameters[paramname];
-		} else {
-			return sampling_parameter_prior(causal_parameters, paramname);
-		}
-	}, _.keys(actual_sampling_parameters));
+  return map_object(function(paramname) {
+    if (flip(stickiness)) {
+      return actual_sampling_parameters[paramname];
+    } else {
+      return sampling_parameter_prior(causal_parameters, paramname);
+    }
+  }, _.keys(actual_sampling_parameters));
 };
 
 // -------- forward sample --------
 // sample actual and counterfactual worlds
 
 var forward_sample = function(background_knowledge) {
-	return function() {
-		// same causal parameters for actual and counterfactual
-		var causal_parameters = causal_parameter_prior();
+  var background_knowledge = (
+    background_knowledge ? background_knowledge : defaults.background_knowledge
+  );
+  return function() {
+    // same causal parameters for actual and counterfactual
+    var causal_parameters = causal_parameter_prior();
 
-		// different sampling parameters for actual vs counterfactual,
-		// counterfactual sampling parameters are based on the actual ones
-		var actual_sampling_parameters = sampling_parameter_prior(
-			causal_parameters
-		);
-		// worlds are deteriminstic functions of parameters
-		var actual_world = world_from_parameters(
-			causal_parameters,
-			actual_sampling_parameters
-		);
+    // different sampling parameters for actual vs counterfactual,
+    // counterfactual sampling parameters are based on the actual ones
+    var actual_sampling_parameters = sampling_parameter_prior(
+      causal_parameters
+    );
+    // worlds are deteriminstic functions of parameters
+    var actual_world = world_from_parameters(
+      causal_parameters,
+      actual_sampling_parameters
+    );
 
-		// condition on background knowledge being the same as the actual world
-		condition(and(map(function(varname) {
-			actual_world[varname] == background_knowledge[varname];
-		}, _.keys(background_knowledge))))
+    // condition on background knowledge being the same as the actual world
+    condition(and(map(function(varname) {
+      actual_world[varname] == background_knowledge[varname];
+    }, _.keys(background_knowledge))))
 
-		// different sampling parameters for actual vs counterfactual,
-		// counterfactual sampling parameters are based on the actual ones
-		var counterfactual_sampling_parameters = counterfactualize(
-			actual_sampling_parameters,
-			sampling_parameter_prior,
-			causal_parameters
-		);
-		// worlds are deteriminstic functions of parameters
-		var counterfactual_world = world_from_parameters(
-			causal_parameters,
-			counterfactual_sampling_parameters
-		);
+    // different sampling parameters for actual vs counterfactual,
+    // counterfactual sampling parameters are based on the actual ones
+    var counterfactual_sampling_parameters = counterfactualize(
+      actual_sampling_parameters,
+      sampling_parameter_prior,
+      causal_parameters
+    );
+    // worlds are deteriminstic functions of parameters
+    var counterfactual_world = world_from_parameters(
+      causal_parameters,
+      counterfactual_sampling_parameters
+    );
 
-		return {
-			actual: actual_world,
-			counterfactual: counterfactual_world,
-			causal_parameters: causal_parameters
-		};
-	};
+    return {
+      actual: actual_world,
+      counterfactual: counterfactual_world,
+      causal_parameters: causal_parameters
+    };
+  };
 };
 
 // -------- literal ---------------
 // condition on meanings of utterances
 
 var meaning = function(utterance, actual, counterfactual) {
-
+  if (utterance=="null") { return true; } else {
+    var words = utterance.split(" ");
+    var because_index = words.indexOf("because");
+    if (because_index >= 0) {
+      var explanandum = words.slice(0, because_index).join(" ");
+      var explanans = words.slice(because_index+1, words.length).join(" ");
+      // explanans || !explanandum
+      return (
+        meaning(explanans, counterfactual) || 
+        !meaning(explanandum, counterfactual)
+      );
+    } else {
+      if (words[0]=="!") {
+        return !meaning(words.slice(1,words.length), actual);
+      } else {
+        if (words.length != 1) {
+          console.log("error 9823741");
+          stop;
+        }
+        return actual[words[0]]==true;
+      }
+    }
+  }
 };
 
-var literal = function(utterance) {
-	return function() {
+var literal = function(utterance, background_knowledge) {
+  var background_knowledge = (
+    background_knowledge ? background_knowledge : defaults.background_knowledge
+  );
+  return function() {
 
-		var worlds = forward_sample();
+    var world_prior = forward_sample(background_knowledge)
+    var worlds = world_prior();
 
-		var causal_parameters = worlds.causal_parameters;
-		var actual = worlds.actual;
-		var counterfactual = worlds.counterfactual;
+    var causal_parameters = worlds.causal_parameters;
+    var actual_world = worlds.actual;
+    var counterfactual_world = worlds.counterfactual;
 
-		condition(meaning(utterance));
+    condition(meaning(utterance, actual_world, counterfactual_world));
 
-		return {
-			actual: actual_world,
-			counterfactual: counterfactual_world,
-			causal_parameters: causal_parameters
-		};
-	};
+    return {
+      actual: actual_world,
+      counterfactual: counterfactual_world,
+      causal_parameters: causal_parameters
+    };
+  };
 };
 
 // // -------- world -----------------
@@ -226,16 +256,16 @@ var literal = function(utterance) {
 // prior probabilities on those causes.
 // two effects: E and F
 // for each possible cause and each effect:
-// 	either there is a causal link
-// 	to effect or there is not
+//  either there is a causal link
+//  to effect or there is not
 // some probability of a causal link
 // for each causal link:
-// 	some probability of actual cause
+//  some probability of actual cause
 // each world is identified by:
-// 	set of causal links
-// 	set of parent states
+//  set of causal links
+//  set of parent states
 // each of those variables
-// 	are independent of one another
+//  are independent of one another
 // */
 
 // var parent_prior_prob = 0.5;
@@ -246,113 +276,113 @@ var literal = function(utterance) {
 // var children = ["E"];
 
 // var world_parameters_samplers = (function() {
-// 	var priors = map(
-// 		function(parent) {
-// 			return [
-// 				parent,
-// 				function() {return flip(parent_prior_prob);}
-// 			];
-// 		},
-// 		parents
-// 	);
-// 	var causal_links = reduce(
-// 		function(parent, acc) {
-// 			return acc.concat(map(function(child) {
-// 				return [
-// 					parent + child,
-// 					function() {return flip(prob_of_cause);}
-// 				];
-// 			}, children));
-// 		},
-// 		[],
-// 		parents
-// 	);
-// 	return _.fromPairs(priors.concat(causal_links));
+//  var priors = map(
+//    function(parent) {
+//      return [
+//        parent,
+//        function() {return flip(parent_prior_prob);}
+//      ];
+//    },
+//    parents
+//  );
+//  var causal_links = reduce(
+//    function(parent, acc) {
+//      return acc.concat(map(function(child) {
+//        return [
+//          parent + child,
+//          function() {return flip(prob_of_cause);}
+//        ];
+//      }, children));
+//    },
+//    [],
+//    parents
+//  );
+//  return _.fromPairs(priors.concat(causal_links));
 // })();
 // var sample_world_parameter = function(paramname) {
-// 	var fn = world_parameters_samplers[paramname];
-// 	return fn();
+//  var fn = world_parameters_samplers[paramname];
+//  return fn();
 // };
 // var world_parameters_prior = function() {
-// 	var link_names = reduce(function(parent, acc) {
-// 		return acc.concat(
-// 			map(function(child) {parent+child}, children));
-// 	}, [], parents);
-// 	var all_paramnames = link_names.concat(parents);
-// 	return _.fromPairs(map(function(paramname) {
-// 		return [paramname, sample_world_parameter(paramname)];
-// 	}, all_paramnames));
+//  var link_names = reduce(function(parent, acc) {
+//    return acc.concat(
+//      map(function(child) {parent+child}, children));
+//  }, [], parents);
+//  var all_paramnames = link_names.concat(parents);
+//  return _.fromPairs(map(function(paramname) {
+//    return [paramname, sample_world_parameter(paramname)];
+//  }, all_paramnames));
 // };
 
 // var world_model = function(world_parameters) {
-// 	var parent_values = map(function(parent) {
-// 		return [parent, world_parameters[parent]];
-// 	}, parents);
-// 	var child_values = map(function(child) {
-// 		var child_value = reduce(function(parent, acc) {
-// 			var actual_cause = world_parameters[parent+child];
-// 			return acc || actual_cause;
-// 		}, false, parents);
-// 		return [child, child_value];
-// 	}, children);
-// 	return _.fromPairs(
-// 		parent_values.concat(child_values)
-// 	);
+//  var parent_values = map(function(parent) {
+//    return [parent, world_parameters[parent]];
+//  }, parents);
+//  var child_values = map(function(child) {
+//    var child_value = reduce(function(parent, acc) {
+//      var actual_cause = world_parameters[parent+child];
+//      return acc || actual_cause;
+//    }, false, parents);
+//    return [child, child_value];
+//  }, children);
+//  return _.fromPairs(
+//    parent_values.concat(child_values)
+//  );
 // };
 
 // // -------- counterfactuals -------
 
 // var counterfactualize_world_parameters = function(actual, stickiness) {
 
-// 	var stickiness = check(stickiness, "stickiness", "number");
+//  var stickiness = check(stickiness, "stickiness", "number");
 
-// 	var paramnames = _.keys(actual);
-// 	return _.fromPairs(map(function(paramname) {
-// 		return [
-// 			paramname,
-// 			flip(stickiness) ? 
-// 			actual[paramname] : 
-// 			sample_world_parameter(paramname)
-// 		];
-// 	}, paramnames));
+//  var paramnames = _.keys(actual);
+//  return _.fromPairs(map(function(paramname) {
+//    return [
+//      paramname,
+//      flip(stickiness) ? 
+//      actual[paramname] : 
+//      sample_world_parameter(paramname)
+//    ];
+//  }, paramnames));
 // };
 
 // // -------- forward sample --------
 
 // var forward_sample = function(cf, background_knowledge) {
-// 	return function() {
+//  return function() {
 
-// 		// sample from P(world)
-// 		var actual_params = world_parameters_prior();
-// 		var actual = world_model(actual_params);
+//    // sample from P(world)
+//    var actual_params = world_parameters_prior();
+//    var actual = world_model(actual_params);
 
-// 		// condition on background_knowledge
-// 		var background_factor = reduce(
-// 			function(key, acc) {
-// 				return acc + (
-// 					actual[key]==background_knowledge[key] ?
-// 					0 :
-// 					-Infinity
-// 				); 
-// 			},
-// 			0,
-// 			_.keys(background_knowledge)
-// 		);
-// 		factor(background_factor);
+//    // condition on background_knowledge
+//    var background_factor = reduce(
+//      function(key, acc) {
+//        return acc + (
+//          actual[key]==background_knowledge[key] ?
+//          0 :
+//          -Infinity
+//        ); 
+//      },
+//      0,
+//      _.keys(background_knowledge)
+//    );
+//    factor(background_factor);
 
-// 		if (cf) {
-// 			var cfactual_params = counterfactualize_world_parameters(actual_params);
-// 			var cfactual = world_model(cfactual_params);
-// 			return {
-// 				actual: actual,
-// 				actual_params: actual_params,
-// 				counterfactual: cfactual,
-// 				cfactual_params: cfactual_params
-// 			};
-// 		} else {
-// 			return { world: actual, params: actual_params };
-// 		}
-// 	};
+//    if (cf) {
+//      var cfactual_params = counterfactualize_world_parameters(actual_params);
+//      var cfactual = world_model(cfactual_params);
+//      return {
+//        actual: actual,
+//        actual_params: actual_params,
+//        counterfactual: cfactual,
+//        cfactual_params: cfactual_params
+//      };
+//    } else {
+//      return { world: actual, params: actual_params };
+//    }
+//  };
 // };
 
 // -------- rsa -------------------
@@ -363,159 +393,159 @@ var literal = function(utterance) {
 
 // var epsilon = 0.001;
 // var close = function(a, b) {
-// 	return Math.abs(a-b) < epsilon;
+//  return Math.abs(a-b) < epsilon;
 // };
 
 // var match = function(inferred, observed) {
-// 	var overlapping = reduce_to_matching_keys(inferred, observed);
-// 	return _.isEqual(overlapping, observed);
+//  var overlapping = reduce_to_matching_keys(inferred, observed);
+//  return _.isEqual(overlapping, observed);
 // };
 
 // var reduce_to_matching_keys = function(bigger_object, limiting_object) {
-// 	var keys = _.keys(limiting_object);
-// 	var values = map(function(k) {
-// 		return bigger_object[k];
-// 	}, keys);
-// 	var objWithOverlappingKeys = _.zipObject(keys, values);
+//  var keys = _.keys(limiting_object);
+//  var values = map(function(k) {
+//    return bigger_object[k];
+//  }, keys);
+//  var objWithOverlappingKeys = _.zipObject(keys, values);
 
-// 	// then for each overlapping key, if its value is also an object,
-// 	// reduce that, too.
-// 	var reducedObject = mapObject(function(key, value) {
-// 		// if it's an object
-// 		var limiting_object_value = limiting_object[key];
-// 		if (value !== null && typeof value === 'object') {
-// 			var reduced_result = reduce_to_matching_keys(
-// 				value, limiting_object_value
-// 			);
-// 			return reduced_result;
-// 		} else if (close(value, limiting_object_value)) {
-// 			// if we've got a number embedded in the bigger object,
-// 			// then check if the number is close to that of the 
-// 			// limiting object. if it is, give the reduced object
-// 			// a chance to equal the limiting object (replace the
-// 			// actual value with that of the limiting object)
-// 			return limiting_object_value;
-// 		} else {
-// 			return value;
-// 		}
-// 	}, objWithOverlappingKeys);
+//  // then for each overlapping key, if its value is also an object,
+//  // reduce that, too.
+//  var reducedObject = mapObject(function(key, value) {
+//    // if it's an object
+//    var limiting_object_value = limiting_object[key];
+//    if (value !== null && typeof value === 'object') {
+//      var reduced_result = reduce_to_matching_keys(
+//        value, limiting_object_value
+//      );
+//      return reduced_result;
+//    } else if (close(value, limiting_object_value)) {
+//      // if we've got a number embedded in the bigger object,
+//      // then check if the number is close to that of the 
+//      // limiting object. if it is, give the reduced object
+//      // a chance to equal the limiting object (replace the
+//      // actual value with that of the limiting object)
+//      return limiting_object_value;
+//    } else {
+//      return value;
+//    }
+//  }, objWithOverlappingKeys);
 
-// 	return reducedObject;
+//  return reducedObject;
 // };
 
 // var matchingFactor = function(bigERP, obs) {
-// 	if (bigERP=="enumeration error") {
-// 		return -Infinity;
-// 	} else {
-// 		// obs.input might have more keys than interpretationERP.input
-// 		var reducedERP = Infer(
-// 			{method: "enumerate"},
-// 			function() {
-// 				var result = sample(bigERP);
-// 				var reduced_result = reduce_to_matching_keys(result, obs);
-// 				return reduced_result;
-// 			}
-// 		);
-// 		return reducedERP.score(obs);
-// 	}
+//  if (bigERP=="enumeration error") {
+//    return -Infinity;
+//  } else {
+//    // obs.input might have more keys than interpretationERP.input
+//    var reducedERP = Infer(
+//      {method: "enumerate"},
+//      function() {
+//        var result = sample(bigERP);
+//        var reduced_result = reduce_to_matching_keys(result, obs);
+//        return reduced_result;
+//      }
+//    );
+//    return reducedERP.score(obs);
+//  }
 // };
 
 // var cleanupEnumerationOuput = function(erp) {
-// 	var all_false = reduce(
-// 		function(s, acc) {
-// 			var stillFalse = s.truthFactor == -Infinity;
-// 			return acc && stillFalse;
-// 		},
-// 		true,
-// 		erp.support()
-// 	);
-// 	if (all_false) {
-// 		return "enumeration error";
-// 	} 
-// 	return Infer(
-// 		{method: "enumerate"},
-// 		function() {
-// 			var s = sample(erp);
-// 			factor(s.truthFactor);
-// 			return s.observations;
-// 		}
-// 	);
+//  var all_false = reduce(
+//    function(s, acc) {
+//      var stillFalse = s.truthFactor == -Infinity;
+//      return acc && stillFalse;
+//    },
+//    true,
+//    erp.support()
+//  );
+//  if (all_false) {
+//    return "enumeration error";
+//  } 
+//  return Infer(
+//    {method: "enumerate"},
+//    function() {
+//      var s = sample(erp);
+//      factor(s.truthFactor);
+//      return s.observations;
+//    }
+//  );
 // };
 
 // var marginalize = function(erp, variable) {
-// 	if (erp=="enumeration error") {
-// 		return erp;
-// 	} else {
-// 		return Infer({method: "enumerate"}, function() {
-// 			return (sample(erp))[variable];
-// 		});
-// 	}
+//  if (erp=="enumeration error") {
+//    return erp;
+//  } else {
+//    return Infer({method: "enumerate"}, function() {
+//      return (sample(erp))[variable];
+//    });
+//  }
 // };
 
 // var filterKeys = function(object, keys) {
-// 	var newKeys = filter(function(k) {
-// 		return keys.indexOf(k)>=0;
-// 	}, _.keys(object));
-// 	var newValues = map(function(k) {
-// 		return object[k];
-// 	}, newKeys);
-// 	return _.zipObject(newKeys, newValues);
+//  var newKeys = filter(function(k) {
+//    return keys.indexOf(k)>=0;
+//  }, _.keys(object));
+//  var newValues = map(function(k) {
+//    return object[k];
+//  }, newKeys);
+//  return _.zipObject(newKeys, newValues);
 // };
 
 // var removeKeys = function(object, keys) {
-// 	var newKeys = filter(function(k) {
-// 		return keys.indexOf(k)<0;
-// 	}, _.keys(object));
-// 	var newValues = map(function(k) {
-// 		return object[k];
-// 	}, newKeys);
-// 	return _.zipObject(newKeys, newValues);
+//  var newKeys = filter(function(k) {
+//    return keys.indexOf(k)<0;
+//  }, _.keys(object));
+//  var newValues = map(function(k) {
+//    return object[k];
+//  }, newKeys);
+//  return _.zipObject(newKeys, newValues);
 // };
 
 // // --------------------------- graphs logic ---------------------------
 
 // var variableSets = {
-// 	lk1: ["A", "B"],
-// 	lk2: ["A", "B", "C"],
-// 	model: ["A", "B", "E"]
+//  lk1: ["A", "B"],
+//  lk2: ["A", "B", "C"],
+//  model: ["A", "B", "E"]
 // };
 
 // var graphMaker = function(variables) {
-// 	var all_pairs = reduce(function(v1, acc1) {
-// 	  acc1.concat(reduce(function(v2, acc2) {
-// 	    return (v1==v2 ? acc2 : acc2.concat([v1 + v2]));
-// 	  }, [], variables));
-// 	}, [], variables);
+//  var all_pairs = reduce(function(v1, acc1) {
+//    acc1.concat(reduce(function(v2, acc2) {
+//      return (v1==v2 ? acc2 : acc2.concat([v1 + v2]));
+//    }, [], variables));
+//  }, [], variables);
 
-// 	var pairs = reduce(function(v1, acc1) {
-// 	  acc1.concat(reduce(function(v2, acc2) {
-// 	    return (v1>=v2 ? acc2 : acc2.concat([v1 + v2]));
-// 	  }, [], variables));
-// 	}, [], variables);
+//  var pairs = reduce(function(v1, acc1) {
+//    acc1.concat(reduce(function(v2, acc2) {
+//      return (v1>=v2 ? acc2 : acc2.concat([v1 + v2]));
+//    }, [], variables));
+//  }, [], variables);
 
-// 	var graphERP = Infer ({method: "enumerate"}, function() {
-// 	  var graph = _.zipObject(
-// 	    pairs,
-// 	    map(function(pair) {
-// 	      var linked = flip(2/3);
-// 	      if (linked) {
-// 	        return flip(0.5) ? ">" : "<";
-// 	      } else { return "."; }
-// 	    }, pairs)
-// 	  );
-// 	  // exclude cycles
-// 	  if (graph["AB"]==graph["BC"] && graph["BC"]==graph["AC"]) {
-// 	    factor( graph["AB"]=="." ? 0 : -Infinity );
-// 	  }
-// 	  return graph;
-// 	})
+//  var graphERP = Infer ({method: "enumerate"}, function() {
+//    var graph = _.zipObject(
+//      pairs,
+//      map(function(pair) {
+//        var linked = flip(2/3);
+//        if (linked) {
+//          return flip(0.5) ? ">" : "<";
+//        } else { return "."; }
+//      }, pairs)
+//    );
+//    // exclude cycles
+//    if (graph["AB"]==graph["BC"] && graph["BC"]==graph["AC"]) {
+//      factor( graph["AB"]=="." ? 0 : -Infinity );
+//    }
+//    return graph;
+//  })
 
-// 	var all_possible_graphs = graphERP.support();
-// 	return all_possible_graphs;
+//  var all_possible_graphs = graphERP.support();
+//  return all_possible_graphs;
 // };
 
 // var getParentFn = cache(function(graph, label) {
-// 	var variables = variableSets[label];
+//  var variables = variableSets[label];
 //   return function (variable) {
 //     var v = variable;
 //     // variable v, e.g. "A"
@@ -536,26 +566,26 @@ var literal = function(utterance) {
 // var bg = function(p) {return function() {return flip(p);};};
 // var causeEnabled = function(p) {return function() {return flip(p);};};
 // var priors = {
-// 	lk1: {
-// 	  bA: bg(0.1),
-// 	  bB: bg(0.1),
-// 	  causeAB: causeEnabled(0.9),
-// 	  causeBA: causeEnabled(0.9)
-// 	},
-// 	lk2: {
-// 	  bA: bg(0.1),
-// 	  bB: bg(0.1),
-// 	  bC: bg(0.1),
-// 	  causeAB: causeEnabled(0.75),
-// 	  causeBA: causeEnabled(0.75),
-// 	  causeBC: causeEnabled(0.75),
-// 	  causeCB: causeEnabled(0.75),
-// 	  causeAC: causeEnabled(0.75),
-// 	  causeCA: causeEnabled(0.75)
-// 	}
+//  lk1: {
+//    bA: bg(0.1),
+//    bB: bg(0.1),
+//    causeAB: causeEnabled(0.9),
+//    causeBA: causeEnabled(0.9)
+//  },
+//  lk2: {
+//    bA: bg(0.1),
+//    bB: bg(0.1),
+//    bC: bg(0.1),
+//    causeAB: causeEnabled(0.75),
+//    causeBA: causeEnabled(0.75),
+//    causeBC: causeEnabled(0.75),
+//    causeCB: causeEnabled(0.75),
+//    causeAC: causeEnabled(0.75),
+//    causeCA: causeEnabled(0.75)
+//  }
 // };
 // var getParamsPrior = function(graph, label) {
-// 	var variables = variableSets[label];
+//  var variables = variableSets[label];
 //   var parentFn = getParentFn(graph, label);
 //   var links = _.toPairs(graph);
 //   var causeParams = filter(function(x) {return x}, map(function(link) {
@@ -590,67 +620,67 @@ var literal = function(utterance) {
 //   };
 // };
 // var getEvalFn = function(graph, params, label) {
-// 	var parentFn = getParentFn(graph, label);
-// 	var evaluate = function(varname) {
-// 		var parents = parentFn(varname);
-// 		if (parents.length==0) {
-// 			return params["b" + varname];
-// 		} else if (parents.length==1) {
-// 			var parentValue = evaluate(parents[0]);
-// 			var actualCause = params["cause" + parents[0] + varname];
-// 			return parentValue&&actualCause;
-// 		} else {
-// 			var parentValue1 = evaluate(parents[0]);
-// 			var parentValue2 = evaluate(parents[1]);
-// 			var actualCause1 = params["cause" + parents[0] + varname];
-// 			var actualCause2 = params["cause" + parents[1] + varname];
-// 			return (
-// 				(parentValue1&&actualCause1) ||
-// 				(parentValue2&&actualCause2)
-// 			);
-// 		}
-// 	};
-// 	return evaluate;
+//  var parentFn = getParentFn(graph, label);
+//  var evaluate = function(varname) {
+//    var parents = parentFn(varname);
+//    if (parents.length==0) {
+//      return params["b" + varname];
+//    } else if (parents.length==1) {
+//      var parentValue = evaluate(parents[0]);
+//      var actualCause = params["cause" + parents[0] + varname];
+//      return parentValue&&actualCause;
+//    } else {
+//      var parentValue1 = evaluate(parents[0]);
+//      var parentValue2 = evaluate(parents[1]);
+//      var actualCause1 = params["cause" + parents[0] + varname];
+//      var actualCause2 = params["cause" + parents[1] + varname];
+//      return (
+//        (parentValue1&&actualCause1) ||
+//        (parentValue2&&actualCause2)
+//      );
+//    }
+//  };
+//  return evaluate;
 // };
 
 // // --------------------------- counterfactuals logic ---------------------------
 
 // var counterfactualizeLatents = function(model, actual, stickiness) {
-// 	var s = stickiness ? stickiness : 0.53;
-// 	var totallyDifferent = model();
+//  var s = stickiness ? stickiness : 0.53;
+//  var totallyDifferent = model();
 
-// 	return mapObject(function(key, value) {
-// 		return flip(s) ? actual[key] : totallyDifferent[key];
-// 	}, actual);
+//  return mapObject(function(key, value) {
+//    return flip(s) ? actual[key] : totallyDifferent[key];
+//  }, actual);
 // };
 
 // // --------------------------- meaning fn -------------------------
 
 // var meaning = function(simpleUtterance, output) {
-// 	// no because
-// 	var variable = simpleUtterance[simpleUtterance.length-1];
-// 	var value = output[variable];
-// 	if (simpleUtterance[0]=="!") {
-// 		return !value;
-// 	} else {
-// 		return value;
-// 	}
+//  // no because
+//  var variable = simpleUtterance[simpleUtterance.length-1];
+//  var value = output[variable];
+//  if (simpleUtterance[0]=="!") {
+//    return !value;
+//  } else {
+//    return value;
+//  }
 // };
 
 // var logicalIfMeaning = function(utterance, mainOutput, secondaryOutput) {
-// 	if (utterance=="null") {return true;}
-// 	var components = utterance.split(" because ");
-// 	if (components.length==1) {
-// 		meaning(utterance, mainOutput);
-// 	} else {
-// 		var explanans = components[1];
-// 		var explanandum = components[0];
-// 		// explanans or not explanandum
-// 		return (
-// 			meaning(explanans, secondaryOutput) ||
-// 			! meaning(explanandum, secondaryOutput)
-// 		);
-// 	}
+//  if (utterance=="null") {return true;}
+//  var components = utterance.split(" because ");
+//  if (components.length==1) {
+//    meaning(utterance, mainOutput);
+//  } else {
+//    var explanans = components[1];
+//    var explanandum = components[0];
+//    // explanans or not explanandum
+//    return (
+//      meaning(explanans, secondaryOutput) ||
+//      ! meaning(explanandum, secondaryOutput)
+//    );
+//  }
 // };
 
 
@@ -661,73 +691,73 @@ var literal = function(utterance) {
 // var strength_of_cause = 0.9;
 
 // var causal_variable_prior = function() {
-// 	return flip(probability_of_causal_variable);
+//  return flip(probability_of_causal_variable);
 // };
 // var strength_prior = function() {
-// 	// half the time, return 0 (no cause)
-// 	// otherwise, causal strength is uniform
-// 	return flip(probability_of_cause) ? uniformDraw(
-// 		[0.25, 0.5, 0.75, 1]
-// 	) : 0;
-// 	// but something *has* to be the cause of E
-// 	// (otherwise I have to worry about the prior over E)
+//  // half the time, return 0 (no cause)
+//  // otherwise, causal strength is uniform
+//  return flip(probability_of_cause) ? uniformDraw(
+//    [0.25, 0.5, 0.75, 1]
+//  ) : 0;
+//  // but something *has* to be the cause of E
+//  // (otherwise I have to worry about the prior over E)
 // };
 // var actual_cause_prior = function() {
-// 	return uniformDraw(
-// 		_.range(0, 1, 0.2)
-// 	);
+//  return uniformDraw(
+//    _.range(0, 1, 0.2)
+//  );
 // };
 
 // var causal_structure_prior = function() {
-// 	var erp = Infer(
-// 		{method: "enumerate"},
-// 		function() {
-// 			var causal_parameters = {
-// 				AE: flip(probability_of_cause),
-// 				BE: flip(probability_of_cause)
-// 			};
-// 			return causal_parameters;
-// 		}
-// 	);
-// 	return sample(erp);
+//  var erp = Infer(
+//    {method: "enumerate"},
+//    function() {
+//      var causal_parameters = {
+//        AE: flip(probability_of_cause),
+//        BE: flip(probability_of_cause)
+//      };
+//      return causal_parameters;
+//    }
+//  );
+//  return sample(erp);
 // };
 // var sample_parameters_prior = function(causal_parameters) {
-// 	return function() {
-// 		var sample_parameters = {
-// 			A: causal_variable_prior(),
-// 			B: causal_variable_prior(),
-// 			AE: causal_parameters.AE ? flip(strength_of_cause) : false,
-// 			BE: causal_parameters.BE ? flip(strength_of_cause) : false
-// 		};
-// 		return sample_parameters;
-// 	};
+//  return function() {
+//    var sample_parameters = {
+//      A: causal_variable_prior(),
+//      B: causal_variable_prior(),
+//      AE: causal_parameters.AE ? flip(strength_of_cause) : false,
+//      BE: causal_parameters.BE ? flip(strength_of_cause) : false
+//    };
+//    return sample_parameters;
+//  };
 // };
 
 // var model = function() {
-// 	var causal_structure = causal_structure_prior();
-// 	var sample_parameters_fn = sample_parameters_prior(causal_structure);
-// 	var sample_parameters = sample_parameters_fn();
-// 	var causeAE = sample_parameters.AE;
-// 	var causeBE = sample_parameters.BE;
-// 	var A = sample_parameters.A;
-// 	var B = sample_parameters.B;
-// 	var E = causeAE || causeBE;
+//  var causal_structure = causal_structure_prior();
+//  var sample_parameters_fn = sample_parameters_prior(causal_structure);
+//  var sample_parameters = sample_parameters_fn();
+//  var causeAE = sample_parameters.AE;
+//  var causeBE = sample_parameters.BE;
+//  var A = sample_parameters.A;
+//  var B = sample_parameters.B;
+//  var E = causeAE || causeBE;
 
-// 	// only counterfactualize within causal structure
-// 	var cf_sample_parameters = counterfactualizeLatents(
-// 		sample_parameters_fn,
-// 		sample_parameters
-// 	);
-// 	var cf_causeAE = cf_sample_parameters.AE;
-// 	var cf_causeBE = cf_sample_parameters.BE;
-// 	var cf_A = cf_sample_parameters.A;
-// 	var cf_B = cf_sample_parameters.B;
-// 	var cf_E = cf_causeAE || cf_causeBE;
-// 	return {
-// 		actual: {A: A, B: B, E: E},
-// 		counterfactual: {A: cf_A, B: cf_B, E: cf_E},
-// 		graph: causal_structure
-// 	};
+//  // only counterfactualize within causal structure
+//  var cf_sample_parameters = counterfactualizeLatents(
+//    sample_parameters_fn,
+//    sample_parameters
+//  );
+//  var cf_causeAE = cf_sample_parameters.AE;
+//  var cf_causeBE = cf_sample_parameters.BE;
+//  var cf_A = cf_sample_parameters.A;
+//  var cf_B = cf_sample_parameters.B;
+//  var cf_E = cf_causeAE || cf_causeBE;
+//  return {
+//    actual: {A: A, B: B, E: E},
+//    counterfactual: {A: cf_A, B: cf_B, E: cf_E},
+//    graph: causal_structure
+//  };
 // };
 
 // // --------------------------- RSA -------------------------
@@ -738,426 +768,426 @@ var literal = function(utterance) {
 // var causeAE = function(x) {return (x.graph).AE;};
 
 // var literalOptionsDefault = {
-// 	QUD: identity,
-// 	worldFn: model,
-// 	background_knowledge: {A: true, B: true, E: true}
+//  QUD: identity,
+//  worldFn: model,
+//  background_knowledge: {A: true, B: true, E: true}
 // };
 // var flat_literal = function(utterance, base_utterance, options) {
-// 	if (!((typeof utterance)=="string")) {
-// 		console.log("error 230498");
-// 		stop;
-// 	}
-// 	if (!((typeof base_utterance)=="string")) {
-// 		console.log("error 234982");
-// 		stop;
-// 	}
-// 	var options = options ? options : {};
-// 	var QUD = options.QUD ? options.QUD : literalOptionsDefault.QUD;
-// 	var worldFn = (options.worldFn ?
-// 		options.worldFn :
-// 		literalOptionsDefault.worldFn
-// 	);
-// 	var background_knowledge = (
-// 		options.background_knowledge ? 
-// 		options.background_knowledge :
-// 		literalOptionsDefault.background_knowledge
-// 	);
-// 	return function() {
-// 		var world = worldFn(base_utterance);
-// 		var output = world.actual;
+//  if (!((typeof utterance)=="string")) {
+//    console.log("error 230498");
+//    stop;
+//  }
+//  if (!((typeof base_utterance)=="string")) {
+//    console.log("error 234982");
+//    stop;
+//  }
+//  var options = options ? options : {};
+//  var QUD = options.QUD ? options.QUD : literalOptionsDefault.QUD;
+//  var worldFn = (options.worldFn ?
+//    options.worldFn :
+//    literalOptionsDefault.worldFn
+//  );
+//  var background_knowledge = (
+//    options.background_knowledge ? 
+//    options.background_knowledge :
+//    literalOptionsDefault.background_knowledge
+//  );
+//  return function() {
+//    var world = worldFn(base_utterance);
+//    var output = world.actual;
 
-// 		// condition on background_knowledge
-// 		var background_factor = reduce(
-// 			function(key, acc) {
-// 				return acc + (
-// 					output[key]==background_knowledge[key] ?
-// 					0 :
-// 					-Infinity
-// 				); 
-// 			},
-// 			0,
-// 			_.keys(background_knowledge)
-// 		);
-// 		factor(background_factor);
+//    // condition on background_knowledge
+//    var background_factor = reduce(
+//      function(key, acc) {
+//        return acc + (
+//          output[key]==background_knowledge[key] ?
+//          0 :
+//          -Infinity
+//        ); 
+//      },
+//      0,
+//      _.keys(background_knowledge)
+//    );
+//    factor(background_factor);
 
-// 		var cfOutput = world.counterfactual;
-// 		condition(logicalIfMeaning(utterance, output, cfOutput));
-// 		return QUD(world);
-// 	};
+//    var cfOutput = world.counterfactual;
+//    condition(logicalIfMeaning(utterance, output, cfOutput));
+//    return QUD(world);
+//  };
 // };
 // var literal = flat_literal;
 
 // var literalERP = cache(function(utterance, base_utterance, options) {
-// 	return Infer(
-// 		{method: "enumerate"},
-// 		literal(utterance, base_utterance, options)
-// 	);
+//  return Infer(
+//    {method: "enumerate"},
+//    literal(utterance, base_utterance, options)
+//  );
 // });
 
 // // --------------------------- utterance prior ---------------------------------
 
 // var uttPriorOptionsDefault = {
-// 	costPerWord: 0,
-// 	alternatives: "yes/no",
-// 	worldLabel: "model"
+//  costPerWord: 0,
+//  alternatives: "yes/no",
+//  worldLabel: "model"
 // };
 // var utterancePriorMaker = cache(function(utterance, options) {
-// 	var options = options ? options : {};
-// 	var costPerWord = (
-// 		options.costPerWord ?
-// 		options.costPerWord :
-// 		uttPriorOptionsDefault.costPerWord
-// 	);
-// 	var alternatives = (
-// 		options.alternatives ?
-// 		options.alternatives :
-// 		uttPriorOptionsDefault.alternatives
-// 	);
-// 	var worldLabel = (
-// 		options.worldLabel ?
-// 		options.worldLabel :
-// 		uttPriorOptionsDefault.worldLabel
-// 	);
-// 	if (alternatives=="yes/no") {
-// 		var utterancePriorERP = Infer({method: "enumerate"}, function() {
-// 			var u = uniformDraw([utterance, "null"]);
-// 			if (u!="null") {
-// 				var utteranceLength = (u.split(" ")).length;
-// 				factor(-costPerWord * utteranceLength);
-// 			}
-// 			return u;
-// 		});
-// 		return function() {
-// 			return sample(utterancePriorERP);
-// 		};
-// 	} else if (alternatives=="yes/no/reverse") {
-// 		var words = utterance.split(" ");
-// 		var reverse = words[2] + " because " + words[0];
-// 		var utterancePriorERP = Infer({method: "enumerate"}, function() {
-// 			var u = uniformDraw([reverse, utterance, "null"]);
-// 			if (u!="null") {
-// 				var utteranceLength = (u.split(" ")).length;
-// 				factor(-costPerWord * utteranceLength);
-// 			}
-// 			return u;
-// 		});
-// 		return function() {
-// 			return sample(utterancePriorERP);
-// 		};
-// 	} else if (alternatives=="all") {
-// 		var explanations = ["E because A", "E because B", "null"];
-// 		var utterancePriorERP = Infer({method: "enumerate"}, function() {
-// 			var u = uniformDraw(explanations);
-// 			if (u!="null") {
-// 				var utteranceLength = (u.split(" ")).length;
-// 				factor(-costPerWord * utteranceLength);
-// 			}
-// 			return u;
-// 		});
-// 		return function() {
-// 			return sample(utterancePriorERP);
-// 		};
-// 	} else { display("error 947"); }
+//  var options = options ? options : {};
+//  var costPerWord = (
+//    options.costPerWord ?
+//    options.costPerWord :
+//    uttPriorOptionsDefault.costPerWord
+//  );
+//  var alternatives = (
+//    options.alternatives ?
+//    options.alternatives :
+//    uttPriorOptionsDefault.alternatives
+//  );
+//  var worldLabel = (
+//    options.worldLabel ?
+//    options.worldLabel :
+//    uttPriorOptionsDefault.worldLabel
+//  );
+//  if (alternatives=="yes/no") {
+//    var utterancePriorERP = Infer({method: "enumerate"}, function() {
+//      var u = uniformDraw([utterance, "null"]);
+//      if (u!="null") {
+//        var utteranceLength = (u.split(" ")).length;
+//        factor(-costPerWord * utteranceLength);
+//      }
+//      return u;
+//    });
+//    return function() {
+//      return sample(utterancePriorERP);
+//    };
+//  } else if (alternatives=="yes/no/reverse") {
+//    var words = utterance.split(" ");
+//    var reverse = words[2] + " because " + words[0];
+//    var utterancePriorERP = Infer({method: "enumerate"}, function() {
+//      var u = uniformDraw([reverse, utterance, "null"]);
+//      if (u!="null") {
+//        var utteranceLength = (u.split(" ")).length;
+//        factor(-costPerWord * utteranceLength);
+//      }
+//      return u;
+//    });
+//    return function() {
+//      return sample(utterancePriorERP);
+//    };
+//  } else if (alternatives=="all") {
+//    var explanations = ["E because A", "E because B", "null"];
+//    var utterancePriorERP = Infer({method: "enumerate"}, function() {
+//      var u = uniformDraw(explanations);
+//      if (u!="null") {
+//        var utteranceLength = (u.split(" ")).length;
+//        factor(-costPerWord * utteranceLength);
+//      }
+//      return u;
+//    });
+//    return function() {
+//      return sample(utterancePriorERP);
+//    };
+//  } else { display("error 947"); }
 // });
 
 // // --------------------------- s1 ---------------------------------
 
 // var s1OptionsDefault = {
-// 	costPerWord: 0,
-// 	alternatives: "yes/no",
-// 	lambda1: 1,
-// 	QUD: extractGraph,
-// 	worldFn: model,
-// 	background_knowledge: {A: true, B: true, E: true},
-// 	worldLabel: "model"
+//  costPerWord: 0,
+//  alternatives: "yes/no",
+//  lambda1: 1,
+//  QUD: extractGraph,
+//  worldFn: model,
+//  background_knowledge: {A: true, B: true, E: true},
+//  worldLabel: "model"
 // };
 
 // var s1 = function(actualUtterance, actualWorld, options) {
-// 	if (!((typeof actualUtterance)=="string")) {
-// 		console.log("error 23049711343");
-// 		stop;
-// 	}
-// 	if (!(actualWorld !== null && typeof actualWorld === 'object')) {
-// 		console.log("error 0923471-");
-// 		stop;
-// 	}
-// 	var options = options ? options : {};
-// 	var QUD = options.QUD ? options.QUD : s1OptionsDefault.QUD;
-// 	var alternatives = (
-// 		options.alternatives ? 
-// 		options.alternatives :
-// 		s1OptionsDefault.alternatives
-// 	);
-// 	var lambda1 = (options.lambda1 ?
-// 		options.lambda1 :
-// 		s1OptionsDefault.lambda1
-// 	);
-// 	var worldFn = (options.worldFn ?
-// 		options.worldFn :
-// 		s1OptionsDefault.worldFn
-// 	);
-// 	var uttPriorOptions = reduce_to_matching_keys(options, uttPriorOptionsDefault);
-// 	var utterancePrior = utterancePriorMaker(
-// 		actualUtterance,
-// 		uttPriorOptions
-// 	);
-// 	return function() {
-// 		var utterance = utterancePrior();
-// 		var interpretationERP = literalERP(
-// 			utterance,
-// 			actualUtterance,
-// 			_.extend(
-// 				reduce_to_matching_keys(
-// 					options,
-// 					literalOptionsDefault
-// 				),
-// 				{QUD: QUD}
-// 			)
-// 		);
-// 		var interpretationScore = interpretationERP.score(actualWorld);
-// 		factor(interpretationScore * lambda1);
-// 		return utterance;
-// 	};
+//  if (!((typeof actualUtterance)=="string")) {
+//    console.log("error 23049711343");
+//    stop;
+//  }
+//  if (!(actualWorld !== null && typeof actualWorld === 'object')) {
+//    console.log("error 0923471-");
+//    stop;
+//  }
+//  var options = options ? options : {};
+//  var QUD = options.QUD ? options.QUD : s1OptionsDefault.QUD;
+//  var alternatives = (
+//    options.alternatives ? 
+//    options.alternatives :
+//    s1OptionsDefault.alternatives
+//  );
+//  var lambda1 = (options.lambda1 ?
+//    options.lambda1 :
+//    s1OptionsDefault.lambda1
+//  );
+//  var worldFn = (options.worldFn ?
+//    options.worldFn :
+//    s1OptionsDefault.worldFn
+//  );
+//  var uttPriorOptions = reduce_to_matching_keys(options, uttPriorOptionsDefault);
+//  var utterancePrior = utterancePriorMaker(
+//    actualUtterance,
+//    uttPriorOptions
+//  );
+//  return function() {
+//    var utterance = utterancePrior();
+//    var interpretationERP = literalERP(
+//      utterance,
+//      actualUtterance,
+//      _.extend(
+//        reduce_to_matching_keys(
+//          options,
+//          literalOptionsDefault
+//        ),
+//        {QUD: QUD}
+//      )
+//    );
+//    var interpretationScore = interpretationERP.score(actualWorld);
+//    factor(interpretationScore * lambda1);
+//    return utterance;
+//  };
 // };
 // var s1ERP = function(actualUtterance, actualWorld, options) {
-// 	return Infer(
-// 		{method: "enumerate"},
-// 		s1(actualUtterance, actualWorld, options)
-// 	);
+//  return Infer(
+//    {method: "enumerate"},
+//    s1(actualUtterance, actualWorld, options)
+//  );
 // };
 
 // // --------------------------- listener ---------------------------------
 
 // var listenerOptionsDefault = {
-// 	costPerWord: 0,
-// 	alternatives: "yes/no",
-// 	lambda1: 1,
-// 	QUD: extractGraph,
-// 	s2_QUD: extractGraph,
-// 	worldFn: model,
-// 	background_knowledge: {A: true, B: true, E: true},
-// 	worldLabel: "model"
+//  costPerWord: 0,
+//  alternatives: "yes/no",
+//  lambda1: 1,
+//  QUD: extractGraph,
+//  s2_QUD: extractGraph,
+//  worldFn: model,
+//  background_knowledge: {A: true, B: true, E: true},
+//  worldLabel: "model"
 // };
 // var listener = function(utterance, base_utterance, options) {
-// 	// goal of listener (L1)
-// 	// sentence about parameters in the model
-// 	// ...
-// 	var options = options ? options : {};
-// 	var QUD = options.QUD ? options.QUD : listenerOptionsDefault.QUD;
-// 	var s2_QUD = (
-// 		options.s2_QUD ?
-// 		options.s2_QUD :
-// 		listenerOptionsDefault.s2_QUD
-// 	)
-// 	var worldFn = (options.worldFn ?
-// 		options.worldFn :
-// 		listenerOptionsDefault.worldFn
-// 	);
-// 	var lambda1 = (options.lambda1 ?
-// 		options.lambda1 :
-// 		listenerOptionsDefault.lambda1
-// 	);
+//  // goal of listener (L1)
+//  // sentence about parameters in the model
+//  // ...
+//  var options = options ? options : {};
+//  var QUD = options.QUD ? options.QUD : listenerOptionsDefault.QUD;
+//  var s2_QUD = (
+//    options.s2_QUD ?
+//    options.s2_QUD :
+//    listenerOptionsDefault.s2_QUD
+//  )
+//  var worldFn = (options.worldFn ?
+//    options.worldFn :
+//    listenerOptionsDefault.worldFn
+//  );
+//  var lambda1 = (options.lambda1 ?
+//    options.lambda1 :
+//    listenerOptionsDefault.lambda1
+//  );
 
-// 	// some states of variables might be in common ground,
-// 	// i.e. known by both listener and speaker a priori
-// 	// (this is a string: 'all_states' or 'none')
-// 	var background_knowledge = (
-// 		options.background_knowledge ? 
-// 		options.background_knowledge :
-// 		listenerOptionsDefault.background_knowledge
-// 	);
-// 	return function() {
-// 		var world = worldFn(base_utterance);
-// 		var output = world.actual;
+//  // some states of variables might be in common ground,
+//  // i.e. known by both listener and speaker a priori
+//  // (this is a string: 'all_states' or 'none')
+//  var background_knowledge = (
+//    options.background_knowledge ? 
+//    options.background_knowledge :
+//    listenerOptionsDefault.background_knowledge
+//  );
+//  return function() {
+//    var world = worldFn(base_utterance);
+//    var output = world.actual;
 
-// 		// condition on background_knowledge
-// 		_.mapValues(background_knowledge,
-// 			function(variableKey) {
-// 				factor(
-// 					(background_knowledge.variableKey == 
-// 						output.variableKey) ? 0 : -100
-// 				);
-// 			}
-// 		);
+//    // condition on background_knowledge
+//    _.mapValues(background_knowledge,
+//      function(variableKey) {
+//        factor(
+//          (background_knowledge.variableKey == 
+//            output.variableKey) ? 0 : -100
+//        );
+//      }
+//    );
 
-// 		// sample world
-// 		var graph = world.graph;
+//    // sample world
+//    var graph = world.graph;
 
-// 		// sample speaker's description given that world
-// 		var descriptionERP = Infer({method: "enumerate"},
-// 			s1(
-// 				base_utterance,
-// 				graph,
-// 				reduce_to_matching_keys(
-// 					options,
-// 					s1OptionsDefault
-// 				)
-// 			)
-// 		);
-// 		var descriptionScore = descriptionERP.score(utterance);
-// 		factor(descriptionScore);
-// 		return s2_QUD(world);
-// 	};
+//    // sample speaker's description given that world
+//    var descriptionERP = Infer({method: "enumerate"},
+//      s1(
+//        base_utterance,
+//        graph,
+//        reduce_to_matching_keys(
+//          options,
+//          s1OptionsDefault
+//        )
+//      )
+//    );
+//    var descriptionScore = descriptionERP.score(utterance);
+//    factor(descriptionScore);
+//    return s2_QUD(world);
+//  };
 // };
 // var listenerERP = function(utterance, base_utterance, options) {
-// 	return Infer(
-// 		{method: "enumerate"},
-// 		listener(utterance, base_utterance, options)
-// 	);
+//  return Infer(
+//    {method: "enumerate"},
+//    listener(utterance, base_utterance, options)
+//  );
 // };
 
 // // --------------------------- s2 ---------------------------------
 
 // var s2OptionsDefault = {
-// 	costPerWord: 0,
-// 	alternatives: "yes/no", // s1 alternatives
-// 	s2_costPerWord: 0,
-// 	s2_alternatives: "yes/no",
-// 	lambda1: 1,
-// 	lambda2: 1,
-// 	QUD: extractGraph, // s1 QUD
-// 	s2_QUD: extractGraph,
-// 	worldFn: model,
-// 	worldLabel: "model",
-// 	background_knowledge: {A: true, B: true, E: true}
+//  costPerWord: 0,
+//  alternatives: "yes/no", // s1 alternatives
+//  s2_costPerWord: 0,
+//  s2_alternatives: "yes/no",
+//  lambda1: 1,
+//  lambda2: 1,
+//  QUD: extractGraph, // s1 QUD
+//  s2_QUD: extractGraph,
+//  worldFn: model,
+//  worldLabel: "model",
+//  background_knowledge: {A: true, B: true, E: true}
 // };
 
 // var s2 = function(actualUtterance, actualWorld, options) {
-// 	var options = options ? options : {};
-// 	var QUD = options.QUD ? options.QUD : s2OptionsDefault.QUD;
-// 	var alternatives = (
-// 		options.alternatives ?
-// 		options.alternatives :
-// 		s2OptionsDefault.alternatives
-// 	);
-// 	var worldLabel = (
-// 		options.worldLabel ? 
-// 		options.worldLabel : 
-// 		s2OptionsDefault.worldLabel
-// 	);
-// 	var s2_alternatives = (
-// 		options.s2_alternatives ?
-// 		options.s2_alternatives :
-// 		s2OptionsDefault.s2_alternatives
-// 	)
-// 	var s2_QUD = (
-// 		options.s2_QUD
-// 		? options.s2_QUD : 
-// 		s2OptionsDefault.s2_QUD
-// 	);
-// 	var s2_costPerWord = (
-// 		options.s2_costPerWord
-// 		? options.s2_costPerWord : 
-// 		s2OptionsDefault.s2_costPerWord
-// 	);
-// 	var lambda1 = (options.lambda1 ?
-// 		options.lambda1 :
-// 		s2OptionsDefault.lambda1
-// 	);
-// 	var lambda2 = (options.lambda2 ?
-// 		options.lambda2 :
-// 		s2OptionsDefault.lambda2
-// 	);
-// 	var worldFn = (options.worldFn ?
-// 		options.worldFn :
-// 		s2OptionsDefault.worldFn
-// 	);
-// 	var uttPriorOptions = reduce_to_matching_keys(
-// 		options,
-// 		uttPriorOptionsDefault
-// 	);
-// 	var utterancePrior = utterancePriorMaker(
-// 		actualUtterance,
-// 		{
-// 			costPerWord: s2_costPerWord,
-// 			alternatives: s2_alternatives,
-// 			worldLabel: worldLabel
-// 		}
-// 	);
-// 	return function() {
-// 		var utterance = utterancePrior();
-// 		var interpretationERP = Infer({method: "enumerate"},
-// 			listener(
-// 				utterance,
-// 				actualUtterance,
-// 				_.extend(
-// 					reduce_to_matching_keys(
-// 						options,
-// 						listenerOptionsDefault
-// 					),
-// 					{s2_QUD: s2_QUD}
-// 				)
-// 			)
-// 		);
-// 		var interpretationScore = interpretationERP.score(actualWorld);
-// 		factor(interpretationScore * lambda2);
-// 		return utterance;
-// 	};
+//  var options = options ? options : {};
+//  var QUD = options.QUD ? options.QUD : s2OptionsDefault.QUD;
+//  var alternatives = (
+//    options.alternatives ?
+//    options.alternatives :
+//    s2OptionsDefault.alternatives
+//  );
+//  var worldLabel = (
+//    options.worldLabel ? 
+//    options.worldLabel : 
+//    s2OptionsDefault.worldLabel
+//  );
+//  var s2_alternatives = (
+//    options.s2_alternatives ?
+//    options.s2_alternatives :
+//    s2OptionsDefault.s2_alternatives
+//  )
+//  var s2_QUD = (
+//    options.s2_QUD
+//    ? options.s2_QUD : 
+//    s2OptionsDefault.s2_QUD
+//  );
+//  var s2_costPerWord = (
+//    options.s2_costPerWord
+//    ? options.s2_costPerWord : 
+//    s2OptionsDefault.s2_costPerWord
+//  );
+//  var lambda1 = (options.lambda1 ?
+//    options.lambda1 :
+//    s2OptionsDefault.lambda1
+//  );
+//  var lambda2 = (options.lambda2 ?
+//    options.lambda2 :
+//    s2OptionsDefault.lambda2
+//  );
+//  var worldFn = (options.worldFn ?
+//    options.worldFn :
+//    s2OptionsDefault.worldFn
+//  );
+//  var uttPriorOptions = reduce_to_matching_keys(
+//    options,
+//    uttPriorOptionsDefault
+//  );
+//  var utterancePrior = utterancePriorMaker(
+//    actualUtterance,
+//    {
+//      costPerWord: s2_costPerWord,
+//      alternatives: s2_alternatives,
+//      worldLabel: worldLabel
+//    }
+//  );
+//  return function() {
+//    var utterance = utterancePrior();
+//    var interpretationERP = Infer({method: "enumerate"},
+//      listener(
+//        utterance,
+//        actualUtterance,
+//        _.extend(
+//          reduce_to_matching_keys(
+//            options,
+//            listenerOptionsDefault
+//          ),
+//          {s2_QUD: s2_QUD}
+//        )
+//      )
+//    );
+//    var interpretationScore = interpretationERP.score(actualWorld);
+//    factor(interpretationScore * lambda2);
+//    return utterance;
+//  };
 // };
 
 // // literal
 // var literal_output = Infer({method: "enumerate"},
-// 	literal("E because A", "E because A", {
-// 		QUD: causeAE,
-// 		worldFn: model,
-// 		background_knowledge: {A: true, B: true, E: true}
-// 	})
+//  literal("E because A", "E because A", {
+//    QUD: causeAE,
+//    worldFn: model,
+//    background_knowledge: {A: true, B: true, E: true}
+//  })
 // );
 // // display(literal_output);
 // var prior_output = Infer({method: "enumerate"},
-// 	literal("null", "E because A", {
-// 		QUD: causeAE,
-// 		worldFn: model,
-// 		background_knowledge: {A: true, B: true, E: true}
-// 	})
+//  literal("null", "E because A", {
+//    QUD: causeAE,
+//    worldFn: model,
+//    background_knowledge: {A: true, B: true, E: true}
+//  })
 // );
 
 // // display(prior_output);
 // map(function(causeAE) {
-// 	var literal = literal_output.score(causeAE);
-// 	var prior = prior_output.score(causeAE);
-// 	display(causeAE + ": " + (literal - prior));
+//  var literal = literal_output.score(causeAE);
+//  var prior = prior_output.score(causeAE);
+//  display(causeAE + ": " + (literal - prior));
 // }, [true, false]);
 
 // // s1
 // var causal_variable_states = [
-// 	[1, 1, "E because A"],
-// 	[1, 1, "E because B"],
-// 	[1, 0, "E because A"],
-// 	[1, 0, "E because B"],
-// 	[1, 0.75, "E because A"],
-// 	[1, 0.75, "E because B"],
-// 	[0.75, 0.75, "E because A"],
-// 	[0.25, 0.25, "E because A"],
-// 	[0.75, 0, "E because A"],
-// 	[0.75, 0, "E because B"]
+//  [1, 1, "E because A"],
+//  [1, 1, "E because B"],
+//  [1, 0, "E because A"],
+//  [1, 0, "E because B"],
+//  [1, 0.75, "E because A"],
+//  [1, 0.75, "E because B"],
+//  [0.75, 0.75, "E because A"],
+//  [0.25, 0.25, "E because A"],
+//  [0.75, 0, "E because A"],
+//  [0.75, 0, "E because B"]
 // ];
 // map(
-// 	function(parameters) {
-// 		var input_world = {
-// 			AE: parameters[0],
-// 			BE: parameters[1]
-// 		};
-// 		display(input_world);
-// 		var explanation = parameters[2]
-// 		display(explanation);
-// 		var speaker_output = Infer({method: "enumerate"},
-// 			s1(
-// 				explanation,
-// 				input_world,
-// 				{
-// 					QUD: extractGraph,
-// 					worldFn: model,
-// 					background_knowledge: {A: true, B: true, E: true}
-// 				}
-// 			)
-// 		);
-// 		var probability_of_yes = Math.exp(speaker_output.score(explanation));
-// 		display(probability_of_yes);
-// 		display("******")
-// 		return true;
-// 	},
-// 	causal_variable_states
+//  function(parameters) {
+//    var input_world = {
+//      AE: parameters[0],
+//      BE: parameters[1]
+//    };
+//    display(input_world);
+//    var explanation = parameters[2]
+//    display(explanation);
+//    var speaker_output = Infer({method: "enumerate"},
+//      s1(
+//        explanation,
+//        input_world,
+//        {
+//          QUD: extractGraph,
+//          worldFn: model,
+//          background_knowledge: {A: true, B: true, E: true}
+//        }
+//      )
+//    );
+//    var probability_of_yes = Math.exp(speaker_output.score(explanation));
+//    display(probability_of_yes);
+//    display("******")
+//    return true;
+//  },
+//  causal_variable_states
 // );
 
 "finished";

@@ -291,3 +291,51 @@ forward_sample_with_background_knowledge %>%
   geom_tile(fill="gray") +
   geom_text(aes(label=round(prob,2)), alpha=1)
 ```
+
+```{r}
+literal_A = webppl(
+  program_file = "model.wppl",
+  model_var = paste("literal('A')", sep=""),
+  inference_opts = list(method="enumerate")
+) %>% mutate(A=actual.A, B=actual.B, E=actual.E,
+             AE=causal_parameters.AE,
+             BE=causal_parameters.BE)
+# literal_A$actual.A
+```
+
+
+```{r}
+background_knowledge = "{A: true, B: true, E: true}"
+literal_EbecauseA_with_background_knowledge = webppl(
+  program_file = "model.wppl",
+  model_var = paste("literal('E because A', ", background_knowledge, ")", sep=""),
+  inference_opts = list(method="enumerate")
+) %>% mutate(AE=paste("A->E:", causal_parameters.AE),
+             BE=paste("B->E:", causal_parameters.BE),
+             A=counterfactual.A,
+             B=counterfactual.B,
+             E=counterfactual.E)
+literal_EbecauseA_with_background_knowledge %>%
+  group_by(AE, BE) %>%
+  summarise(prob = sum(prob)) %>%
+  as.data.frame %>%
+  ggplot(., aes(x=BE, y=AE, alpha=prob)) +
+  geom_tile(fill="gray") +
+  geom_text(aes(label=round(prob,2)), alpha=1)
+```
+
+```{r}
+posterior = literal_EbecauseA_with_background_knowledge %>% mutate(utterance="E because A")
+prior = forward_sample_with_background_knowledge %>% mutate(utterance="prior")
+rbind(prior, posterior) %>%
+  gather("variable", "value", c(-prob, -utterance)) %>%
+  filter(variable %in% c("causal_parameters.AE", "causal_parameters.BE")) %>%
+  group_by(utterance, variable) %>%
+  summarise(prob = sum(prob[value==T])) %>%
+  as.data.frame %>%
+  ggplot(., aes(x=variable, y=prob, fill=utterance)) +
+  geom_bar(stat="identity", position = "dodge") +
+  scale_fill_brewer(type = "qual", palette = 6)
+ggsave("simplest_prediction.png", width=4, height=2)
+```
+
