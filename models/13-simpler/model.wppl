@@ -1,5 +1,10 @@
 // -------- defaults --------------
 
+var identity = function(x) {return x;};
+var extract_causal_parameters = function(x) {return x.causal_parameters;};
+var extract_actual = function(x) {return x.actual;};
+var extract_counterfactual = function(x) {return x.counterfactual;};
+
 var defaults = {
   stickiness: 0.53,
   parent_prior_prob: 0.5,
@@ -12,8 +17,12 @@ var defaults = {
 
 // -------- utils -----------------
 
+var DEBUG = true;
+// var DEBUG = false;
 var debug = function(string) {
-  display(string);
+  if (DEBUG) {
+    display(string);
+  }
 };
 
 var error = function(id) {
@@ -48,6 +57,14 @@ var or = function(lst) {
   return reduce(function(elem, acc) {
     return elem || acc;
   }, false, lst);
+};
+
+var soft_condition = function(boolean) {
+  factor(boolean ? 0 : -1000);
+};
+
+var soft_factor = function(score) {
+  factor(score == -Infinity ? -10000 : score);
 };
 
 // -------- exogenized program ----
@@ -132,14 +149,20 @@ var world_from_parameters = function(causal_parameters, sampling_parameters) {
 
 // -------- counterfactuals -------
 
-var counterfactualize = function(
-      actual_sampling_parameters,
-      sampling_parameter_prior,
-      causal_parameters,
-      stickiness) {
+var counterfactualize = function(params) {
+  // actual_sampling_parameters,
+  // sampling_parameter_prior,
+  // causal_parameters,
+  // stickiness
+  var actual_sampling_parameters = params.actual_sampling_parameters;
+  var sampling_parameter_prior = params.sampling_parameter_prior;
+  var causal_parameters = params.causal_parameters;
+  var stickiness = (
+    params.stickiness ? params.stickiness : defaults.stickiness
+  );
+
   // map across all actual parameters
   // either keep that value or resample a new one
-  var stickiness = stickiness ? stickiness : defaults.stickiness;
 
   return map_object(function(paramname) {
     if (flip(stickiness)) {
@@ -153,9 +176,15 @@ var counterfactualize = function(
 // -------- forward sample --------
 // sample actual and counterfactual worlds
 
-var forward_sample = function(background_knowledge) {
+var forward_sample = function(params) {
+  // background_knowledge, stickiness
   var background_knowledge = (
-    background_knowledge ? background_knowledge : defaults.background_knowledge
+    params.background_knowledge ? 
+    params.background_knowledge : 
+    defaults.background_knowledge
+  );
+  var stickiness = (
+    params.stickiness ? params.stickiness : defaults.stickiness
   );
   return function() {
     // same causal parameters for actual and counterfactual
@@ -173,17 +202,18 @@ var forward_sample = function(background_knowledge) {
     );
 
     // condition on background knowledge being the same as the actual world
-    condition(and(map(function(varname) {
+    soft_condition(and(map(function(varname) {
       actual_world[varname] == background_knowledge[varname];
     }, _.keys(background_knowledge))))
 
     // different sampling parameters for actual vs counterfactual,
     // counterfactual sampling parameters are based on the actual ones
-    var counterfactual_sampling_parameters = counterfactualize(
-      actual_sampling_parameters,
-      sampling_parameter_prior,
-      causal_parameters
-    );
+    var counterfactual_sampling_parameters = counterfactualize({
+      actual_sampling_parameters: actual_sampling_parameters,
+      sampling_parameter_prior: sampling_parameter_prior,
+      causal_parameters: causal_parameters,
+      stickiness: stickiness
+    });
     // worlds are deteriminstic functions of parameters
     var counterfactual_world = world_from_parameters(
       causal_parameters,
@@ -201,19 +231,31 @@ var forward_sample = function(background_knowledge) {
 // -------- literal ---------------
 // condition on meanings of utterances
 
-var identity = function(x) {return x;};
-var extract_causal_parameters = function(x) {return x.causal_parameters;};
-var extract_actual = function(x) {return x.actual;};
-var extract_counterfactual = function(x) {return x.counterfactual;};
+var meaning = function(params) {
 
-var meaning = function(utterance, actual, counterfactual) {
+  // utterance, actual, counterfactual, stickiness
+  var utterance = params.utterance;
+  var actual = params.actual;
+  var counterfactual = params.counterfactual;
+  var stickiness = params.stickiness ? params.stickiness : defaults.stickiness;
+
   if (utterance=="null") { return true; } else {
     var phrases = utterance.split(", and ");
     if (phrases.length>1) {
       if (phrases.length==2) {
         return (
-          meaning(phrases[0], actual, counterfactual) &&
-          meaning(phrases[1], actual, counterfactual)
+          meaning({
+            utterance: phrases[0],
+            actual: actual,
+            counterfactual: counterfactual,
+            stickiness: stickiness
+          }) &&
+          meaning({
+            utterance: phrases[1],
+            actual: actual,
+            counterfactual: counterfactual,
+            stickiness: stickiness
+          })
         );
       } else {
         console.log("error 2304981");
@@ -227,12 +269,21 @@ var meaning = function(utterance, actual, counterfactual) {
         var explanans = words.slice(because_index+1, words.length).join(" ");
         // explanans || !explanandum
         return (
-          meaning(explanans, counterfactual) || 
-          !meaning(explanandum, counterfactual)
+          meaning({
+            utterance: explanans,
+            actual: counterfactual
+          }) || 
+          !meaning({
+            utterance: explanandum,
+            actual: counterfactual
+          })
         );
       } else {
         if (words[0]=="!") {
-          return !meaning(words.slice(1,words.length), actual);
+          return !meaning({
+            utterance: words.slice(1,words.length),
+            actual: actual
+          });
         } else {
           if (words.length != 1) {
             console.log("error 9823741");
@@ -245,13 +296,19 @@ var meaning = function(utterance, actual, counterfactual) {
   }
 };
 
-var literal = function(utterance, background_knowledge, QUD) {
+var literal = function(params) {
+  // utterance, background_knowledge, QUD, stickiness
+  var utterance = params.utterance;
   var background_knowledge = (
-    background_knowledge ? background_knowledge : defaults.background_knowledge
+    params.background_knowledge ?
+    params.background_knowledge :
+    defaults.background_knowledge
   );
   var QUD = (
-    QUD ? QUD : defaults.QUD
+    params.QUD ? params.QUD : defaults.QUD
   );
+  var stickiness = params.stickiness ? params.stickiness : defaults.stickiness;
+
   return function() {
 
     var world_prior = forward_sample(background_knowledge)
@@ -261,7 +318,12 @@ var literal = function(utterance, background_knowledge, QUD) {
     var actual_world = worlds.actual;
     var counterfactual_world = worlds.counterfactual;
 
-    condition(meaning(utterance, actual_world, counterfactual_world));
+    soft_condition(meaning({
+      utterance: utterance,
+      actual: actual_world,
+      counterfactual: counterfactual_world,
+      stickiness: stickiness
+    }));
 
     return QUD({
       actual: actual_world,
@@ -270,11 +332,8 @@ var literal = function(utterance, background_knowledge, QUD) {
     });
   };
 };
-var literalERP = cache(function(utterance, background_knowledge, QUD) {
-  return Infer(
-    {method: "enumerate"},
-    literal(utterance, background_knowledge, QUD)
-  );
+var literalERP = cache(function(params) {
+  return Infer({method: "enumerate"}, literal(params));
 });
 
 // -------- speaker ---------------
@@ -288,7 +347,39 @@ var utterance_prior = function() {
   ]);
 };
 
-var speaker = function(actual_value_of_QUD, background_knowledge, QUD) {
+var speaker = function(params) {
+  var actual_value_of_QUD = params.actual_value_of_QUD;
+  var background_knowledge = (
+    params.background_knowledge ?
+    params.background_knowledge :
+    defaults.background_knowledge
+  );
+  var QUD = (
+    params.QUD ? params.QUD : defaults.QUD
+  );
+  var stickiness = params.stickiness ? params.stickiness : defaults.stickiness;
+
+  return function() {
+    var utterance = utterance_prior();
+    var interpretation = literalERP({
+      utterance: utterance,
+      background_knowledge: background_knowledge,
+      QUD: QUD,
+      stickiness: stickiness
+    });
+    soft_factor(interpretation.score(actual_value_of_QUD));
+    return utterance;
+  };
+};
+var speakerERP = cache(function(params) {
+  return Infer({method: "enumerate"}, speaker(params));
+});
+
+// -------- listener --------------
+
+var listener = function(params) {
+  // utterance, background_knowledge, QUD, stickiness
+  var utterance = params.utterance;
   var background_knowledge = (
     background_knowledge ?
     background_knowledge :
@@ -297,13 +388,12 @@ var speaker = function(actual_value_of_QUD, background_knowledge, QUD) {
   var QUD = (
     QUD ? QUD : defaults.QUD
   );
-  return function() {
-    var utterance = utterance_prior();
-    var interpretation = literalERP(utterance, background_knowledge, QUD);
-    factor(interpretation.score(actual_value_of_QUD));
-    return utterance;
-  };
 };
+var listenerERP = cache(function(params) {
+  return Infer({method: "enumerate"}, listener(params));
+});
+
+// -------- speaker ---------------
 
 // -------- rsa -------------------
 

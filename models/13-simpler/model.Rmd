@@ -171,10 +171,10 @@ my_dodge_strategy <- function(n_colors = 2) {
 }
 ```
 
-```{r}
+```{r run_forward_sample}
 forward_sample = webppl(
   program_file = "model.wppl",
-  model_var = "forward_sample()",
+  model_var = "forward_sample({})",
   inference_opts = list(method="enumerate")
 )
 
@@ -192,7 +192,7 @@ At first, let's assume the background probability of E is 0, i.e. there are no o
 
 We set causal strength to 0.9.
 
-```{r}
+```{r plot_forward_sample}
 actual %>% 
   mutate(AE = paste("A->E:", AE),
          BE = paste("B->E:", BE)) %>%
@@ -203,7 +203,7 @@ actual %>%
   scale_fill_brewer(type = "qual", palette = 6)
 ```
 
-```{r, fig.width=12, fig.height=8}
+```{r discarded actual AND cf plot, fig.width=12, fig.height=8}
 # blue = "#377eb8"
 # red = "#e41a1c"
 # pink = "#ed12a4"
@@ -232,11 +232,11 @@ This means that one of the links (A->E or B->E) must be there.
 
 Here are the counterfactual values for A, B, and E:
 
-```{r}
+```{r run_background_knowledge}
 background_knowledge = "{A: true, B: true, E: true}"
 forward_sample_with_background_knowledge = webppl(
   program_file = "model.wppl",
-  model_var = paste("forward_sample(", background_knowledge,")", sep=""),
+  model_var = paste("forward_sample({background_knowledge: ", background_knowledge,"})", sep=""),
   inference_opts = list(method="enumerate")
 ) %>%
   mutate(A = counterfactual.A,
@@ -246,7 +246,7 @@ forward_sample_with_background_knowledge = webppl(
          BE = paste("B->E:", causal_parameters.BE))
 ```
 
-```{r}
+```{r plot_background_knowledge}
 forward_sample_with_background_knowledge %>%
   ggplot(., aes(x=B, y=A, fill=E, alpha=prob)) +
   facet_grid(AE ~ BE) +
@@ -292,10 +292,10 @@ forward_sample_with_background_knowledge %>%
   geom_text(aes(label=round(prob,2)), alpha=1)
 ```
 
-```{r}
+```{r run_literal_A}
 literal_A = webppl(
   program_file = "model.wppl",
-  model_var = paste("literal('A')", sep=""),
+  model_var = paste("literal({utterance: 'A', background_knowledge: {}, QUD: identity})", sep=""),
   inference_opts = list(method="enumerate")
 ) %>% mutate(A=actual.A, B=actual.B, E=actual.E,
              AE=causal_parameters.AE,
@@ -303,12 +303,12 @@ literal_A = webppl(
 # literal_A$actual.A
 ```
 
-
-```{r}
+```{r run_literal_explanation}
 background_knowledge = "{A: true, B: true, E: true}"
 literal_EbecauseA_with_background_knowledge = webppl(
   program_file = "model.wppl",
-  model_var = paste("literal('E because A', ", background_knowledge, ")", sep=""),
+  model_var = paste("literal({utterance: 'E because A', background_knowledge: ",
+                    background_knowledge, ", QUD: identity})", sep=""),
   inference_opts = list(method="enumerate")
 ) %>% mutate(AE=paste("A->E:", causal_parameters.AE),
              BE=paste("B->E:", causal_parameters.BE),
@@ -324,7 +324,7 @@ literal_EbecauseA_with_background_knowledge %>%
   geom_text(aes(label=round(prob,2)), alpha=1)
 ```
 
-```{r}
+```{r, fig.width=4, fig.height=2}
 posterior = literal_EbecauseA_with_background_knowledge %>% mutate(utterance="E because A")
 prior = forward_sample_with_background_knowledge %>% mutate(utterance="prior")
 rbind(prior, posterior) %>%
@@ -339,18 +339,19 @@ rbind(prior, posterior) %>%
   ggplot(., aes(x=variable, y=prob, fill=utterance)) +
   geom_bar(stat="identity", position = "dodge") +
   scale_fill_brewer(type = "qual", palette = 6) +
-  xlab("causal link")
+  xlab("causal link") +
+  ggtitle("literal (l0)")
 ggsave("simplest_interpretation.png", width=4, height=2)
 ```
 
-```{r}
+```{r run_speaker}
 link_values = list(
-  c(F, F),
+  # c(F, F),
   c(F, T),
   c(T, F),
   c(T, T)
 )
-speaker = lapply(link_values, function(link_vals) {
+speaker = do.call(rbind, lapply(link_values, function(link_vals) {
   causal_parameters = paste(
     "{AE: ", tolower(link_vals[1]),
     ", BE: ", tolower(link_vals[2]),
@@ -359,13 +360,29 @@ speaker = lapply(link_values, function(link_vals) {
   speaker = webppl(
     program_file = "model.wppl",
     model_var = paste(
-      "speaker(",
-      causal_parameters,
-      ", ", 
+      "speaker({",
+      "actual_value_of_QUD: ", causal_parameters,
+      ", background_knowledge: ", 
       background_knowledge, 
-      ", extract_causal_parameters)", sep=""),
+      ", QUD: extract_causal_parameters})", sep=""),
     inference_opts = list(method="enumerate")
   ) %>% mutate(`A->E`=link_vals[1],
                `B->E`=link_vals[2])
-})
+}))
 ```
+
+```{r, fig.width=4, fig.height=2}
+speaker %>% rename(utterance=support) %>%
+  mutate(world = paste(
+    ifelse(`A->E`, "A->E", ""),
+    ifelse(`A->E` & `B->E`, " & ", ""),
+    ifelse(`B->E`, "B->E", ""),
+    sep=""
+  )) %>%
+  ggplot(., aes(x=world, y=prob, fill=utterance)) +
+  geom_bar(stat="identity", position = "dodge") +
+  scale_fill_brewer(type = "qual", palette = 6) +
+  ggtitle("speaker (s1)")
+ggsave("speaker.png", width=4, height=2)
+```
+
