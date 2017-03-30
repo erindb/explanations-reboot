@@ -386,3 +386,41 @@ speaker %>% rename(utterance=support) %>%
 ggsave("speaker.png", width=4, height=2)
 ```
 
+```{r run_listener}
+utterances = c(
+  "E because A",
+  "E because B",
+  "null"
+)
+listener = do.call(rbind, lapply(utterances, function(utt) {
+  webppl(
+    program_file = "model.wppl",
+    model_var = paste(
+      "listener({",
+      "utterance: '", utt,
+      "', background_knowledge: ", 
+      background_knowledge, 
+      ", QUD: extract_causal_parameters})", sep=""),
+    inference_opts = list(method="enumerate")
+  ) %>% mutate(utterance = utt)
+}))
+```
+
+```{r, fig.width=4, fig.height=2}
+listener %>% 
+  gather("variable", "value", c(-prob, -utterance)) %>%
+  filter(variable %in% c("causal_parameters.AE", "causal_parameters.BE")) %>%
+  group_by(utterance, variable) %>%
+  summarise(prob = sum(prob[value==T])) %>%
+  as.data.frame %>%
+  mutate(variable = factor(variable,
+                           levels=c("causal_parameters.AE", "causal_parameters.BE"),
+                           labels=c("A->E", "B->E"))) %>%
+  ggplot(., aes(x=variable, y=prob, fill=utterance)) +
+  geom_bar(stat="identity", position = "dodge") +
+  scale_fill_brewer(type = "qual", palette = 6) +
+  xlab("causal link") +
+  ggtitle("listener (l1)")
+ggsave("listener.png", width=4, height=2)
+```
+

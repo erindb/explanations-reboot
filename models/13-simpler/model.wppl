@@ -381,13 +381,28 @@ var listener = function(params) {
   // utterance, background_knowledge, QUD, stickiness
   var utterance = params.utterance;
   var background_knowledge = (
-    background_knowledge ?
-    background_knowledge :
+    params.background_knowledge ?
+    params.background_knowledge :
     defaults.background_knowledge
   );
   var QUD = (
-    QUD ? QUD : defaults.QUD
+    params.QUD ? params.QUD : defaults.QUD
   );
+  var stickiness = params.stickiness ? params.stickiness : defaults.stickiness;
+  return function() {
+    var actual_world = (forward_sample({
+      background_knowledge: background_knowledge,
+      stickiness: stickiness
+    }))();
+    var description = speakerERP({
+      actual_value_of_QUD: QUD(actual_world),
+      background_knowledge: background_knowledge,
+      QUD: QUD,
+      stickiness: stickiness
+    });
+    soft_factor(description.score(utterance));
+    return actual_world;
+  };
 };
 var listenerERP = cache(function(params) {
   return Infer({method: "enumerate"}, listener(params));
