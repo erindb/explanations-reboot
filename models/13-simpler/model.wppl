@@ -12,7 +12,8 @@ var defaults = {
   causal_strength: 0.9,
   effect_background_prior_prob: 0,
   background_knowledge: {},
-  QUD: extract_causal_parameters
+  QUD: extract_causal_parameters,
+  project: false
 };
 
 // -------- utils -----------------
@@ -308,6 +309,11 @@ var literal = function(params) {
     params.QUD ? params.QUD : defaults.QUD
   );
   var stickiness = params.stickiness ? params.stickiness : defaults.stickiness;
+  var project = (
+    typeof(params.project)=="undefined" ? 
+    defaults.project : 
+    params.project
+  );
 
   return function() {
 
@@ -325,11 +331,13 @@ var literal = function(params) {
       stickiness: stickiness
     }));
 
-    return QUD({
+    var world = {
       actual: actual_world,
       counterfactual: counterfactual_world,
       causal_parameters: causal_parameters
-    });
+    };
+
+    return project ? QUD(world) : world;
   };
 };
 var literalERP = cache(function(params) {
@@ -358,6 +366,11 @@ var speaker = function(params) {
     params.QUD ? params.QUD : defaults.QUD
   );
   var stickiness = params.stickiness ? params.stickiness : defaults.stickiness;
+  var project = (
+    typeof(params.project)=="undefined" ? 
+    defaults.project : 
+    params.project
+  );
 
   return function() {
     var utterance = utterance_prior();
@@ -365,7 +378,8 @@ var speaker = function(params) {
       utterance: utterance,
       background_knowledge: background_knowledge,
       QUD: QUD,
-      stickiness: stickiness
+      stickiness: stickiness,
+      project: true
     });
     soft_factor(interpretation.score(actual_value_of_QUD));
     return utterance;
@@ -389,6 +403,12 @@ var listener = function(params) {
     params.QUD ? params.QUD : defaults.QUD
   );
   var stickiness = params.stickiness ? params.stickiness : defaults.stickiness;
+  var project = (
+    typeof(params.project)=="undefined" ? 
+    defaults.project : 
+    params.project
+  );
+
   return function() {
     var actual_world = (forward_sample({
       background_knowledge: background_knowledge,
@@ -401,14 +421,44 @@ var listener = function(params) {
       stickiness: stickiness
     });
     soft_factor(description.score(utterance));
-    return actual_world;
+    return project ? QUD(actual_world) : actual_world;
   };
 };
 var listenerERP = cache(function(params) {
   return Infer({method: "enumerate"}, listener(params));
 });
 
-// -------- speaker ---------------
+// -------- s2 --------------------
+
+var s2 = function(params) {
+  var actual_value_of_QUD = params.actual_value_of_QUD;
+  var background_knowledge = (
+    params.background_knowledge ?
+    params.background_knowledge :
+    defaults.background_knowledge
+  );
+  var QUD = (
+    params.QUD ? params.QUD : defaults.QUD
+  );
+  var stickiness = params.stickiness ? params.stickiness : defaults.stickiness;
+
+  return function() {
+    var utterance = utterance_prior();
+    debug(utterance);
+    var interpretation = listenerERP({
+      utterance: utterance,
+      background_knowledge: background_knowledge,
+      QUD: QUD,
+      stickiness: stickiness,
+      project: true
+    });
+    soft_factor(interpretation.score(actual_value_of_QUD));
+    return utterance;
+  };
+};
+var s2ERP = cache(function(params) {
+  return Infer({method: "enumerate"}, speaker(params));
+});
 
 // -------- rsa -------------------
 
