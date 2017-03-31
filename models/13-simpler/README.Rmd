@@ -1,0 +1,163 @@
+---
+title: "Explanations with 2 causes"
+author: "Erin Bennett"
+output: html_document
+---
+
+```{r global_options, include=FALSE}
+rm(list=ls())
+library(knitr)
+knitr::opts_chunk$set(
+  echo=F, warning=F, #cache=T, 
+  message=F, #sanitiz =T, 
+  fig.width = 5, fig.height = 3)
+```
+
+```{r}
+source("~/Settings/startup.R")
+```
+
+Speaker and listener *and literal* (i.e. make sure listener knows that speaker knows that listener knows...) have in common ground:
+
+* ☑ prob_of_causal_link
+* ☑ parent_prior_prob
+* ☑ causal_strength
+* ☑ effect_background_prior_prob
+* ☑ causal_structure_prior
+* ☑ actual states of A, B, and E
+
+Some of those should be marginalized:
+
+* ☐ prob_of_causal_link
+* ☐ parent_prior_prob
+* ☐ causal_strength
+* ☐ effect_background_prior_prob
+
+Speaker knows:
+
+* ☑ causal_structure.AE
+* ☑ causal_structure.BE
+
+## Interpretation Model:
+
+Given "E because A," estimate causal_structure.AE and causal_structure.BE.
+
+## Speaker Model:
+
+Given causal_structure.AE and causal_structure.BE, endorse "E because A," relative to a set of alternative explanations we offer (pick one).
+
+## Unknowns:
+
+* ☐ stickiness parameter
+* ☐ speaker rationality (at level ☐ s1 and at level ☐ s2)
+
+## Fixed unknowns:
+
+* lexical presuppositions/entailments (but this is OK if common ground is fixed)
+* QUD is cause, because that's the only unknown for the listener
+* alternative utterances / alternative explanations:
+    - "E because A"
+    - "E because B"
+    - "null"
+    - (each of these is equally probable)
+
+## Model predictions with inferrable parameters fixed
+
+First, get model predictions with all of the inferrable parameters fixed.
+
+Fixed values:
+
+* `prob_of_causal_link = 0.5`
+* `parent_prior_prob = 0.5`
+* `causal_strength = 0.9`
+* `effect_background_prior_prob = 0`
+* `stickiness parameter = 0.53` (L&K's fit value)
+* `speaker rationality = 1` (at level ☐ s1 and at level ☐ s2)
+  
+As stated above, the QUD is fixed to be only the causal links, the background knowledge is that all variables (A, B, and E) are true, and alternative utterances are as stated above.
+
+```{r}
+background_knowledge = "{A: true, B: true, E: true}"
+```
+
+Speaker's (S1) descriptions:
+
+```{r, fig.width=4, fig.height=2}
+link_values = list(
+  # c(F, F),
+  c(F, T),
+  c(T, F),
+  c(T, T)
+)
+speaker = do.call(rbind, lapply(link_values, function(link_vals) {
+  causal_parameters = paste(
+    "{AE: ", tolower(link_vals[1]),
+    ", BE: ", tolower(link_vals[2]),
+    "}", sep=""
+  )
+  speaker = webppl(
+    program_file = "model.wppl",
+    model_var = paste(
+      "speaker({",
+      "actual_value_of_QUD: ", causal_parameters,
+      ", background_knowledge: ", 
+      background_knowledge, 
+      ", QUD: extract_causal_parameters})", sep=""),
+    inference_opts = list(method="enumerate")
+  ) %>% mutate(`A->E`=link_vals[1],
+               `B->E`=link_vals[2])
+}))
+
+speaker %>% rename(utterance=support) %>%
+  mutate(world = paste(
+    ifelse(`A->E`, "A->E", ""),
+    ifelse(`A->E` & `B->E`, " & ", ""),
+    ifelse(`B->E`, "B->E", ""),
+    sep=""
+  )) %>%
+  ggplot(., aes(x=world, y=prob, fill=utterance)) +
+  geom_bar(stat="identity", position = "dodge") +
+  scale_fill_brewer(type = "qual", palette = 6) +
+  ggtitle("speaker (s1)")
+ggsave("speaker.png", width=4, height=2)
+```
+
+Listener's interpretations:
+
+```{r, fig.width=4, fig.height=2}
+utterances = c(
+  "E because A",
+  "E because B",
+  "null"
+)
+listener = do.call(rbind, lapply(utterances, function(utt) {
+  webppl(
+    program_file = "model.wppl",
+    model_var = paste(
+      "listener({",
+      "utterance: '", utt,
+      "', background_knowledge: ", 
+      background_knowledge, 
+      ", QUD: extract_causal_parameters})", sep=""),
+    inference_opts = list(method="enumerate")
+  ) %>% mutate(utterance = utt)
+}))
+
+listener %>% 
+  gather("variable", "value", c(-prob, -utterance)) %>%
+  filter(variable %in% c("causal_parameters.AE", "causal_parameters.BE")) %>%
+  group_by(utterance, variable) %>%
+  summarise(prob = sum(prob[value==T])) %>%
+  as.data.frame %>%
+  mutate(variable = factor(variable,
+                           levels=c("causal_parameters.AE", "causal_parameters.BE"),
+                           labels=c("A->E", "B->E"))) %>%
+  ggplot(., aes(x=variable, y=prob, fill=utterance)) +
+  geom_bar(stat="identity", position = "dodge") +
+  scale_fill_brewer(type = "qual", palette = 6) +
+  xlab("causal link") +
+  ggtitle("listener (l1)")
+ggsave("listener.png", width=4, height=2)
+```
+
+
