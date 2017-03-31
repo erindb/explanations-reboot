@@ -237,6 +237,12 @@ var counterfactualize = function(params) {
 var causal_strength_prior = function() {
   return uniformDraw(_.range(0.1, 1, 0.1));
 };
+var parent_prior_prob_prior = function() {
+  return uniformDraw(_.range(0.1, 1, 0.1));
+};
+var effect_background_prior_prob_prior = function() {
+  return uniformDraw(_.range(0, 1, 0.1));
+};
 
 var forward_sample = function(params) {
   // background_knowledge, stickiness
@@ -254,16 +260,6 @@ var forward_sample = function(params) {
     params.prob_of_causal_link ?
     params.prob_of_causal_link :
     defaults.prob_of_causal_link
-  );
-  var parent_prior_prob = (
-    params.parent_prior_prob ?
-    params.parent_prior_prob :
-    defaults.parent_prior_prob
-  );
-  var effect_background_prior_prob = (
-    params.effect_background_prior_prob ?
-    params.effect_background_prior_prob :
-    defaults.effect_background_prior_prob
   );
 
   return function() {
@@ -285,6 +281,25 @@ var forward_sample = function(params) {
     );
     // if this value is not returned by forward_sample, it will naturally
     // get marginalized out.
+
+    var parent_prior_prob = (
+      params.parent_prior_prob ?
+      params.parent_prior_prob :
+      (
+        defaults.parent_prior_prob ?
+        defaults.parent_prior_prob :
+        parent_prior_prob_prior()
+      )
+    );
+    var effect_background_prior_prob = (
+      params.effect_background_prior_prob ?
+      params.effect_background_prior_prob :
+      (
+        defaults.effect_background_prior_prob ?
+        defaults.effect_background_prior_prob :
+        effect_background_prior_prob_prior()
+      )
+    );
 
     // same causal parameters for actual and counterfactual
     var causal_parameters = causal_parameter_prior({

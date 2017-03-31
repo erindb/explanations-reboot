@@ -176,44 +176,44 @@ listener %>%
 ggsave("listener.png", width=4, height=2)
 ```
 
-Here's what happens when we marginalize over `causal_strength` (with a uniform prior):
+Here's what happens when we marginalize over `causal_strength`, `parent_prior_prob`, and `effect_background_prior_prob` (with a uniform prior). It's very similar. **this takes 4 minutes to run** 
 
 ```{r, fig.width=4, fig.height=2}
-link_values = list(
-  # c(F, F),
-  c(F, T),
-  c(T, F),
-  c(T, T)
-)
-speaker = do.call(rbind, lapply(link_values, function(link_vals) {
-  causal_parameters = paste(
-    "{AE: ", tolower(link_vals[1]),
-    ", BE: ", tolower(link_vals[2]),
-    "}", sep=""
-  )
-  speaker = webppl(
-    program_file = "model.wppl",
-    model_var = paste(
-      "speaker({",
-      "actual_value_of_QUD: ", causal_parameters,
-      ", background_knowledge: ", 
-      background_knowledge, 
-      ", QUD: extract_causal_parameters})", sep=""),
-    inference_opts = list(method="enumerate")
-  ) %>% mutate(`A->E`=link_vals[1],
-               `B->E`=link_vals[2])
-}))
-
-speaker %>% rename(utterance=support) %>%
-  mutate(world = paste(
-    ifelse(`A->E`, "A->E", ""),
-    ifelse(`A->E` & `B->E`, " & ", ""),
-    ifelse(`B->E`, "B->E", ""),
-    sep=""
-  )) %>%
-  ggplot(., aes(x=world, y=prob, fill=utterance)) +
-  geom_bar(stat="identity", position = "dodge") +
-  scale_fill_brewer(type = "qual", palette = 6) +
-  ggtitle("speaker (S1)")
-ggsave("speaker.png", width=4, height=2)
+# link_values = list(
+#   # c(F, F),
+#   c(F, T),
+#   c(T, F),
+#   c(T, T)
+# )
+# speaker = do.call(rbind, lapply(link_values, function(link_vals) {
+#   causal_parameters = paste(
+#     "{AE: ", tolower(link_vals[1]),
+#     ", BE: ", tolower(link_vals[2]),
+#     "}", sep=""
+#   )
+#   speaker = webppl(
+#     program_file = "model.wppl",
+#     model_var = paste(
+#       "speaker({",
+#       "actual_value_of_QUD: ", causal_parameters,
+#       ", background_knowledge: ", 
+#       background_knowledge, 
+#       ", QUD: extract_causal_parameters})", sep=""),
+#     inference_opts = list(method="enumerate")
+#   ) %>% mutate(`A->E`=link_vals[1],
+#                `B->E`=link_vals[2])
+# }))
+# 
+# speaker %>% rename(utterance=support) %>%
+#   mutate(world = paste(
+#     ifelse(`A->E`, "A->E", ""),
+#     ifelse(`A->E` & `B->E`, " & ", ""),
+#     ifelse(`B->E`, "B->E", ""),
+#     sep=""
+#   )) %>%
+#   ggplot(., aes(x=world, y=prob, fill=utterance)) +
+#   geom_bar(stat="identity", position = "dodge") +
+#   scale_fill_brewer(type = "qual", palette = 6) +
+#   ggtitle("speaker (S1)")
+# ggsave("speaker.png", width=4, height=2)
 ```
