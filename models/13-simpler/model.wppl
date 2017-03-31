@@ -13,7 +13,9 @@ var defaults = {
   effect_background_prior_prob: 0,
   background_knowledge: {},
   QUD: extract_causal_parameters,
-  project: false
+  project: false,
+  speaker_rationality_1: 1,
+  speaker_rationality_2: 1
 };
 
 // -------- utils -----------------
@@ -507,6 +509,11 @@ var speaker = function(params) {
     params.effect_background_prior_prob :
     defaults.effect_background_prior_prob
   );
+  var speaker_rationality_1 = (
+    params.speaker_rationality_1 ?
+    params.speaker_rationality_1 :
+    defaults.speaker_rationality_1
+  );
 
   return function() {
     var utterance = utterance_prior();
@@ -521,7 +528,9 @@ var speaker = function(params) {
       parent_prior_prob: parent_prior_prob,
       effect_background_prior_prob: effect_background_prior_prob
     });
-    soft_factor(interpretation.score(actual_value_of_QUD));
+    soft_factor(
+      interpretation.score(actual_value_of_QUD) * speaker_rationality_1
+    );
     return utterance;
   };
 };
@@ -572,6 +581,11 @@ var listener = function(params) {
     params.effect_background_prior_prob :
     defaults.effect_background_prior_prob
   );
+  var speaker_rationality_1 = (
+    params.speaker_rationality_1 ?
+    params.speaker_rationality_1 :
+    defaults.speaker_rationality_1
+  );
 
   return function() {
     var actual_world = (forward_sample({
@@ -590,7 +604,8 @@ var listener = function(params) {
       prob_of_causal_link: prob_of_causal_link,
       causal_strength: causal_strength,
       parent_prior_prob: parent_prior_prob,
-      effect_background_prior_prob: effect_background_prior_prob
+      effect_background_prior_prob: effect_background_prior_prob,
+      speaker_rationality_1: speaker_rationality_1
     });
     soft_factor(description.score(utterance));
     return project ? QUD(actual_world) : actual_world;
@@ -637,6 +652,16 @@ var s2 = function(params) {
     params.effect_background_prior_prob :
     defaults.effect_background_prior_prob
   );
+  var speaker_rationality_1 = (
+    params.speaker_rationality_1 ?
+    params.speaker_rationality_1 :
+    defaults.speaker_rationality_1
+  );
+  var speaker_rationality_2 = (
+    params.speaker_rationality_2 ?
+    params.speaker_rationality_2 :
+    defaults.speaker_rationality_2
+  );
 
   return function() {
     var utterance = utterance_prior();
@@ -650,9 +675,12 @@ var s2 = function(params) {
       prob_of_causal_link: prob_of_causal_link,
       causal_strength: causal_strength,
       parent_prior_prob: parent_prior_prob,
-      effect_background_prior_prob: effect_background_prior_prob
+      effect_background_prior_prob: effect_background_prior_prob,
+      speaker_rationality_1: speaker_rationality_1
     });
-    soft_factor(interpretation.score(actual_value_of_QUD));
+    soft_factor(
+      interpretation.score(actual_value_of_QUD) * speaker_rationality_2
+    );
     return utterance;
   };
 };

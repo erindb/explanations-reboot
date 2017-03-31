@@ -67,12 +67,12 @@ First, get model predictions with all of the inferrable parameters fixed.
 
 Fixed values:
 
-* ☐ `prob_of_causal_link = 0.5`
-* ☐ `parent_prior_prob = 0.5`
-* ☐ `causal_strength = 0.9`
-* ☐ `effect_background_prior_prob = 0`
-* ☐ `stickiness parameter = 0.53` (L&K's fit value)
-* ☐ `speaker rationality = 1` (at level ☐ s1 and at level ☐ s2)
+* ☑ `prob_of_causal_link = 0.5`
+* ☑ `parent_prior_prob = 0.5`
+* ☑ `causal_strength = 0.9`
+* ☑ `effect_background_prior_prob = 0`
+* ☑ `stickiness parameter = 0.53` (L&K's fit value)
+* ☑ `speaker rationality = 1` (at level ☑ s1 and at level ☑ s2)
   
 As stated above, the QUD is fixed to be only the causal links, the background knowledge is that all variables (A, B, and E) are true, and alternative utterances are as stated above.
 
@@ -102,7 +102,14 @@ speaker = do.call(rbind, lapply(link_values, function(link_vals) {
       "actual_value_of_QUD: ", causal_parameters,
       ", background_knowledge: ", 
       background_knowledge, 
-      ", QUD: extract_causal_parameters})", sep=""),
+      ", QUD: extract_causal_parameters",
+      ", prob_of_causal_link: 0.5",
+      ", parent_prior_prob: 0.5",
+      ", causal_strength: 0.9",
+      ", effect_background_prior_prob: 0",
+      ", stickiness: 0.53",
+      ", speaker_rationality_1: 1",
+      ", speaker_rationality_2: 1})", sep=""),
     inference_opts = list(method="enumerate")
   ) %>% mutate(`A->E`=link_vals[1],
                `B->E`=link_vals[2])
@@ -118,7 +125,7 @@ speaker %>% rename(utterance=support) %>%
   ggplot(., aes(x=world, y=prob, fill=utterance)) +
   geom_bar(stat="identity", position = "dodge") +
   scale_fill_brewer(type = "qual", palette = 6) +
-  ggtitle("speaker (s1)")
+  ggtitle("speaker (S1)")
 ggsave("speaker.png", width=4, height=2)
 ```
 
@@ -138,7 +145,14 @@ listener = do.call(rbind, lapply(utterances, function(utt) {
       "utterance: '", utt,
       "', background_knowledge: ", 
       background_knowledge, 
-      ", QUD: extract_causal_parameters})", sep=""),
+      ", QUD: extract_causal_parameters",
+      ", prob_of_causal_link: 0.5",
+      ", parent_prior_prob: 0.5",
+      ", causal_strength: 0.9",
+      ", effect_background_prior_prob: 0",
+      ", stickiness: 0.53",
+      ", speaker_rationality_1: 1",
+      ", speaker_rationality_2: 1})", sep=""),
     inference_opts = list(method="enumerate")
   ) %>% mutate(utterance = utt)
 }))
@@ -156,7 +170,7 @@ listener %>%
   geom_bar(stat="identity", position = "dodge") +
   scale_fill_brewer(type = "qual", palette = 6) +
   xlab("causal link") +
-  ggtitle("listener (l1)")
+  ggtitle("listener (L1)")
 ggsave("listener.png", width=4, height=2)
 ```
 
