@@ -1,6 +1,6 @@
 
-args = commandArgs(trailingOnly = TRUE)
-i = args[1]
+# args = commandArgs(trailingOnly = TRUE)
+# i = args[1]
 
 # i ranges from 1 to 144
 # requires `lk-flat.wppl`
@@ -88,7 +88,7 @@ alpha = parameters["alpha"]
 alpha2 = parameters["alpha2"]
 cost = parameters["cost"]
 alternatives = parameters["alternatives"]
-model = parameters["model"]
+model_type = parameters["model"]
 story.number = parameters["story.number"][[1]]
 background_knowledge = parameters["background_knowledge"]
 
@@ -112,7 +112,7 @@ get_s2_options = function(alpha, cost, story.number,
 run_model = function(explanation, actual.world) {
   
   model_var = paste(
-    model, "(",
+    model_type, "(",
     "'", actual_utterance=explanation, "'",
     ", ", actual_world = str2world(actual.world),
     ", ", options=get_s2_options(alpha, cost, story.number,
@@ -130,10 +130,23 @@ run_model = function(explanation, actual.world) {
   return(sum((rs %>% filter(support==explanation))$prob))
 }
 
+print.graph = function(g) {
+  return(names(graphs)[[which(graphs==g)]])
+}
+
+my.story.number = story.number
 df = read.csv("alternative_causal_structures.csv",
               colClasses = c("numeric", "character", "character")) %>%
   filter(story.number==my.story.number) %>%
   mutate(model = mapply(run_model, explanation, actual.world))
+df = df %>% mutate(
+  alpha = alpha[[1]],
+  alpha2 = alpha2[[1]],
+  cost = cost[[1]],
+  alternatives = alternatives[[1]],
+  model_type = model_type[[1]],
+  background_knowledge = background_knowledge[[1]]
+)
 
 filename = paste("results/rs_", time, "_",
                  sub("/", "", paste(parameters, collapse="_")), ".csv", sep="")

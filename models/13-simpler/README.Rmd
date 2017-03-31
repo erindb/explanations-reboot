@@ -29,9 +29,9 @@ Speaker and listener *and literal* (i.e. make sure listener knows that speaker k
 Some of those should be marginalized:
 
 * ☐ prob_of_causal_link
-* ☐ parent_prior_prob
-* ☐ causal_strength
-* ☐ effect_background_prior_prob
+* ☑ parent_prior_prob
+* ☑ causal_strength
+* ☑ effect_background_prior_prob
 
 We'll marginalize these whenever we have uncertainty about the existence of causal links, i.e. whenver we `forward_sample`.
 

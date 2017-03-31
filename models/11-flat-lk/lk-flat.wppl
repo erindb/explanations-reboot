@@ -504,60 +504,61 @@ var graphObj = {
 
 // define alternative causal graphs
 var str2graph = function(str) { return graphObj[str]; };
-// var cd4 = map(str2graph, [
-// 	"A->(C->D)<-B", // actual world
-// 	"A, B, C->D",
-// 	"A->C<-B, D",
-// 	"(A, B, C)->D"
-// ]);
-// var ad4 = map(str2graph, [
-// 	"A->(C->D)<-B", // actual world
-// 	"A, B->C->D",
-// 	"A->C<-B, D",
-// 	"A, B->C, D",
-// 	"A->D<-C, B",
-// 	"D<-A->C<-B",
-// 	"A->D, B->C",
-// 	"B->C, D->A",
-// 	"B->C->D->A",
-// 	"D->A->C<-B"
-// ]);
-// var bd4 = map(str2graph, [
-// 	"A->(C->D)<-B", // actual world
-// 	"B, A->C->D",
-// 	"A->C<-B, D",
-// 	"B, A->C, D",
-// 	"A, B->D<-C",
-// 	"A->C<-B->D",
-// 	"A->C, B->D",
-// 	"A->C, D->B",
-// 	"A->C->D->B",
-// 	"A->C<-B<-D"
-// ]);
-// var ab4 = map(str2graph, [
-// 	"A->B->C->D",
-// 	"A<-B->C->D",
-// 	"B<-A->C->D",
-// 	"A->B, C->D",
-// 	"B->A->C->D",
-// 	"B->A, C->D",
-// 	"A->(C->D)<-B", // actual world
-// 	"A, B->C->D",
-// 	"A->C->D, B",
-// 	"A, B, C->D"
-// ]);
-// var bc4 = map(str2graph, [
-// 	"A->(C->D)<-B", // actual world
-// 	"A->C->D, B",
-// 	"A, B->C->D",
-// 	"A->(B<-C->D)"
-// ]);
-// var ac4 = map(str2graph, [
-// 	"A->(C->D)<-B", // actual world
-// 	"A->C->D, B",
-// 	"A, B->C->D",
-// 	"B->(A<-C->D)"
-// ]);
+// ignore these comments for now:
+	// var cd4 = map(str2graph, [
+	// 	"A->(C->D)<-B", // actual world
+	// 	"A, B, C->D",
+	// 	"A->C<-B, D",
+	// 	"(A, B, C)->D"
+	// ]);
+	// var ad4 = map(str2graph, [
+	// 	"A->(C->D)<-B", // actual world
+	// 	"A, B->C->D",
+	// 	"A->C<-B, D",
+	// 	"A, B->C, D",
+	// 	"A->D<-C, B",
+	// 	"D<-A->C<-B",
+	// 	"A->D, B->C",
+	// 	"B->C, D->A",
+	// 	"B->C->D->A",
+	// 	"D->A->C<-B"
+	// ]);
+	// var bd4 = map(str2graph, [
+	// 	"A->(C->D)<-B", // actual world
+	// 	"B, A->C->D",
+	// 	"A->C<-B, D",
+	// 	"B, A->C, D",
+	// 	"A, B->D<-C",
+	// 	"A->C<-B->D",
+	// 	"A->C, B->D",
+	// 	"A->C, D->B",
+	// 	"A->C->D->B",
+	// 	"A->C<-B<-D"
+	// ]);
+	// var ab4 = map(str2graph, [
+	// 	"A->B->C->D",
+	// 	"A<-B->C->D",
+	// 	"B<-A->C->D",
+	// 	"A->B, C->D",
+	// 	"B->A->C->D",
+	// 	"B->A, C->D",
+	// 	"A->(C->D)<-B", // actual world
+	// 	"A, B->C->D",
+	// 	"A->C->D, B",
+	// 	"A, B, C->D"
+	// ]);
+	// var bc4 = map(str2graph, [
+	// 	"A->(C->D)<-B", // actual world
+	// 	"A->C->D, B",
+	// 	"A, B->C->D",
+	// 	"A->(B<-C->D)"
+	// ]);
+	// var ac4 = map(str2graph, [
+	// 	"A->(C->D)<-B", // actual world
+	// 	"A->C->D, B",
+	// 	"A, B->C->D",
+	// 	"B->(A<-C->D)"
+	// ]);
 var abGraphs = map(str2graph, [
 	"A, B->C",
 	"A->B->C",
@@ -635,34 +636,34 @@ var lk2 = function(base_utterance) {
 
 // var lk4 = function(base_utterance) {
 
-// 	var variables = ["A", "B", "C", "D"];
+	// 	var variables = ["A", "B", "C", "D"];
 
-// 	var all_graphs = relevant_graphs["lk4"][base_utterance];
+	// 	var all_graphs = relevant_graphs["lk4"][base_utterance];
 
-// 	// sample actual causal structure
-// 	var graph = uniformDraw(all_graphs); // RANDOM CHOICE
+	// 	// sample actual causal structure
+	// 	var graph = uniformDraw(all_graphs); // RANDOM CHOICE
 
-// 	// sample situation parameters
-// 	var paramsPrior = getParamsPrior(graph, "lk4");
-// 	var params = paramsPrior(); // RANDOM CHOICE
+	// 	// sample situation parameters
+	// 	var paramsPrior = getParamsPrior(graph, "lk4");
+	// 	var params = paramsPrior(); // RANDOM CHOICE
 
-// 	var evalFn = getEvalFn(graph, params, "lk4");
-// 	// calculate output (deterministic given graph and params)
-// 	var output = _.zipObject(variables, map(evalFn, variables));
+	// 	var evalFn = getEvalFn(graph, params, "lk4");
+	// 	// calculate output (deterministic given graph and params)
+	// 	var output = _.zipObject(variables, map(evalFn, variables));
 
-// 	// counterfactualize params
-// 	// RANDOM CHOICE
-// 	var cfParams = counterfactualizeLatents(paramsPrior, params);
+	// 	// counterfactualize params
+	// 	// RANDOM CHOICE
+	// 	var cfParams = counterfactualizeLatents(paramsPrior, params);
 
-// 	var cfEvalFn = getEvalFn(graph, cfParams, "lk4");
-// 	// calculate CF output (deteriministic given cfParams)
-// 	var cfOutput = _.zipObject(variables, map(cfEvalFn, variables));
+	// 	var cfEvalFn = getEvalFn(graph, cfParams, "lk4");
+	// 	// calculate CF output (deteriministic given cfParams)
+	// 	var cfOutput = _.zipObject(variables, map(cfEvalFn, variables));
 
-// 	return {
-// 		actual: output,
-// 		counterfactual: cfOutput,
-// 		graph: graph
-// 	};
+	// 	return {
+	// 		actual: output,
+	// 		counterfactual: cfOutput,
+	// 		graph: graph
+	// 	};
 // };
 
 var identity = function(x) {return x;};
@@ -701,7 +702,6 @@ var flat_literal = function(utterance, base_utterance, options) {
 			display("error 827934");
 		}
 		var cfOutput = world.counterfactual;
-		var graph = world.graph;
 		condition(logicalIfMeaning(utterance, output, cfOutput));
 		return QUD(world);
 	};
@@ -783,7 +783,7 @@ var utterancePriorMaker = cache(function(utterance, options) {
 		};
 	} else if (alternatives=="yes/no/reverse") {
 		var words = utterance.split(" ");
-		var reverse = words[1] + " because " + words[0];
+		var reverse = words[2] + " because " + words[0];
 		var utterancePriorERP = Infer({method: "enumerate"}, function() {
 			var u = uniformDraw([reverse, utterance, "null"]);
 			if (u!="null") {
@@ -839,7 +839,7 @@ var s1 = function(actualUtterance, actualWorld, options) {
 		options.alternatives ? 
 		options.alternatives :
 		s1OptionsDefault.alternatives
-	)
+	);
 	var lambda1 = (options.lambda1 ?
 		options.lambda1 :
 		s1OptionsDefault.lambda1
@@ -891,6 +891,9 @@ var listenerOptionsDefault = {
 	worldLabel: "lk1"
 };
 var listener = function(utterance, base_utterance, options) {
+	// goal of listener (L1)
+	// sentence about parameters in the model
+	// ...
 	var options = options ? options : {};
 	var QUD = options.QUD ? options.QUD : listenerOptionsDefault.QUD;
 	var s2_QUD = (
@@ -906,6 +909,10 @@ var listener = function(utterance, base_utterance, options) {
 		options.lambda1 :
 		listenerOptionsDefault.lambda1
 	);
+
+	// some states of variables might be in common ground,
+	// i.e. known by both listener and speaker a priori
+	// (this is a string: 'all_states' or 'none')
 	var background_knowledge = (
 		options.background_knowledge ? 
 		options.background_knowledge :

@@ -293,7 +293,7 @@ var worldModel = function(params) {
 			var cfReturnValues = cfProgram(cfInput, cfSampleParams);
 			var cfOutput = cfReturnValues.output;
 			// cf unobservables don't really matter
-
+			
 			// condition on any counterfactual premises
 			// (found in cfObs)
 

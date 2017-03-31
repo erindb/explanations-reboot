@@ -58,7 +58,7 @@ if (JSON.stringify(all_graphs[19])=='{"BC":">","AC":".","AB":">"}') {
   display("error 0293840917");
 }
 
-var getParentFn = function(graph) {
+var getParentFn = cache(function(graph) {
   return function (variable) {
     var v = variable;
     // variable v, e.g. "A"
@@ -75,7 +75,7 @@ var getParentFn = function(graph) {
       } else {return false;}
     }, variables);
   };
-};
+});
 
 var getUnobservables = cache(function(graph) {
   var parentFn = getParentFn(graph);

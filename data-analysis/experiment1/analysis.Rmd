@@ -366,9 +366,11 @@ data = aggr_df
 modelvdata = merge(merge(model, data), model.tags)
 modelvdata %>% ggplot(., aes(x=model, y=mean_response)) +
   geom_abline(intercept = 0, slope = 1, colour="lightgray") +
-  geom_point() +
-  geom_errorbar(aes(x=model, ymin=low, ymax=high)) +
-  ylim(0,1) + xlim(0,1)
+  geom_point(#colour="white"
+    ) +
+  geom_errorbar(aes(x=model, ymin=low, ymax=high)#, colour="white"
+                ) +
+  ylim(0,1) + xlim(0,1) #+ theme_black
 # ggsave("s2_onelink_improveduncertainty_uevenmore_noentailments.png", width=6, height=4)
 modelvdata %>%
   mutate(variables = mapply(function(a, b) {
@@ -380,7 +382,8 @@ modelvdata %>%
   geom_abline(intercept = 0, slope = 1, colour="lightgray") +
   geom_point() +
   geom_errorbar(aes(x=model, ymin=low, ymax=high)) +
-  ylim(0,1) + xlim(0,1)
+  ylim(0,1) + xlim(0,1) #+
+  # theme_black
 modelvdata %>% ggplot(., aes(x=model, y=mean_response,
                              colour=explanandumVariable,
                              shape=explanansVariable)) +
@@ -452,19 +455,22 @@ enumeration = read.csv("../../models/08-webppl-only/results_s2_onelink_noentailm
          story = factor(story),
          explanansVariable = factor(explanansVariable),
          explanandumVariable = factor(explanandumVariable))
-mcmc = read.csv("../../models/08-webppl-only/s2_onelink_noentailments_uevenmore_MCMC40K40K200K.csv") %>%
+mcmc = read.csv("../../models/08-webppl-only/results.csv") %>%
   rename(mcmc = rating) %>%
   mutate(story = factor(story),
          explanansVariable = factor(explanansVariable),
          explanandumVariable = factor(explanandumVariable))
 compareMCMC = merge(enumeration, mcmc)
 compareMCMC %>% ggplot(., aes(x=enumeration, y=mcmc)) +
-  geom_point()
-with(compareMCMC, cor(enumeration, mcmc))
+  geom_abline(colour="lightgray", intercept = 0, slope = 1) +
+  geom_point() +
+  ylim(0,1) +
+  xlim(0,1)
+r = with(compareMCMC, cor(enumeration, mcmc))
+ggsave("mcmc-vs-enumeration.png", width=5, height=3)
 ```
 
-It matches pretty well. I'm going to go with this and use MCMC on more complicated models.
-
+It matches pretty well (r=`r r`). I'm going to go with this and use MCMC on more complicated models.
 
 ## Participants
 

@@ -242,25 +242,56 @@ ggsave("s2BC.png", width=6, height=3)
 ```
 
 ```{r}
-get_s2model_var = function(story.number, actual.world,
+# var s2OptionsDefault = {
+# 	costPerWord: 0,
+# 	alternatives: "yes/no", // s1 alternatives
+# 	s2_alternatives: "yes/no",
+# 	lambda1: 1,
+# 	lambda2: 1,
+# 	QUD: extractGraph, // s1 QUD
+# 	s2_QUD: extractGraph,
+# 	worldFn: lk1,
+# 	background_knowledge: "all_states"
+# };
+get_s2_options = function(alpha, cost, story.number,
+                          background_knowledge, alternatives,
+                          alpha2) {
+  return(paste("{ costPerWord: ", cost,
+               ", s2_costPerWord: ", cost,
+               ", alternatives: '", alternatives, "'",
+               ", s2_alternatives: 'yes/no'",
+               ", lambda1: ", alpha,
+               ", lambda2: ", alpha2,
+               ", QUD: extractGraph",
+               ", s2_QUD: extractGraph",
+               ", worldFn: lk", story.number,
+               ", worldLabel: 'lk", story.number, "'",
+               ", background_knowledge: '", background_knowledge, "'",
+               "}", sep=""))
+}
+get_s2_model_var = function(story.number, actual.world,
                          explanation,
                          alpha, cost,
-                         background_knowledge) {
-  return(paste("s1('", actualUtterance=explanation, "'",
+                         background_knowledge,
+                         alternatives, alpha2) {
+  return(paste("s2('", actualUtterance=explanation, "'",
                ", ", actualWorld=str2world(actual.world),
-               ", ", options=get_options(alpha, cost, story.number, background_knowledge),
+               ", ", options=get_s2_options(alpha, cost, story.number, background_knowledge, alternatives, alpha2),
                ")", sep=""))
 }
 run_s2 = function(story.number, actual.world,
                   explanation,
                   alpha=1, cost=0,
-                  background_knowledge) {
-  print(paste(story.number, actual.world, explanation, background_knowledge))
+                  background_knowledge,
+                  alternatives, alpha2=1) {
+  print(paste(story.number, actual.world, explanation,
+              background_knowledge, alternatives, alpha, alpha2))
   program_file = "lk-flat.wppl"
-  model_var = get_s2model_var(story.number, actual.world,
+  model_var = get_s2_model_var(story.number, actual.world,
                             explanation,
                             alpha, cost,
-                            background_knowledge)
+                            background_knowledge, alternatives,
+                            alpha2)
   rs = webppl(
     model_var = model_var,
     program_file = program_file,
@@ -272,12 +303,51 @@ run_s2 = function(story.number, actual.world,
 
 ```{r}
 s2 = rbind(
-  stories %>% mutate(alpha = 1, cost = 0),
-  stories %>% mutate(alpha = 5, cost = 0),
-  stories %>% mutate(alpha = 10, cost = 0)
+    stories %>% mutate(alpha = 10, cost = 0, alpha2 = 10)
   ) %>%
   mutate(s2 = mapply(run_s2, story.number, actual.world,
-                     explanation, alpha, cost, background_knowledge))
+                     explanation, alpha, cost, background_knowledge,
+                     "all", alpha2))
+write.csv(s2, "s2-alternativesall-alphas10-10-cost1.csv", row.names=F)
 ```
 
+```{r}
+actual.worlds = c(".", "> > .")
+experiment.subset2 = s2 %>%
+  filter(actual.world == actual.worlds[num(story.number)])
+rs = read.csv("../../data/full-explananations-elicitation-aggregate-data.csv" )
+plot.comparison2 = rs %>% filter(story%in%c("story1", "story2")) %>%
+  mutate(story.number = ifelse(story=="story1", 1, 2)) %>%
+  rename(explanation = utterance) %>%
+  filter(explanandumVariable!=explanansVariable) %>%
+  merge(., experiment.subset2)
+```
 
+```{r, fig.width=8}
+plot.comparison2 %>%
+  # filter(alpha==10) %>%
+  mutate(lambda = paste("lambda =", alpha),
+         variables = paste(explanandumVariable, explanansVariable)) %>%
+  ggplot(., aes(x=s2, y=mean_response,
+                colour=story, shape=variables)) +
+  geom_point() +
+  geom_errorbar(aes(x=s2, ymin=low, ymax=high), width=0) +
+  facet_wrap(~background_knowledge, scale="free")
+ggsave("s1_background_knowledge_comparison.png", width=6, height=3)
+```
+
+```{r}
+s2 %>% filter(explanation %in% c("C because B", "B because C")) %>%
+  filter(story.number == 2) %>%
+  filter(alpha == 10) %>%
+  mutate(background_knowledge = paste(background_knowledge, "assumed")) %>%
+  mutate(actual.graph = sapply(actual.world, print.graph)) %>%
+  ggplot(., aes(x=actual.graph, y=s2, fill=explanation)) +
+  facet_wrap(~background_knowledge) +
+  geom_bar(stat="identity", position="dodge") +
+  scale_fill_brewer(type="qual", palette=3) +
+  theme(axis.text.x=element_text(angle=-45, hjust=0)) +
+  geom_hline(yintercept=0.5, colour="black") +
+  ggtitle("story2: BC")
+ggsave("s2BC.png", width=6, height=3)
+```
