@@ -8,8 +8,8 @@ output: html_document
 rm(list=ls())
 library(knitr)
 knitr::opts_chunk$set(
-  echo=F, warning=F, #cache=T, 
-  message=F, #sanitiz =T, 
+  echo=F, warning=F, cache=T, 
+  message=F, sanitiz =T, 
   fig.width = 5, fig.height = 3)
 ```
 
@@ -176,44 +176,338 @@ listener %>%
 ggsave("listener.png", width=4, height=2)
 ```
 
-Here's what happens when we marginalize over `causal_strength`, `parent_prior_prob`, and `effect_background_prior_prob` (with a uniform prior). It's very similar. **this takes 4 minutes to run** 
+Here's what happens when we marginalize S1 over `causal_strength`, `parent_prior_prob`, and `effect_background_prior_prob` (with a uniform prior). It's very similar. **this takes 4 minutes to run** 
 
 ```{r, fig.width=4, fig.height=2}
-# link_values = list(
-#   # c(F, F),
-#   c(F, T),
-#   c(T, F),
-#   c(T, T)
-# )
-# speaker = do.call(rbind, lapply(link_values, function(link_vals) {
-#   causal_parameters = paste(
-#     "{AE: ", tolower(link_vals[1]),
-#     ", BE: ", tolower(link_vals[2]),
-#     "}", sep=""
-#   )
-#   speaker = webppl(
-#     program_file = "model.wppl",
-#     model_var = paste(
-#       "speaker({",
-#       "actual_value_of_QUD: ", causal_parameters,
-#       ", background_knowledge: ", 
-#       background_knowledge, 
-#       ", QUD: extract_causal_parameters})", sep=""),
-#     inference_opts = list(method="enumerate")
-#   ) %>% mutate(`A->E`=link_vals[1],
-#                `B->E`=link_vals[2])
-# }))
-# 
-# speaker %>% rename(utterance=support) %>%
-#   mutate(world = paste(
-#     ifelse(`A->E`, "A->E", ""),
-#     ifelse(`A->E` & `B->E`, " & ", ""),
-#     ifelse(`B->E`, "B->E", ""),
-#     sep=""
-#   )) %>%
-#   ggplot(., aes(x=world, y=prob, fill=utterance)) +
-#   geom_bar(stat="identity", position = "dodge") +
-#   scale_fill_brewer(type = "qual", palette = 6) +
-#   ggtitle("speaker (S1)")
-# ggsave("speaker.png", width=4, height=2)
+link_values = list(
+  # c(F, F),
+  c(F, T),
+  c(T, F),
+  c(T, T)
+)
+speaker = do.call(rbind, lapply(link_values, function(link_vals) {
+  causal_parameters = paste(
+    "{AE: ", tolower(link_vals[1]),
+    ", BE: ", tolower(link_vals[2]),
+    "}", sep=""
+  )
+  speaker = webppl(
+    program_file = "model.wppl",
+    model_var = paste(
+      "speaker({",
+      "actual_value_of_QUD: ", causal_parameters,
+      ", background_knowledge: ",
+      background_knowledge,
+      ", QUD: extract_causal_parameters})", sep=""),
+    inference_opts = list(method="enumerate")
+  ) %>% mutate(`A->E`=link_vals[1],
+               `B->E`=link_vals[2])
+}))
+
+speaker %>% rename(utterance=support) %>%
+  mutate(world = paste(
+    ifelse(`A->E`, "A->E", ""),
+    ifelse(`A->E` & `B->E`, " & ", ""),
+    ifelse(`B->E`, "B->E", ""),
+    sep=""
+  )) %>%
+  ggplot(., aes(x=world, y=prob, fill=utterance)) +
+  geom_bar(stat="identity", position = "dodge") +
+  scale_fill_brewer(type = "qual", palette = 6) +
+  ggtitle("speaker (S1)")
+ggsave("speaker.png", width=4, height=2)
+```
+
+## Exploring parameters
+
+### S1 predictions as causal strength varies
+
+As causal strength of each cause increases, the speaker's ratings of different explanations diverge.
+
+```{r, fig.width=4, fig.height=2}
+link_values = list(
+  # c(F, F),
+  c(F, T),
+  c(T, F),
+  c(T, T)
+)
+speaker = do.call(rbind, lapply(1:10/10, function(cs) {
+  print(cs)
+  return(do.call(rbind, lapply(link_values, function(link_vals) {
+    causal_parameters = paste(
+      "{AE: ", tolower(link_vals[1]),
+      ", BE: ", tolower(link_vals[2]),
+      "}", sep=""
+    )
+    speaker = webppl(
+      program_file = "model.wppl",
+      model_var = paste(
+        "speaker({",
+        "actual_value_of_QUD: ", causal_parameters,
+        ", background_knowledge: ", 
+        background_knowledge, 
+        ", QUD: extract_causal_parameters",
+        ", prob_of_causal_link: 0.5",
+        ", parent_prior_prob: 0.5",
+        ", causal_strength: ", cs,
+        ", effect_background_prior_prob: 0",
+        ", stickiness: 0.53",
+        ", speaker_rationality_1: 1",
+        ", speaker_rationality_2: 1})", sep=""),
+      inference_opts = list(method="enumerate")
+    ) %>% mutate(`A->E`=link_vals[1],
+                 `B->E`=link_vals[2],
+                 causal_strength=cs)
+  })))
+}))
+```
+
+```{r}
+speaker %>% rename(utterance=support) %>%
+  mutate(
+    world = paste(
+      ifelse(`A->E`, "A->E", ""),
+      ifelse(`A->E` & `B->E`, " & ", ""),
+      ifelse(`B->E`, "B->E", ""),
+      sep=""),
+    causal_strength = factor(causal_strength)
+  ) %>%
+  ggplot(., aes(x=utterance, y=prob, fill=causal_strength)) +
+  geom_bar(stat="identity", position = "dodge") +
+  facet_wrap(~world) +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0)) +
+  ggtitle("speaker (S1) with different causal strengths")
+ggsave("speaker_causal_strength.png", width=8, height=4)
+```
+
+### S1 predictions as stickiness varies
+
+As counterfactual stickines increases, the speaker's ratings of different explanations diverge. That is, we get stronger inferences about cause when stickiness is low and shadow worlds can more easily "pop free" of the actual state.
+
+```{r, fig.width=4, fig.height=2}
+link_values = list(
+  # c(F, F),
+  c(F, T),
+  c(T, F),
+  c(T, T)
+)
+speaker_vary_stickiness = do.call(rbind, lapply(1:10/10, function(s) {
+  print(s)
+  return(do.call(rbind, lapply(link_values, function(link_vals) {
+    causal_parameters = paste(
+      "{AE: ", tolower(link_vals[1]),
+      ", BE: ", tolower(link_vals[2]),
+      "}", sep=""
+    )
+    speaker = webppl(
+      program_file = "model.wppl",
+      model_var = paste(
+        "speaker({",
+        "actual_value_of_QUD: ", causal_parameters,
+        ", background_knowledge: ", 
+        background_knowledge, 
+        ", QUD: extract_causal_parameters",
+        ", prob_of_causal_link: 0.5",
+        ", parent_prior_prob: 0.5",
+        ", causal_strength: 0.9",
+        ", effect_background_prior_prob: 0",
+        ", stickiness: ", s,
+        ", speaker_rationality_1: 1",
+        ", speaker_rationality_2: 1})", sep=""),
+      inference_opts = list(method="enumerate")
+    ) %>% mutate(`A->E`=link_vals[1],
+                 `B->E`=link_vals[2],
+                 stickiness=s)
+  })))
+}))
+
+speaker_vary_stickiness %>% rename(utterance=support) %>%
+  mutate(
+    world = paste(
+      ifelse(`A->E`, "A->E", ""),
+      ifelse(`A->E` & `B->E`, " & ", ""),
+      ifelse(`B->E`, "B->E", ""),
+      sep=""),
+    stickiness = factor(stickiness)
+  ) %>%
+  ggplot(., aes(x=utterance, y=prob, fill=stickiness)) +
+  geom_bar(stat="identity", position = "dodge") +
+  facet_wrap(~world) +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0)) +
+  ggtitle("speaker (S1) with different stickiness")
+ggsave("speaker_stickiness.png", width=8, height=4)
+```
+
+### S1 predictions as prior probability of parent variables varies
+
+As the probability that a switch is on increases, ... .
+
+```{r, fig.width=4, fig.height=2}
+link_values = list(
+  # c(F, F),
+  c(F, T),
+  c(T, F),
+  c(T, T)
+)
+speaker_vary_stickiness = do.call(rbind, lapply(1:10/10, function(pp) {
+  print(pp)
+  return(do.call(rbind, lapply(link_values, function(link_vals) {
+    causal_parameters = paste(
+      "{AE: ", tolower(link_vals[1]),
+      ", BE: ", tolower(link_vals[2]),
+      "}", sep=""
+    )
+    speaker = webppl(
+      program_file = "model.wppl",
+      model_var = paste(
+        "speaker({",
+        "actual_value_of_QUD: ", causal_parameters,
+        ", background_knowledge: ", 
+        background_knowledge, 
+        ", QUD: extract_causal_parameters",
+        ", prob_of_causal_link: 0.5",
+        ", parent_prior_prob: ", pp,
+        ", causal_strength: 0.9",
+        ", effect_background_prior_prob: 0",
+        ", stickiness: 0.53",
+        ", speaker_rationality_1: 1",
+        ", speaker_rationality_2: 1})", sep=""),
+      inference_opts = list(method="enumerate")
+    ) %>% mutate(`A->E`=link_vals[1],
+                 `B->E`=link_vals[2],
+                 prior_prob_of_cause=pp)
+  })))
+}))
+
+speaker_vary_stickiness %>% rename(utterance=support) %>%
+  mutate(
+    world = paste(
+      ifelse(`A->E`, "A->E", ""),
+      ifelse(`A->E` & `B->E`, " & ", ""),
+      ifelse(`B->E`, "B->E", ""),
+      sep=""),
+    prior_prob_of_cause = factor(prior_prob_of_cause)
+  ) %>%
+  ggplot(., aes(x=utterance, y=prob, fill=prior_prob_of_cause)) +
+  geom_bar(stat="identity", position = "dodge") +
+  facet_wrap(~world) +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0)) +
+  ggtitle("speaker (S1) with different priors on parent variables")
+ggsave("speaker_prior.png", width=8, height=4)
+```
+
+### S1 predictions as probability of a causal link varies
+
+As the probability of a causal link increases, ... .
+
+```{r, fig.width=4, fig.height=2}
+link_values = list(
+  # c(F, F),
+  c(F, T),
+  c(T, F),
+  c(T, T)
+)
+speaker_vary_link_prob = do.call(rbind, lapply(1:10/10, function(pc) {
+  print(pc)
+  return(do.call(rbind, lapply(link_values, function(link_vals) {
+    causal_parameters = paste(
+      "{AE: ", tolower(link_vals[1]),
+      ", BE: ", tolower(link_vals[2]),
+      "}", sep=""
+    )
+    speaker = webppl(
+      program_file = "model.wppl",
+      model_var = paste(
+        "speaker({",
+        "actual_value_of_QUD: ", causal_parameters,
+        ", background_knowledge: ", 
+        background_knowledge, 
+        ", QUD: extract_causal_parameters",
+        ", prob_of_causal_link: ", pc,
+        ", parent_prior_prob: 0.5",
+        ", causal_strength: 0.9",
+        ", effect_background_prior_prob: 0",
+        ", stickiness: 0.53",
+        ", speaker_rationality_1: 1",
+        ", speaker_rationality_2: 1})", sep=""),
+      inference_opts = list(method="enumerate")
+    ) %>% mutate(`A->E`=link_vals[1],
+                 `B->E`=link_vals[2],
+                 prob_causal_link=pc)
+  })))
+}))
+
+speaker_vary_link_prob %>% rename(utterance=support) %>%
+  mutate(
+    world = paste(
+      ifelse(`A->E`, "A->E", ""),
+      ifelse(`A->E` & `B->E`, " & ", ""),
+      ifelse(`B->E`, "B->E", ""),
+      sep=""),
+    prob_causal_link = factor(prob_causal_link)
+  ) %>%
+  ggplot(., aes(x=utterance, y=prob, fill=prob_causal_link)) +
+  geom_bar(stat="identity", position = "dodge") +
+  facet_wrap(~world) +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0)) +
+  ggtitle("speaker (S1) with different probabilities of causal links")
+ggsave("speaker_link.png", width=8, height=4)
+```
+
+### S1 predictions as speaker rationality
+
+As speaker rationality increases, ... .
+
+```{r, fig.width=4, fig.height=2}
+link_values = list(
+  # c(F, F),
+  c(F, T),
+  c(T, F),
+  c(T, T)
+)
+speaker_vary_rationality = do.call(rbind, lapply(1:10, function(lambda) {
+  print(lambda)
+  return(do.call(rbind, lapply(link_values, function(link_vals) {
+    causal_parameters = paste(
+      "{AE: ", tolower(link_vals[1]),
+      ", BE: ", tolower(link_vals[2]),
+      "}", sep=""
+    )
+    speaker = webppl(
+      program_file = "model.wppl",
+      model_var = paste(
+        "speaker({",
+        "actual_value_of_QUD: ", causal_parameters,
+        ", background_knowledge: ", 
+        background_knowledge, 
+        ", QUD: extract_causal_parameters",
+        ", prob_of_causal_link: 0.5",
+        ", parent_prior_prob: 0.5",
+        ", causal_strength: 0.9",
+        ", effect_background_prior_prob: 0",
+        ", stickiness: 0.53",
+        ", speaker_rationality_1: ", lambda,
+        ", speaker_rationality_2: 1})", sep=""),
+      inference_opts = list(method="enumerate")
+    ) %>% mutate(`A->E`=link_vals[1],
+                 `B->E`=link_vals[2],
+                 speaker_rationality=lambda)
+  })))
+}))
+
+speaker_vary_rationality %>% rename(utterance=support) %>%
+  mutate(
+    world = paste(
+      ifelse(`A->E`, "A->E", ""),
+      ifelse(`A->E` & `B->E`, " & ", ""),
+      ifelse(`B->E`, "B->E", ""),
+      sep=""),
+    speaker_rationality = factor(speaker_rationality)
+  ) %>%
+  ggplot(., aes(x=utterance, y=prob, fill=speaker_rationality)) +
+  geom_bar(stat="identity", position = "dodge") +
+  facet_wrap(~world) +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0)) +
+  ggtitle("speaker (S1) with different speaker rationalities")
+ggsave("speaker_rationality.png", width=8, height=4)
 ```
